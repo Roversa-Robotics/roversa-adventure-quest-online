@@ -283,7 +283,7 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .btn.lang { min-height: 44px; padding: 8px 14px; font-size: 11px; color: var(--muted); background: var(--bg2); }
 .btn.lang[aria-pressed="true"] { color: #fff; background: var(--blue); }
 .btn-label { font-size: 9px; line-height: 1.2; white-space: nowrap; }
-.actions .speed, .actions .red, .actions .gray { flex: 1 1 26%; }
+.actions .red, .actions .gray { flex: 1 1 40%; }
 .roll { width: 100%; margin-top: 10px; }
 .tip { color: var(--muted); font-size: 14px; line-height: 1.5; }
 
