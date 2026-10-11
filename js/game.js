@@ -90,7 +90,7 @@
       '<path d="' + PIECE_SHAPE + '" fill="' + color + '" stroke="' + dark + '" stroke-width="2.5" stroke-linejoin="round"/>' +
       '<path d="M20,3.5 H70" stroke="rgba(255,255,255,0.35)" stroke-width="2.5" stroke-linecap="round"/>' +
       '<g style="color:rgba(0,0,0,0.3)" fill="currentColor" transform="translate(0,2)">' + icon + '</g>' +
-      '<g style="color:' + ICON_COLOR + '" fill="currentColor">' + icon + '</g>' +
+      '<g style="color:' + ICON_COLOR + '" fill="currentColor" stroke="' + dark + '" stroke-width="1.4" paint-order="stroke">' + icon + '</g>' +
       (t === 'W' && chosen ? '<g fill="' + ICON_COLOR + '" transform="translate(48,42) scale(0.38)">' + iconMarkup('W') + '</g>' : '') +
       '</svg>';
   }
@@ -335,10 +335,74 @@
   soundBtn.addEventListener('click', () => { AUDIO.setMuted(!AUDIO.isMuted()); syncSoundBtn(); SND.tap(); });
   syncSoundBtn();
 
+  // Read aloud: speaks messages and piece names for children who are still learning to read.
+  let voiceOn = false;
+  try { voiceOn = localStorage.getItem('roversa-voice') === '1'; } catch (e) { /* storage blocked */ }
+  const voiceBtn = $('#btn-voice');
+  function syncVoiceBtn() {
+    voiceBtn.classList.toggle('off', !voiceOn);
+    voiceBtn.setAttribute('aria-pressed', String(voiceOn));
+  }
+  function say(text) {
+    if (!voiceOn || !('speechSynthesis' in window)) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 0.95;
+      speechSynthesis.speak(u);
+    } catch (e) { /* speech unavailable */ }
+  }
+  voiceBtn.hidden = !('speechSynthesis' in window);
+  voiceBtn.addEventListener('click', () => {
+    voiceOn = !voiceOn;
+    try { localStorage.setItem('roversa-voice', voiceOn ? '1' : '0'); } catch (e) { /* storage blocked */ }
+    syncVoiceBtn();
+    SND.tap();
+    if (voiceOn) say('Read aloud is on.');
+    else if ('speechSynthesis' in window) speechSynthesis.cancel();
+  });
+  syncVoiceBtn();
+
   function setMessage(text, kind) {
     const m = $('#message');
     m.textContent = text;
     m.className = 'message' + (kind ? ' ' + kind : '');
+    say(text);
+  }
+
+  // Screen reader updates for things that only show on the map.
+  function announce(text) {
+    const sr = $('#sr-status');
+    sr.textContent = '';
+    setTimeout(() => { sr.textContent = text; }, 30);
+  }
+
+  const DIR_WORDS = ['up', 'right', 'down', 'left'];
+  const where = (x, y) => 'column ' + (x + 1) + ', row ' + (y + 1);
+
+  // Text version of the map for screen readers.
+  function describeBoard() {
+    if (!game.map) return;
+    const parts = ['Map, ' + game.map.cols + ' columns by ' + game.map.rows + ' rows.'];
+    game.robots.forEach((r) => {
+      parts.push((game.robots.length > 1 ? r.name + ' ' : '') + 'Roversa at ' + where(r.x, r.y) + ', facing ' + DIR_WORDS[r.dir] + '.');
+    });
+    game.map.goals.forEach((g) => {
+      const done = game.robots.filter((r) => r.visited.has(g.id)).map((r) => r.name);
+      const name = GOAL_NAMES[g.id];
+      parts.push(name.charAt(0).toUpperCase() + name.slice(1) + ' at ' + where(g.x, g.y) +
+        (done.length ? ', visited' + (game.robots.length > 1 ? ' by ' + done.join(' and ') : '') : '') + '.');
+    });
+    // Obstacles inside the map (the tree border around most levels is left out).
+    const blocked = [];
+    game.map.grid.forEach((row, y) => row.forEach((ch, x) => {
+      const edge = x === 0 || y === 0 || x === game.map.cols - 1 || y === game.map.rows - 1;
+      if (E.isBlocked(game.map.grid, x, y) && !(edge && ch === 'T')) blocked.push(TILE_NAMES[ch].replace(/^(a|the) /, '') + ' at ' + where(x, y));
+    }));
+    if (blocked.length) parts.push('In the way: ' + blocked.join('; ') + '.');
+    if (game.predict) parts.push('Your guess: ' + where(game.predict.x, game.predict.y) + '.');
+    parts.push('Use arrow keys on the map to move your guess.');
+    board.setAttribute('aria-label', parts.join(' '));
   }
 
   // ---------- Level picker ----------
@@ -518,6 +582,19 @@
     });
   }
 
+  // Re-rendering replaces the piece buttons, so keyboard focus is put back afterwards.
+  let pendingFocus = null;
+  function restoreFocus(area) {
+    if (!pendingFocus || pendingFocus.area !== area) return;
+    const f = pendingFocus;
+    pendingFocus = null;
+    const els = [...(area === 'program' ? programEl : poolEl).querySelectorAll('.piece')];
+    let el = area === 'program' ? els[Math.min(f.index, els.length - 1)] : els.find((e) => e.dataset.t === f.t) || els[0];
+    if (!el && area === 'program') el = poolEl.querySelector('.piece');
+    if (!el) el = $('#btn-go');
+    el.focus();
+  }
+
   function usedCount(t) { return game.program.filter((p) => p.t === t).length; }
 
   function renderProgram(caretAt, hideIndex) {
@@ -531,8 +608,26 @@
       else shown++;
       if (i === game.runIndex) el.classList.add('running');
       else if (i <= game.doneUpTo) el.classList.add('done');
+      el.setAttribute('aria-label', el.getAttribute('aria-label') + ', piece ' + (i + 1) + ' of ' + game.program.length +
+        '. Enter removes it, arrow keys move it.');
       el.addEventListener('pointerdown', (e) => startDrag(e, 'program', i, el));
-      onActivate(el, () => tapProgram(i));
+      onActivate(el, () => { pendingFocus = { area: 'program', index: i }; tapProgram(i); });
+      el.addEventListener('keydown', (e) => {
+        if (!editable()) return;
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          pendingFocus = { area: 'program', index: i };
+          removePiece(i);
+        } else if ((e.key === 'ArrowLeft' || e.key === 'ArrowUp') && i > 0) {
+          e.preventDefault();
+          pendingFocus = { area: 'program', index: i - 1 };
+          movePiece(i, i - 1);
+        } else if ((e.key === 'ArrowRight' || e.key === 'ArrowDown') && i < game.program.length - 1) {
+          e.preventDefault();
+          pendingFocus = { area: 'program', index: i + 1 };
+          movePiece(i, i + 1);
+        }
+      });
       programEl.appendChild(el);
     });
     if (caretAt != null && shown === caretAt) addCaret();
@@ -541,6 +636,8 @@
       s.className = 'slot';
       programEl.appendChild(s);
     }
+    programEl.setAttribute('aria-label', 'Program, ' + game.program.length + ' of ' + game.slots + ' pieces');
+    restoreFocus('program');
   }
 
   function addCaret() {
@@ -560,20 +657,21 @@
         el.setAttribute('aria-label', PIECE_NAMES[t] + ', ' + left + ' left');
         if (left <= 0) el.classList.add('empty');
         el.addEventListener('pointerdown', (e) => startDrag(e, 'pool', t, el));
-        onActivate(el, () => addPiece(t));
+        onActivate(el, () => { pendingFocus = { area: 'pool', t }; addPiece(t); });
         poolEl.appendChild(el);
       });
     } else {
       game.tray.forEach((p) => {
         const el = pieceEl(p.t);
         el.addEventListener('pointerdown', (e) => startDrag(e, 'pool', p.id, el));
-        onActivate(el, () => addPiece(p.id));
+        onActivate(el, () => { pendingFocus = { area: 'pool', t: p.t }; addPiece(p.id); });
         poolEl.appendChild(el);
       });
       if (!game.tray.length && game.quest.phase === 'arrange') {
         poolEl.innerHTML = '<span class="tip">All pieces placed. Press GO!</span>';
       }
     }
+    restoreFocus('pool');
   }
 
   function renderScoreboard() {
@@ -619,8 +717,9 @@
   }
 
   function renderAll() {
-    renderProgram();
+    describeBoard();
     renderPool();
+    renderProgram();
     renderScoreboard();
     renderButtons();
   }
@@ -663,6 +762,7 @@
     if (at == null || at > game.program.length) at = game.program.length;
     game.program.splice(at, 0, piece);
     SND.drop();
+    say(PIECE_NAMES[piece.chosen || piece.t]);
     renderAll();
   }
 
@@ -780,8 +880,11 @@
 
   let modalOpenedAt = 0;
 
+  let modalReturnFocus = null;
+
   function openModal(html, onClose) {
     modalOpenedAt = performance.now();
+    if (modal.hidden) modalReturnFocus = document.activeElement;
     $('#modal-body').innerHTML = html;
     modal.hidden = false;
     modalClose = onClose || null;
@@ -795,6 +898,12 @@
     const cb = modalClose;
     modalClose = null;
     if (cb) cb(value);
+    if (modal.hidden) {
+      const back = modalReturnFocus && modalReturnFocus !== document.body && document.contains(modalReturnFocus) ? modalReturnFocus : null;
+      if (back) back.focus();
+      else if ($('#screen-game').classList.contains('active')) $('#btn-go').focus();
+    }
+    modalReturnFocus = null;
   }
 
   // The tap that opened a pop-up can also land on it; ignore clicks right after it opens.
@@ -840,14 +949,40 @@
     const x = Math.floor(((e.clientX - r.left) / r.width) * game.view.cols);
     const y = Math.floor(((e.clientY - r.top) / r.height) * game.view.rows);
     if (!E.inBounds(game.map.grid, x, y)) return;
-    if (game.predict && game.predict.x === x && game.predict.y === y) {
-      game.predict = null;
-      setMessage('Guess removed.');
-    } else {
-      game.predict = { x, y };
-      setMessage('Your guess: Roversa will stop on the ? square. Press GO to find out!');
-    }
+    if (game.predict && game.predict.x === x && game.predict.y === y) clearGuess();
+    else setGuess(x, y);
+  });
+
+  function setGuess(x, y) {
+    game.predict = { x, y };
+    setMessage('Your guess: Roversa will stop on the ? square. Press GO to find out!');
+    announce('Guess at ' + where(x, y) + '.');
+    describeBoard();
     SND.tap();
+  }
+
+  function clearGuess() {
+    game.predict = null;
+    setMessage('Guess removed.');
+    describeBoard();
+    SND.tap();
+  }
+
+  // Keyboard: arrow keys move the guess square, Delete or Escape removes it.
+  board.addEventListener('keydown', (e) => {
+    if (game.running || !game.view) return;
+    const moves = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+    if (moves[e.key]) {
+      e.preventDefault();
+      const r = game.robots[game.active];
+      const from = game.predict || { x: r.x, y: r.y };
+      const nx = Math.max(0, Math.min(game.map.cols - 1, from.x + (game.predict ? moves[e.key][0] : 0)));
+      const ny = Math.max(0, Math.min(game.map.rows - 1, from.y + (game.predict ? moves[e.key][1] : 0)));
+      setGuess(nx, ny);
+    } else if ((e.key === 'Delete' || e.key === 'Backspace') && game.predict) {
+      e.preventDefault();
+      clearGuess();
+    }
   });
 
   // ---------- Running the program ----------
@@ -914,7 +1049,18 @@
   async function runOne(st) {
     game.runIndex = st.i;
     renderProgram();
-    const res = await doStep(st.r, st.steps[st.i]);
+    const cmd = st.steps[st.i];
+    const res = await doStep(st.r, cmd);
+    const what = cmd ? PIECE_NAMES[cmd] : 'Repeat with nothing before it';
+    const told = {
+      move: 'moved to ' + where(st.r.x, st.r.y),
+      turn: 'now facing ' + DIR_WORDS[st.r.dir],
+      noop: 'did nothing',
+      bump: 'bumped into ' + res.what,
+      off: 'drove off the map and went back to the start',
+    }[res.result];
+    announce('Piece ' + (st.i + 1) + ', ' + what + ': Roversa ' + told + '.');
+    describeBoard();
     game.doneUpTo = st.i;
     st.i++;
     return res;
