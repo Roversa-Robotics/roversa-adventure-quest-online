@@ -965,7 +965,7 @@
 
   function confetti() {
     const box = $('#confetti');
-    const colors = ['#8e43c6', '#124eaf', '#f56a00', '#fbbd27', '#ff3633', '#17c065'];
+    const colors = ['#8e43c6', '#124eaf', '#f56a00', '#fbbd27', '#ff3638', '#37c563'];
     for (let i = 0; i < 70; i++) {
       const c = document.createElement('div');
       c.className = 'confetto';

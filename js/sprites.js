@@ -169,7 +169,7 @@
   }
 
   const TEAM_COLORS = [
-    { name: 'Red', css: '#ff3633', dark: '#8f1513' },
+    { name: 'Red', css: '#ff3638', dark: '#8f1513' },
     { name: 'Blue', css: '#2f7bff', dark: '#0d3a8a' },
   ];
 

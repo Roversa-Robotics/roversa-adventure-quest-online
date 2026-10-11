@@ -69,6 +69,11 @@ The top-down robot is drawn pixel by pixel in that script so the micro:bit and
 button pad stay readable. Map tiles (grass, trees, rocks, water) are drawn in
 `js/sprites.js`.
 
+Fonts and colors follow the Roversa Brand Guidelines (May 2026): Bevan for
+headings, Open Sans for body text and Space Mono for labels, all from Google
+Fonts. The pixel font Press Start 2P stays on the title and buttons for the
+8-bit look. The brand colors are CSS tokens at the top of `style.css`.
+
 ## Credits
 
 Game design: Roversa Adventure Quest by Roversa Robotics LLC, CC BY-NC-SA 4.0.
