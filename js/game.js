@@ -1440,7 +1440,7 @@
   }
   window.addEventListener('hashchange', openFromHash);
   SP.ready.then(() => {
-    titleRobot.getContext('2d').drawImage(SP.robot(), 0, 0);
+    titleRobot.getContext('2d').drawImage(SP.smileyRobot(), 0, 0);
     openFromHash();
   });
 })();

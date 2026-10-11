@@ -242,6 +242,39 @@
     return c;
   }
 
+  // The micro:bit on top of the robot, showing a smiley face on its 5x5 LEDs.
+  // Each LED is one pixel, two pixels apart, starting at (11, 4).
+  const SMILEY = [
+    '.....',
+    '.#.#.',
+    '.....',
+    '#...#',
+    '.###.',
+  ];
+
+  function smileyRobot() {
+    const c = robot();
+    const paint = () => {
+      const g = c.getContext('2d');
+      SMILEY.forEach((row, r) => [...row].forEach((on, col) => {
+        const x = 11 + col * 2, y = 4 + r * 2;
+        if (on === '#') {
+          // A dim red glow around each lit LED, like the real ones.
+          g.fillStyle = '#5c1418';
+          g.fillRect(x - 1, y, 3, 1);
+          g.fillRect(x, y - 1, 1, 3);
+        }
+      }));
+      SMILEY.forEach((row, r) => [...row].forEach((on, col) => {
+        g.fillStyle = on === '#' ? '#ff3b30' : '#909090';
+        g.fillRect(11 + col * 2, 4 + r * 2, 1, 1);
+      }));
+    };
+    paint();
+    robotBase.loaded.then(paint);
+    return c;
+  }
+
   // Destinations: A treasure chest, B bags of gold, C gold coins.
   const goals = {
     A: imageCanvas('treasure-chest.png', 32),
@@ -262,6 +295,6 @@
   const ready = Promise.all([robotBase.loaded, ...Object.values(goals).map((g) => g.loaded), ...CHARACTERS.map((ch) => ch.sprite.loaded)]);
 
   root.RoversaSprites = {
-    SIZE, rng, grass, flowers, sand, tree, rock, water, startPad, robot, flag, FLAG_COLORS, goals, TEAM_COLORS, CHARACTERS, ready,
+    SIZE, rng, grass, flowers, sand, tree, rock, water, startPad, robot, smileyRobot, flag, FLAG_COLORS, goals, TEAM_COLORS, CHARACTERS, ready,
   };
 })(globalThis);
