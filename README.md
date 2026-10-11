@@ -4,6 +4,8 @@ A browser game for all ages, based on the Roversa Adventure Quest classroom game
 from [Roversa Robotics](https://roversa.com). Line up Roversa puzzle pieces to build a
 program, press **GO**, and watch the robot drive to every destination.
 
+**[▶ Play it now](https://roversa-robotics.github.io/roversa-adventure-quest-online/)** at https://roversa-robotics.github.io/roversa-adventure-quest-online/
+
 Works on computers, tablets and phones. No install, no build step: it is plain
 HTML, CSS and JavaScript, so GitHub Pages serves it as is.
 
