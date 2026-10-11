@@ -113,6 +113,9 @@
     return pieceImages[key];
   }
 
+  // The special puzzle pieces pictured in the Dice Quest rules.
+  document.querySelectorAll('.piece-pic[data-piece]').forEach((el) => { el.innerHTML = pieceSvg(el.dataset.piece); });
+
   function pieceEl(t, chosen) {
     const el = document.createElement('button');
     el.type = 'button';
