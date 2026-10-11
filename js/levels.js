@@ -72,7 +72,7 @@ globalThis.ROVERSA_LEVELS = [
   },
   {
     name: 'Repeat Power',
-    hint: 'Only one Forward piece! Repeat does the piece before it again.',
+    hint: 'Only one Forward piece! The red Roversa piece repeats the piece before it.',
     startDir: 'E',
     pieces: { F: 1, P: 5 },
     slots: 6,
