@@ -35,8 +35,8 @@
       'clear': 'Clear',
       'clearProgram': 'Clear program',
       'newGame': 'New game',
-      'takeOutShort': 'Take out',
-      'takeOut': 'Take pieces out',
+      'resetShort': 'Reset',
+      'resetPieces': 'Reset: put the pieces back in your roll',
       'tip': 'Tap a piece to add it. Drag to move it. Tap a piece in the program to take it out. Tap the map to guess where Roversa will stop! STEP runs one piece at a time.',
 
       'piece.F': 'Forward', 'piece.B': 'Backward', 'piece.L': 'Turn Left', 'piece.R': 'Turn Right', 'piece.P': 'Repeat', 'piece.W': 'Wild',
@@ -152,8 +152,8 @@
       'clear': 'Borrar',
       'clearProgram': 'Borrar el programa',
       'newGame': 'Juego nuevo',
-      'takeOutShort': 'Quitar',
-      'takeOut': 'Quitar las piezas',
+      'resetShort': 'Reiniciar',
+      'resetPieces': 'Reiniciar: devolver las piezas a tu tirada',
       'tip': 'Toca una pieza para añadirla. Arrástrala para moverla. Toca una pieza del programa para quitarla. ¡Toca el mapa para adivinar dónde parará Roversa! PASO ejecuta una pieza cada vez.',
 
       'piece.F': 'Adelante', 'piece.B': 'Atrás', 'piece.L': 'Girar a la izquierda', 'piece.R': 'Girar a la derecha', 'piece.P': 'Repetir', 'piece.W': 'Comodín',

@@ -429,7 +429,7 @@
       $('#game-title').textContent = tr('menu.quest');
       $('#pool-label').textContent = tr('yourRoll');
       labelButton('#btn-reset', tr('newGame'), tr('newGame'));
-      labelButton('#btn-clear', tr('takeOutShort'), tr('takeOut'));
+      labelButton('#btn-clear', tr('resetShort'), tr('resetPieces'));
     }
   }
 
