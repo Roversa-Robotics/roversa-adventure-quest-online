@@ -144,7 +144,7 @@
   function makeRobot(start, dir, team, teamWheels) {
     const colors = SP.TEAM_COLORS[team];
     return {
-      team, name: colors.name, css: colors.css,
+      team, name: colors.name + ' Roversa', css: colors.css,
       sprite: SP.robot(teamWheels ? team : undefined),
       sx: start.x, sy: start.y, sdir: dir,
       x: start.x, y: start.y, dir,
@@ -401,7 +401,7 @@
     if (!game.map) return;
     const parts = ['Map, ' + game.map.cols + ' columns by ' + game.map.rows + ' rows.'];
     game.robots.forEach((r) => {
-      parts.push((game.robots.length > 1 ? r.name + ' ' : '') + 'Roversa at ' + where(r.x, r.y) + ', facing ' + DIR_WORDS[r.dir] + '.');
+      parts.push((game.robots.length > 1 ? r.name : 'Roversa') + ' at ' + where(r.x, r.y) + ', facing ' + DIR_WORDS[r.dir] + '.');
     });
     game.map.goals.forEach((g) => {
       const done = game.robots.filter((r) => r.visited.has(g.id)).map((r) => r.name);
@@ -560,7 +560,7 @@
     for (let i = 0; i < players; i++) {
       const team = SP.TEAM_COLORS[i];
       const pick = await new Promise((resolve) => {
-        openModal('<h3>' + (players > 1 ? team.name + ' player' : 'Pick your robot') + '</h3>' +
+        openModal('<h3>' + (players > 1 ? 'Player ' + (i + 1) : 'Pick your robot') + '</h3>' +
           (players > 1 ? '<p>Pick your robot!</p>' : '') + '<div class="choices characters"></div>', resolve);
         const box = modal.querySelector('.characters');
         SP.CHARACTERS.forEach((ch) => {
@@ -596,7 +596,10 @@
     game.view = buildView(game.map, Math.floor(Math.random() * 1000));
     game.robots = [makeRobot(game.map.starts['1'], 0, 0, true)];
     if (players > 1) game.robots.push(makeRobot(game.map.starts['2'], 2, 1, true));
-    (game.characters || []).forEach((ch, i) => { if (game.robots[i]) game.robots[i].character = ch.sprite; });
+    // Players are named after the costume they picked, like "Elephant".
+    (game.characters || []).forEach((ch, i) => {
+      if (game.robots[i]) Object.assign(game.robots[i], { character: ch.sprite, name: ch.name });
+    });
     game.active = 0;
     game.tray = [];
     game.slots = 5;
@@ -613,7 +616,7 @@
 
   function promptRoll() {
     const r = game.robots[game.active];
-    const who = game.robots.length > 1 ? r.name + ' Roversa: ' : '';
+    const who = game.robots.length > 1 ? r.name + ': ' : '';
     setMessage(who + 'press Roll to get 5 gamepieces!');
   }
 
@@ -1225,14 +1228,14 @@
       q.phase = 'over';
       q.winner = r;
       renderAll();
-      setMessage(r.name + ' Roversa visited all three!', 'good');
+      setMessage(r.name + ' visited all three!', 'good');
       setTimeout(() => {
         SND.win();
         confetti();
         openModal(
           '<h3>' + (game.robots.length > 1 ? r.name + ' wins!' : 'Quest complete!') + '</h3>' +
           '<canvas class="winner" width="32" height="32" aria-hidden="true"></canvas>' +
-          '<p>' + r.name + ' Roversa found all three treasures in ' + r.turns + ' turn' + (r.turns === 1 ? '' : 's') + '.</p>' +
+          '<p>' + r.name + ' found all three treasures in ' + r.turns + ' turn' + (r.turns === 1 ? '' : 's') + '.</p>' +
           '<div class="choices"><button class="btn gray" data-act="home">Home</button>' +
           '<button class="btn big green" data-act="again">Play again</button></div>'
         );
@@ -1247,9 +1250,9 @@
       return;
     }
     let text = '';
-    if (outcome.result === 'bump') text = 'Bump! ' + r.name + ' Roversa ran into ' + outcome.what + ' and stopped.';
-    else if (outcome.result === 'off') text = 'Whoops! ' + r.name + ' Roversa drove off the map and went back to the start.';
-    else text = r.name + ' Roversa stopped here.';
+    if (outcome.result === 'bump') text = 'Bump! ' + r.name + ' ran into ' + outcome.what + ' and stopped.';
+    else if (outcome.result === 'off') text = 'Whoops! ' + r.name + ' drove off the map and went back to the start.';
+    else text = r.name + ' stopped here.';
     text += note;
     q.phase = 'roll';
     if (game.robots.length > 1) {
