@@ -1450,6 +1450,12 @@
     if (isAiTurn()) aiTurn();
   }
 
+  // About how long a young reader needs for a message: a little over a second,
+  // plus a third of a second per word.
+  function readingTime(text) {
+    return Math.max(1800, 1200 + text.trim().split(/\s+/).length * 330);
+  }
+
   // The AI Opponent's turn: it rolls, lays out its puzzle pieces one at a time and
   // presses GO, slowly enough for kids to watch. Leaving the game or starting a
   // new one stops it.
@@ -1458,7 +1464,10 @@
     const token = ++game.aiToken;
     const still = () => token === game.aiToken && game.robots[game.active] === r && game.quest && game.quest.phase !== 'over' &&
       $('#screen-game').classList.contains('active');
-    await sleep(1800);
+    // Leave the last turn's message (like a bump) up long enough to read, and
+    // let the voice finish saying it, before the AI Opponent starts talking.
+    await sleep(readingTime($('#message').textContent));
+    for (let waited = 0; voiceOn && 'speechSynthesis' in window && speechSynthesis.speaking && waited < 15000; waited += 200) await sleep(200);
     if (!still()) return;
     setMessage(tr('ai.rolling', { robot: r.name }));
     await roll(true);
