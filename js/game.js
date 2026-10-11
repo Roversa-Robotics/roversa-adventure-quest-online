@@ -32,6 +32,14 @@
   function loadStars() {
     try { return JSON.parse(localStorage.getItem('roversa-stars') || '{}'); } catch (e) { return {}; }
   }
+  // The costume picked for Adventures, remembered between visits.
+  function loadCostume() {
+    try { return SP.CHARACTERS.find((ch) => ch.id === localStorage.getItem('roversa-costume')) || null; } catch (e) { return null; }
+  }
+  function saveCostume(ch) {
+    try { localStorage.setItem('roversa-costume', ch.id); } catch (e) { /* storage blocked */ }
+  }
+
   function saveStars(name, stars) {
     const all = loadStars();
     if ((all[name] || 0) >= stars) return;
@@ -386,7 +394,7 @@
   function show(id) {
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === 'screen-' + id));
     window.scrollTo(0, 0);
-    if (id === 'levels') renderLevelGrid();
+    if (id === 'levels') { renderCostumeBar(); renderLevelGrid(); }
   }
 
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => { SND.tap(); show(b.dataset.go); }));
@@ -516,10 +524,43 @@
     return parCache[i];
   }
 
+  // The costume row above the levels: who is driving, and a button to change it.
+  function renderCostumeBar() {
+    const bar = $('#costume-bar');
+    const ch = loadCostume();
+    bar.innerHTML = '';
+    const look = document.createElement('canvas');
+    look.width = 32; look.height = 32;
+    look.className = 'look';
+    look.getContext('2d').drawImage(ch ? ch.sprite : SP.robot(), 0, 0);
+    bar.appendChild(look);
+    const label = document.createElement('span');
+    label.className = 'who';
+    if (ch) {
+      const f = SP.flag(ch.flag);
+      f.className = 'flag';
+      label.append(f, tr('char.' + ch.id));
+    } else label.textContent = 'Roversa';
+    bar.appendChild(label);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn blue';
+    btn.textContent = tr(ch ? 'costume.change' : 'costume.pick');
+    btn.addEventListener('click', async () => {
+      SND.tap();
+      const pick = await pickCostume(tr('costume.title'), '', [], ch);
+      if (pick) { saveCostume(pick); renderCostumeBar(); renderLevelGrid(); }
+      $('#costume-bar .btn').focus();
+    });
+    bar.appendChild(btn);
+  }
+
   function renderLevelGrid() {
     const grid = $('#level-grid');
     grid.innerHTML = '';
     const stars = loadStars();
+    const costume = loadCostume();
+    const thumbRobot = SP.robot(costume ? costume.flag : undefined);
     LEVELS.forEach((level, i) => {
       const card = document.createElement('button');
       card.className = 'level-card';
@@ -535,7 +576,7 @@
       g.save();
       g.translate(st.x * T + T / 2, st.y * T + T / 2);
       g.rotate((E.DIR_NAMES[level.startDir || 'N'] * Math.PI) / 2);
-      g.drawImage(SP.robot(), -T / 2, -T / 2, T, T);
+      g.drawImage(thumbRobot, -T / 2, -T / 2, T, T);
       g.restore();
       const n = stars[level.name] || 0;
       card.innerHTML = '<div class="num">' + tr('levelNum', { n: i + 1 }) + '</div><div class="name"></div>' +
@@ -571,11 +612,13 @@
     game.map = E.parseMap(level.map);
     game.view = buildView(game.map, i + 1);
     game.robots = [makeRobot(game.map.starts['1'], E.DIR_NAMES[level.startDir || 'N'], 0)];
+    const costume = loadCostume();
+    if (costume) wearCostume(game.robots[0], costume);
     game.active = 0;
     game.limits = Object.assign({}, level.pieces);
     game.slots = level.slots;
     game.quest = null;
-    $('#scoreboard').hidden = true;
+    $('#scoreboard').hidden = !costume;
     $('#btn-roll').hidden = true;
     syncGameText();
     enterGame();
@@ -636,6 +679,36 @@
     return E.parseMap(['.......2', 'A.......', '........', '...B....', '........', '......C.', '........', '1.......']);
   }
 
+  // The costume picker: a pop-up with every costume. Costumes in taken can't be
+  // picked. Resolves to the picked costume, or undefined if the pop-up was closed.
+  function pickCostume(title, sub, taken, current) {
+    return new Promise((resolve) => {
+      openModal('<h3>' + title + '</h3>' + (sub ? '<p>' + sub + '</p>' : '') + '<div class="choices characters"></div>', resolve);
+      const box = modal.querySelector('.characters');
+      SP.CHARACTERS.forEach((ch) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'character';
+        b.style.setProperty('--team', SP.FLAG_COLORS[ch.flag].css);
+        b.setAttribute('aria-label', tr('char.' + ch.id));
+        b.disabled = taken.includes(ch);
+        if (ch === current) b.setAttribute('aria-pressed', 'true');
+        const c = document.createElement('canvas');
+        c.width = 32; c.height = 32;
+        c.getContext('2d').drawImage(ch.sprite, 0, 0);
+        b.appendChild(c);
+        b.insertAdjacentHTML('beforeend', '<span></span>');
+        const f = SP.flag(ch.flag);
+        f.className = 'flag';
+        b.querySelector('span').append(f, tr('char.' + ch.id));
+        b.addEventListener('click', () => { SND.tap(); closeModal(ch); });
+        box.appendChild(b);
+      });
+      const first = box.querySelector('[aria-pressed="true"]') || box.querySelector('button:not(:disabled)');
+      if (first) first.focus();
+    });
+  }
+
   // Playing the AI Opponent starts with choosing how strong it is.
   function chooseAiLevel() {
     openModal('<h3>' + tr('ai.title') + '</h3><p>' + tr('ai.pick') + '</p><div class="choices ai-levels"></div>', (level) => {
@@ -661,32 +734,8 @@
     game.aiLevel = aiLevel || null;
     const picks = [];
     for (let i = 0; i < players; i++) {
-      const team = SP.TEAM_COLORS[i];
-      const pick = await new Promise((resolve) => {
-        openModal('<h3>' + (players > 1 ? tr('modal.player', { n: i + 1 }) : tr('modal.pickRobot')) + '</h3>' +
-          (players > 1 ? '<p>' + tr('modal.pickRobotBang') + '</p>' : '') + '<div class="choices characters"></div>', resolve);
-        const box = modal.querySelector('.characters');
-        SP.CHARACTERS.forEach((ch) => {
-          const b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'character';
-          b.style.setProperty('--team', SP.FLAG_COLORS[ch.flag].css);
-          b.setAttribute('aria-label', tr('char.' + ch.id));
-          b.disabled = picks.includes(ch);
-          const c = document.createElement('canvas');
-          c.width = 32; c.height = 32;
-          c.getContext('2d').drawImage(ch.sprite, 0, 0);
-          b.appendChild(c);
-          b.insertAdjacentHTML('beforeend', '<span></span>');
-          const f = SP.flag(ch.flag);
-          f.className = 'flag';
-          b.querySelector('span').append(f, tr('char.' + ch.id));
-          b.addEventListener('click', () => { SND.tap(); closeModal(ch); });
-          box.appendChild(b);
-        });
-        const first = box.querySelector('button:not(:disabled)');
-        if (first) first.focus();
-      });
+      const pick = await pickCostume(players > 1 ? tr('modal.player', { n: i + 1 }) : tr('modal.pickRobot'),
+        players > 1 ? tr('modal.pickRobotBang') : '', picks);
       const left = SP.CHARACTERS.filter((ch) => !picks.includes(ch));
       picks.push(pick || left[Math.floor(Math.random() * left.length)]);
     }
@@ -698,6 +747,15 @@
     startQuest(picks.length);
   }
 
+  // Dresses a robot in a costume: its flag, wheel color and name.
+  function wearCostume(r, ch) {
+    Object.assign(r, {
+      character: ch.sprite, charId: ch.id,
+      flagColor: ch.flag, css: SP.FLAG_COLORS[ch.flag].css,
+      flag: SP.flag(ch.flag), sprite: SP.robot(ch.flag),
+    });
+  }
+
   function startQuest(players) {
     game.mode = 'quest';
     game.level = null;
@@ -705,15 +763,7 @@
     game.view = buildView(game.map, Math.floor(Math.random() * 1000));
     game.robots = [makeRobot(game.map.starts['1'], 0, 0, true)];
     if (players > 1) game.robots.push(makeRobot(game.map.starts['2'], 2, 1, true));
-    (game.characters || []).forEach((ch, i) => {
-      if (game.robots[i]) {
-        Object.assign(game.robots[i], {
-          character: ch.sprite, charId: ch.id,
-          flagColor: ch.flag, css: SP.FLAG_COLORS[ch.flag].css,
-          flag: SP.flag(ch.flag), sprite: SP.robot(ch.flag),
-        });
-      }
-    });
+    (game.characters || []).forEach((ch, i) => { if (game.robots[i]) wearCostume(game.robots[i], ch); });
     if (game.aiLevel && game.robots[1]) game.robots[1].ai = game.aiLevel;
     game.aiToken++;
     game.active = 0;
@@ -844,7 +894,7 @@
 
   function renderScoreboard() {
     const sb = $('#scoreboard');
-    if (game.mode !== 'quest') return;
+    if (game.mode !== 'quest' && !(game.robots[0] && game.robots[0].charId)) return;
     sb.innerHTML = '';
     game.robots.forEach((r, i) => {
       const box = document.createElement('div');
@@ -863,6 +913,8 @@
       label.textContent = r.ai ? r.baseName : r.name;
       if (game.robots.length > 1 && i === game.active) box.setAttribute('aria-label', tr('sr.turn', { team: r.name }));
       box.appendChild(label);
+      // In Adventures the costume is shown on its own; the treasures are on the map.
+      if (game.mode !== 'quest') { sb.appendChild(box); return; }
       const goals = document.createElement('div');
       goals.className = 'goal-icons';
       ['A', 'B', 'C'].forEach((id) => {
@@ -1501,7 +1553,7 @@
   }));
   I18N.onChange(() => {
     syncGameText();
-    if ($('#screen-levels').classList.contains('active')) renderLevelGrid();
+    if ($('#screen-levels').classList.contains('active')) { renderCostumeBar(); renderLevelGrid(); }
     if (game.map) { renderAll(); describeBoard(); }
   });
   I18N.applyStatic();

@@ -114,6 +114,9 @@
       'msg.arrange': 'Put all 5 pieces in the program row in the order you want, then press GO.',
 
       'modal.pickRobot': 'Pick your robot',
+      'costume.title': 'Pick your costume',
+      'costume.pick': 'Pick a costume',
+      'costume.change': 'Change costume',
       'modal.player': 'Player {n}',
       'modal.pickRobotBang': 'Pick your robot!',
       'modal.wild': 'Wild piece!',
@@ -243,6 +246,9 @@
       'msg.arrange': 'Pon las 5 piezas en la fila del programa en el orden que quieras y pulsa VAMOS.',
 
       'modal.pickRobot': 'Elige tu robot',
+      'costume.title': 'Elige tu disfraz',
+      'costume.pick': 'Elige un disfraz',
+      'costume.change': 'Cambiar disfraz',
       'modal.player': 'Jugador {n}',
       'modal.pickRobotBang': '¡Elige tu robot!',
       'modal.wild': '¡Pieza comodín!',

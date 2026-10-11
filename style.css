@@ -357,7 +357,22 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
   #title-robot, .piece.running { animation: none; }
 }
 
-/* Character picker for Dice Quest */
+/* Costume row on the Adventures screen */
+.costume-bar {
+  display: flex; align-items: center; gap: 12px;
+  max-width: 828px; width: calc(100% - 32px);
+  margin: 16px auto 0; padding: 8px 12px;
+  background: var(--panel);
+  border: 3px solid var(--edge); border-radius: 8px;
+  font-weight: 700;
+}
+.costume-bar canvas.look { width: 48px; height: 48px; image-rendering: pixelated; }
+.costume-bar canvas.flag { width: 14px; height: 19px; margin-right: 6px; vertical-align: -3px; }
+.costume-bar .who { flex: 1; min-width: 0; white-space: nowrap; }
+.costume-bar .btn { font-size: 11px; padding: 8px 10px; line-height: 1.5; max-width: 50%; }
+
+/* Costume picker */
+.character[aria-pressed="true"] { border-color: var(--team); box-shadow: 0 0 0 3px var(--team); }
 .choices.characters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .character {
   display: flex; flex-direction: column; align-items: center; gap: 4px;
