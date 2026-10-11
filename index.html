@@ -17,16 +17,21 @@
     <div class="title-wrap">
       <h1><img class="logo" src="assets/source/logo-white.png" alt="Roversa" width="512" height="138"><span>ADVENTURE QUEST</span></h1>
       <canvas id="title-robot" width="32" height="32" aria-hidden="true"></canvas>
-      <p class="tagline">Line up the gamepieces. Press GO. Drive Roversa to every treasure!</p>
+      <p class="tagline" data-i18n="title.tagline">Line up the gamepieces. Press GO. Drive Roversa to every treasure!</p>
       <div class="menu">
         <button class="btn big green" data-go="levels">
-          <span class="btn-icon" aria-hidden="true">&#9733;</span> Adventures
+          <span class="btn-icon" aria-hidden="true">&#9733;</span> <span data-i18n="menu.adventures">Adventures</span>
         </button>
         <button class="btn big blue" data-go="quest-setup">
-          <span class="btn-icon" aria-hidden="true">&#9856;</span> Dice Quest
+          <span class="btn-icon" aria-hidden="true">&#9856;</span> <span data-i18n="menu.quest">Dice Quest</span>
         </button>
       </div>
-      <p class="credit">Inspired by Roversa Adventure Quest from <a href="https://roversa.com" target="_blank" rel="noopener">Roversa Robotics</a> (CC BY-NC-SA 4.0).</p>
+      <div class="lang-picker" role="group" data-i18n-attr="aria-label:lang.label" aria-label="Language">
+        <span class="lang-icon" aria-hidden="true">&#127760;</span>
+        <button class="btn lang" type="button" data-lang="en" lang="en">English</button>
+        <button class="btn lang" type="button" data-lang="es" lang="es">Español</button>
+      </div>
+      <p class="credit" data-i18n-html="credit">Inspired by Roversa Adventure Quest from <a href="https://roversa.com" target="_blank" rel="noopener">Roversa Robotics</a> (CC BY-NC-SA 4.0).</p>
     </div>
   </section>
 
@@ -34,7 +39,7 @@
   <section id="screen-levels" class="screen">
     <header class="bar">
       <button class="icon-btn" data-go="title" aria-label="Home">&#8962;</button>
-      <h2>Adventures</h2>
+      <h2 data-i18n="menu.adventures">Adventures</h2>
       <span class="bar-space"></span>
     </header>
     <div id="level-grid" class="level-grid"></div>
@@ -44,16 +49,16 @@
   <section id="screen-quest-setup" class="screen">
     <header class="bar">
       <button class="icon-btn" data-go="title" aria-label="Home">&#8962;</button>
-      <h2>Dice Quest</h2>
+      <h2 data-i18n="menu.quest">Dice Quest</h2>
       <span class="bar-space"></span>
     </header>
     <div class="setup">
-      <p>Roll the Roversa die five times to get five gamepieces. Put them in order and press GO. First robot to find all three treasures wins!</p>
-      <p class="small">Every rolled piece must be used. The green Roversa logo piece is wild: it can be any arrow. The red Roversa word piece repeats the piece before it. If Roversa drives off the map it goes back to the start.</p>
-      <h3>How many players?</h3>
+      <p data-i18n="quest.intro">Roll the Roversa die five times to get five gamepieces. Put them in order and press GO. First robot to find all three treasures wins!</p>
+      <p class="small" data-i18n="quest.rules">Every rolled piece must be used. The green Roversa logo piece is wild: it can be any arrow. The red Roversa word piece repeats the piece before it. If Roversa drives off the map it goes back to the start.</p>
+      <h3 data-i18n="quest.howMany">How many players?</h3>
       <div class="menu row">
-        <button class="btn big red" data-players="1">1 Player</button>
-        <button class="btn big blue" data-players="2">2 Players</button>
+        <button class="btn big red" data-players="1" data-i18n="players.1">1 Player</button>
+        <button class="btn big blue" data-players="2" data-i18n="players.2">2 Players</button>
       </div>
     </div>
   </section>
@@ -61,40 +66,40 @@
   <!-- Game -->
   <section id="screen-game" class="screen">
     <header class="bar">
-      <button class="icon-btn" id="btn-back" aria-label="Back">&#9664;</button>
+      <button class="icon-btn" id="btn-back" aria-label="Back" data-i18n-attr="aria-label:back">&#9664;</button>
       <h2 id="game-title">Level</h2>
-      <button class="icon-btn" id="btn-voice" aria-label="Read aloud" title="Read aloud">&#128172;</button>
-      <button class="icon-btn" id="btn-sound" aria-label="Sound on or off">&#9835;</button>
+      <button class="icon-btn" id="btn-voice" aria-label="Read aloud" title="Read aloud" data-i18n-attr="aria-label:readAloud; title:readAloud">&#128172;</button>
+      <button class="icon-btn" id="btn-sound" aria-label="Sound on or off" data-i18n-attr="aria-label:sound">&#9835;</button>
     </header>
     <main class="game">
       <div class="board-col">
         <div id="scoreboard" class="scoreboard" hidden></div>
         <div class="board-frame">
-          <canvas id="board" role="img" tabindex="0" aria-label="Map"></canvas>
+          <canvas id="board" role="img" tabindex="0" aria-label="Map" data-i18n-attr="aria-label:map"></canvas>
         </div>
         <p id="message" class="message" role="status" aria-live="polite"></p>
         <p id="sr-status" class="sr-only" aria-live="polite"></p>
       </div>
       <div class="controls-col">
         <div class="panel">
-          <div class="panel-label">Program</div>
+          <div class="panel-label" data-i18n="program">Program</div>
           <div id="program" class="program" aria-label="Program row"></div>
         </div>
         <div class="panel">
           <div class="panel-label" id="pool-label">Gamepieces</div>
           <div id="pool" class="pool"></div>
           <button id="btn-roll" class="btn big blue roll" hidden>
-            <span class="btn-icon" aria-hidden="true">&#9856;</span> Roll!
+            <span class="btn-icon" aria-hidden="true">&#9856;</span> <span data-i18n="roll">Roll!</span>
           </button>
         </div>
         <div class="actions">
-          <button id="btn-go" class="btn big green go" aria-label="Go">GO &#9654;</button>
-          <button id="btn-step" class="btn big blue step" aria-label="Step: run the next piece">STEP</button>
+          <button id="btn-go" class="btn big green go" aria-label="Go" data-i18n-attr="aria-label:go.label"><span data-i18n="go">GO</span> &#9654;</button>
+          <button id="btn-step" class="btn big blue step" aria-label="Step: run the next piece" data-i18n-attr="aria-label:step.label" data-i18n="step">STEP</button>
           <button id="btn-speed" class="btn gray speed labeled" aria-label="Speed"><span class="btn-sym" aria-hidden="true">&#128663;</span><span class="btn-label">Normal</span></button>
           <button id="btn-reset" class="btn red labeled" aria-label="Start over"><span class="btn-sym" aria-hidden="true">&#8634;</span><span class="btn-label">Start over</span></button>
           <button id="btn-clear" class="btn gray labeled" aria-label="Clear program"><span class="btn-sym" aria-hidden="true">&#10006;</span><span class="btn-label">Clear</span></button>
         </div>
-        <p class="tip">Tap a piece to add it. Drag to move it. Tap a piece in the program to take it out. Tap the map to guess where Roversa will stop! STEP runs one piece at a time.</p>
+        <p class="tip" data-i18n="tip">Tap a piece to add it. Drag to move it. Tap a piece in the program to take it out. Tap the map to guess where Roversa will stop! STEP runs one piece at a time.</p>
       </div>
     </main>
   </section>
@@ -112,6 +117,7 @@
   <script src="js/levels.js"></script>
   <script src="js/sprites.js"></script>
   <script src="js/audio.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

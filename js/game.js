@@ -7,6 +7,10 @@
   const AUDIO = globalThis.RoversaAudio;
   const SND = AUDIO.sfx;
   const LEVELS = globalThis.ROVERSA_LEVELS;
+  const I18N = globalThis.RoversaI18n;
+  const tr = I18N.tr;
+  // Name tables that always answer in the current language, e.g. PIECE_NAMES.F.
+  const named = (prefix) => new Proxy({}, { get: (o, k) => tr(prefix + String(k)) });
 
   const T = SP.SIZE; // tile size in sprite pixels
   const SCALE = 4; // board canvas pixels per sprite pixel
@@ -15,13 +19,14 @@
   const PAUSE_MS = 140;
   // Animation speeds; the factor stretches or shrinks every move, turn and pause.
   const SPEEDS = [
-    { name: 'Slow', icon: '\u{1F422}', factor: 2 },
-    { name: 'Normal', icon: '\u{1F697}', factor: 1 },
-    { name: 'Fast', icon: '\u{1F407}', factor: 0.45 },
+    { key: 'Slow', icon: '\u{1F422}', factor: 2 },
+    { key: 'Normal', icon: '\u{1F697}', factor: 1 },
+    { key: 'Fast', icon: '\u{1F407}', factor: 0.45 },
   ];
+  const speedName = (sp) => tr('speed.' + sp.key);
   const DICE_FACES = ['F', 'B', 'L', 'R', 'W', 'P'];
-  const GOAL_NAMES = { A: 'the treasure chest', B: 'the bags of gold', C: 'the gold coins' };
-  const TILE_NAMES = { T: 'a tree', R: 'a rock', W: 'the water' };
+  const GOAL_NAMES = named('goal.');
+  const TILE_NAMES = named('tile.');
 
   const $ = (sel) => document.querySelector(sel);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -53,7 +58,7 @@
     P: ['#d43a32', '#7e1d18'],
     W: ['#488f3f', '#264f20'],
   };
-  const PIECE_NAMES = { F: 'Forward', B: 'Backward', L: 'Turn Left', R: 'Turn Right', P: 'Repeat', W: 'Wild' };
+  const PIECE_NAMES = named('piece.');
   const ICON_COLOR = '#efe8d6';
 
   // The direction dot under each arrow, as on the printed pieces.
@@ -107,7 +112,7 @@
     el.className = 'piece';
     el.dataset.t = t;
     el.innerHTML = pieceSvg(t, chosen);
-    el.setAttribute('aria-label', t === 'W' && chosen ? 'Wild: ' + PIECE_NAMES[chosen] : PIECE_NAMES[t]);
+    el.setAttribute('aria-label', t === 'W' && chosen ? tr('wildAs', { name: PIECE_NAMES[chosen] }) : PIECE_NAMES[t]);
     return el;
   }
 
@@ -146,7 +151,10 @@
   function makeRobot(start, dir, team, teamWheels) {
     const colors = SP.TEAM_COLORS[team];
     return {
-      team, name: colors.name + ' Roversa', css: colors.css,
+      team, css: colors.css,
+      charId: null, // set in Dice Quest to the costume the player picked
+      // Players are named after their costume, like "Elephant", else "Red Roversa".
+      get name() { return this.charId ? tr('char.' + this.charId) : tr('robot', { team: tr('team.' + this.team) }); },
       sprite: SP.robot(teamWheels ? team : undefined),
       sx: start.x, sy: start.y, sdir: dir,
       x: start.x, y: start.y, dir,
@@ -360,6 +368,7 @@
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 0.95;
+      u.lang = I18N.speechLang;
       speechSynthesis.speak(u);
     } catch (e) { /* speech unavailable */ }
   }
@@ -369,7 +378,7 @@
     try { localStorage.setItem('roversa-voice', voiceOn ? '1' : '0'); } catch (e) { /* storage blocked */ }
     syncVoiceBtn();
     SND.tap();
-    if (voiceOn) say('Read aloud is on.');
+    if (voiceOn) say(tr('msg.readAloudOn'));
     else if ('speechSynthesis' in window) speechSynthesis.cancel();
   });
   syncVoiceBtn();
@@ -379,6 +388,23 @@
     const b = $(sel);
     b.querySelector('.btn-label').textContent = label;
     b.setAttribute('aria-label', aria);
+  }
+
+  const levelHint = () => I18N.levelText(game.levelIndex, game.level).hint;
+
+  // Titles and button words on the game screen that depend on the mode and language.
+  function syncGameText() {
+    if (game.mode === 'level') {
+      $('#game-title').textContent = (game.levelIndex + 1) + '. ' + I18N.levelText(game.levelIndex, game.level).name;
+      $('#pool-label').textContent = tr('gamepieces');
+      labelButton('#btn-reset', tr('startOver'), tr('startOver'));
+      labelButton('#btn-clear', tr('clear'), tr('clearProgram'));
+    } else if (game.mode === 'quest') {
+      $('#game-title').textContent = tr('menu.quest');
+      $('#pool-label').textContent = tr('yourRoll');
+      labelButton('#btn-reset', tr('newGame'), tr('newGame'));
+      labelButton('#btn-clear', tr('takeOutShort'), tr('takeOut'));
+    }
   }
 
   function setMessage(text, kind) {
@@ -395,31 +421,31 @@
     setTimeout(() => { sr.textContent = text; }, 30);
   }
 
-  const DIR_WORDS = ['up', 'right', 'down', 'left'];
-  const where = (x, y) => 'column ' + (x + 1) + ', row ' + (y + 1);
+  const DIR_WORDS = named('dir.');
+  const where = (x, y) => tr('where', { x: x + 1, y: y + 1 });
 
   // Text version of the map for screen readers.
   function describeBoard() {
     if (!game.map) return;
-    const parts = ['Map, ' + game.map.cols + ' columns by ' + game.map.rows + ' rows.'];
+    const parts = [tr('sr.map', { cols: game.map.cols, rows: game.map.rows })];
     game.robots.forEach((r) => {
-      parts.push((game.robots.length > 1 ? r.name : 'Roversa') + ' at ' + where(r.x, r.y) + ', facing ' + DIR_WORDS[r.dir] + '.');
+      parts.push(tr('sr.robot', { who: game.robots.length > 1 ? r.name : 'Roversa', where: where(r.x, r.y), dir: DIR_WORDS[r.dir] }));
     });
     game.map.goals.forEach((g) => {
       const done = game.robots.filter((r) => r.visited.has(g.id)).map((r) => r.name);
       const name = GOAL_NAMES[g.id];
-      parts.push(name.charAt(0).toUpperCase() + name.slice(1) + ' at ' + where(g.x, g.y) +
-        (done.length ? ', visited' + (game.robots.length > 1 ? ' by ' + done.join(' and ') : '') : '') + '.');
+      parts.push(tr('sr.goal', { goal: name.charAt(0).toUpperCase() + name.slice(1), where: where(g.x, g.y) }) +
+        (done.length ? (game.robots.length > 1 ? tr('sr.visitedBy', { who: done.join(tr('and')) }) : tr('sr.visited')) : '') + '.');
     });
     // Obstacles inside the map (the tree border around most levels is left out).
     const blocked = [];
     game.map.grid.forEach((row, y) => row.forEach((ch, x) => {
       const edge = x === 0 || y === 0 || x === game.map.cols - 1 || y === game.map.rows - 1;
-      if (E.isBlocked(game.map.grid, x, y) && !(edge && ch === 'T')) blocked.push(TILE_NAMES[ch].replace(/^(a|the) /, '') + ' at ' + where(x, y));
+      if (E.isBlocked(game.map.grid, x, y) && !(edge && ch === 'T')) blocked.push(tr('sr.goal', { goal: tr('tileShort.' + ch), where: where(x, y) }));
     }));
-    if (blocked.length) parts.push('In the way: ' + blocked.join('; ') + '.');
-    if (game.predict) parts.push('Your guess: ' + where(game.predict.x, game.predict.y) + '.');
-    parts.push('Use arrow keys on the map to move your guess.');
+    if (blocked.length) parts.push(tr('sr.blocked', { list: blocked.join('; ') }));
+    if (game.predict) parts.push(tr('sr.guess', { where: where(game.predict.x, game.predict.y) }));
+    parts.push(tr('sr.keys'));
     board.setAttribute('aria-label', parts.join(' '));
   }
 
@@ -456,10 +482,10 @@
       g.drawImage(SP.robot(), -T / 2, -T / 2, T, T);
       g.restore();
       const n = stars[level.name] || 0;
-      card.innerHTML = '<div class="num">LEVEL ' + (i + 1) + '</div><div class="name"></div>' +
-        '<div class="stars" aria-label="' + n + ' of 3 stars">' +
+      card.innerHTML = '<div class="num">' + tr('levelNum', { n: i + 1 }) + '</div><div class="name"></div>' +
+        '<div class="stars" aria-label="' + tr('sr.stars', { n }) + '">' +
         [0, 1, 2].map((k) => '<span class="' + (k < n ? 'on' : '') + '">&#9733;</span>').join('') + '</div>';
-      card.querySelector('.name').textContent = level.name;
+      card.querySelector('.name').textContent = I18N.levelText(i, level).name;
       card.prepend(c);
       card.addEventListener('click', () => { SND.tap(); startLevel(i); });
       grid.appendChild(card);
@@ -492,14 +518,11 @@
     game.limits = Object.assign({}, level.pieces);
     game.slots = level.slots;
     game.quest = null;
-    $('#game-title').textContent = (i + 1) + '. ' + level.name;
     $('#scoreboard').hidden = true;
     $('#btn-roll').hidden = true;
-    $('#pool-label').textContent = 'Gamepieces';
-    labelButton('#btn-reset', 'Start over', 'Start over');
-    labelButton('#btn-clear', 'Clear', 'Clear program');
+    syncGameText();
     enterGame();
-    setMessage(level.hint);
+    setMessage(levelHint());
   }
 
   // Builds a random 8x8 quest map with the three treasures.
@@ -562,22 +585,22 @@
     for (let i = 0; i < players; i++) {
       const team = SP.TEAM_COLORS[i];
       const pick = await new Promise((resolve) => {
-        openModal('<h3>' + (players > 1 ? 'Player ' + (i + 1) : 'Pick your robot') + '</h3>' +
-          (players > 1 ? '<p>Pick your robot!</p>' : '') + '<div class="choices characters"></div>', resolve);
+        openModal('<h3>' + (players > 1 ? tr('modal.player', { n: i + 1 }) : tr('modal.pickRobot')) + '</h3>' +
+          (players > 1 ? '<p>' + tr('modal.pickRobotBang') + '</p>' : '') + '<div class="choices characters"></div>', resolve);
         const box = modal.querySelector('.characters');
         SP.CHARACTERS.forEach((ch) => {
           const b = document.createElement('button');
           b.type = 'button';
           b.className = 'character';
           b.style.setProperty('--team', team.css);
-          b.setAttribute('aria-label', ch.name);
+          b.setAttribute('aria-label', tr('char.' + ch.id));
           b.disabled = picks.includes(ch);
           const c = document.createElement('canvas');
           c.width = 32; c.height = 32;
           c.getContext('2d').drawImage(ch.sprite, 0, 0);
           b.appendChild(c);
           b.insertAdjacentHTML('beforeend', '<span></span>');
-          b.querySelector('span').textContent = ch.name;
+          b.querySelector('span').textContent = tr('char.' + ch.id);
           b.addEventListener('click', () => { SND.tap(); closeModal(ch); });
           box.appendChild(b);
         });
@@ -598,28 +621,24 @@
     game.view = buildView(game.map, Math.floor(Math.random() * 1000));
     game.robots = [makeRobot(game.map.starts['1'], 0, 0, true)];
     if (players > 1) game.robots.push(makeRobot(game.map.starts['2'], 2, 1, true));
-    // Players are named after the costume they picked, like "Elephant".
     (game.characters || []).forEach((ch, i) => {
-      if (game.robots[i]) Object.assign(game.robots[i], { character: ch.sprite, name: ch.name });
+      if (game.robots[i]) Object.assign(game.robots[i], { character: ch.sprite, charId: ch.id });
     });
     game.active = 0;
     game.tray = [];
     game.slots = 5;
     game.quest = { phase: 'roll', round: 1, winner: null };
-    $('#game-title').textContent = 'Dice Quest';
     $('#scoreboard').hidden = false;
     $('#btn-roll').hidden = false;
-    $('#pool-label').textContent = 'Your roll';
-    labelButton('#btn-reset', 'New game', 'New game');
-    labelButton('#btn-clear', 'Take out', 'Take pieces out');
+    syncGameText();
     enterGame();
     promptRoll();
   }
 
   function promptRoll() {
     const r = game.robots[game.active];
-    const who = game.robots.length > 1 ? r.name + ': ' : '';
-    setMessage(who + 'press Roll to get 5 gamepieces!');
+    const who = game.robots.length > 1 ? tr('msg.whoPrefix', { robot: r.name }) : '';
+    setMessage(tr('msg.pressRoll', { who }));
   }
 
   // ---------- Program and pieces ----------
@@ -665,8 +684,7 @@
       else shown++;
       if (i === game.runIndex) el.classList.add('running');
       else if (i <= game.doneUpTo) el.classList.add('done');
-      el.setAttribute('aria-label', el.getAttribute('aria-label') + ', piece ' + (i + 1) + ' of ' + game.program.length +
-        '. Enter removes it, arrow keys move it.');
+      el.setAttribute('aria-label', tr('sr.programPiece', { name: el.getAttribute('aria-label'), n: i + 1, total: game.program.length }));
       el.addEventListener('pointerdown', (e) => startDrag(e, 'program', i, el));
       onActivate(el, () => { pendingFocus = { area: 'program', index: i }; tapProgram(i); });
       el.addEventListener('keydown', (e) => {
@@ -693,7 +711,7 @@
       s.className = 'slot';
       programEl.appendChild(s);
     }
-    programEl.setAttribute('aria-label', 'Program, ' + game.program.length + ' of ' + game.slots + ' pieces');
+    programEl.setAttribute('aria-label', tr('sr.program', { n: game.program.length, total: game.slots }));
     restoreFocus('program');
   }
 
@@ -711,7 +729,7 @@
         const left = game.limits[t] - usedCount(t);
         const el = pieceEl(t);
         el.insertAdjacentHTML('beforeend', '<span class="count">' + left + '</span>');
-        el.setAttribute('aria-label', PIECE_NAMES[t] + ', ' + left + ' left');
+        el.setAttribute('aria-label', tr('sr.poolPiece', { name: PIECE_NAMES[t], n: left }));
         if (left <= 0) el.classList.add('empty');
         el.addEventListener('pointerdown', (e) => startDrag(e, 'pool', t, el));
         onActivate(el, () => { pendingFocus = { area: 'pool', t }; addPiece(t); });
@@ -725,7 +743,8 @@
         poolEl.appendChild(el);
       });
       if (!game.tray.length && game.quest.phase === 'arrange') {
-        poolEl.innerHTML = '<span class="tip">All pieces placed. Press GO!</span>';
+        poolEl.innerHTML = '<span class="tip"></span>';
+        poolEl.firstChild.textContent = tr('msg.allPlaced');
       }
     }
     restoreFocus('pool');
@@ -745,7 +764,7 @@
       box.appendChild(icon);
       const label = document.createElement('span');
       label.textContent = r.name;
-      if (game.robots.length > 1 && i === game.active) box.setAttribute('aria-label', r.name + ", it's your turn");
+      if (game.robots.length > 1 && i === game.active) box.setAttribute('aria-label', tr('sr.turn', { team: r.name }));
       box.appendChild(label);
       const goals = document.createElement('div');
       goals.className = 'goal-icons';
@@ -754,7 +773,7 @@
         gc.width = 32; gc.height = 32;
         gc.getContext('2d').drawImage(SP.goals[id], 0, 0);
         if (r.visited.has(id)) gc.classList.add('got');
-        gc.setAttribute('aria-label', GOAL_NAMES[id] + (r.visited.has(id) ? ' visited' : ' not yet'));
+        gc.setAttribute('aria-label', tr(r.visited.has(id) ? 'sr.goalVisited' : 'sr.goalNotYet', { goal: GOAL_NAMES[id] }));
         goals.appendChild(gc);
       });
       box.appendChild(goals);
@@ -798,7 +817,7 @@
   async function addPiece(key, at) {
     if (!editable()) return;
     if (game.program.length >= game.slots) {
-      setMessage('The program row is full. Take a piece out first.', 'bad');
+      setMessage(tr('msg.full'), 'bad');
       SND.bump();
       return;
     }
@@ -973,7 +992,7 @@
 
   function pickWild() {
     return new Promise((resolve) => {
-      openModal('<h3>Wild piece!</h3><p>Which way should it go?</p><div class="choices"></div>', resolve);
+      openModal('<h3>' + tr('modal.wild') + '</h3><p>' + tr('modal.wildWhich') + '</p><div class="choices"></div>', resolve);
       const box = modal.querySelector('.choices');
       ['F', 'B', 'L', 'R'].forEach((t) => {
         const el = pieceEl(t);
@@ -1013,15 +1032,15 @@
 
   function setGuess(x, y) {
     game.predict = { x, y };
-    setMessage('Your guess: Roversa will stop on the ? square. Press GO to find out!');
-    announce('Guess at ' + where(x, y) + '.');
+    setMessage(tr('msg.guess'));
+    announce(tr('sr.guessAt', { where: where(x, y) }));
     describeBoard();
     SND.tap();
   }
 
   function clearGuess() {
     game.predict = null;
-    setMessage('Guess removed.');
+    setMessage(tr('msg.guessRemoved'));
     describeBoard();
     SND.tap();
   }
@@ -1067,7 +1086,7 @@
         r.visited.add(goal.id);
         SND.goal();
         sparkle(r.x, r.y);
-        setMessage('You reached ' + GOAL_NAMES[goal.id] + '!', 'good');
+        setMessage(tr('msg.reached', { goal: tr('goalTo.' + goal.id) }), 'good');
         renderScoreboard();
       }
     } else if (res.result === 'bump' || (res.result === 'off' && game.mode === 'level')) {
@@ -1077,7 +1096,7 @@
       await tween(r, { rx: r.x, ry: r.y }, 130);
       for (let i = 0; i < 4; i++) { r.bump = (i % 2 ? -1 : 1) * SCALE * 1.5; await sleep(40); }
       r.bump = 0;
-      return { result: 'bump', what: res.result === 'off' ? 'the edge' : occupied(res.tx, res.ty) ? 'the other robot' : TILE_NAMES[game.map.grid[res.ty][res.tx]] };
+      return { result: 'bump', what: res.result === 'off' ? tr('edge') : occupied(res.tx, res.ty) ? tr('otherRobot') : TILE_NAMES[game.map.grid[res.ty][res.tx]] };
     } else if (res.result === 'off') {
       SND.off();
       await tween(r, { rx: r.x + (res.tx - r.x) * 0.7, ry: r.y + (res.ty - r.y) * 0.7, scale: 0.3, alpha: 0 }, 500);
@@ -1109,15 +1128,9 @@
     renderProgram();
     const cmd = st.steps[st.i];
     const res = await doStep(st.r, cmd);
-    const what = cmd ? PIECE_NAMES[cmd] : 'Repeat with nothing before it';
-    const told = {
-      move: 'moved to ' + where(st.r.x, st.r.y),
-      turn: 'now facing ' + DIR_WORDS[st.r.dir],
-      noop: 'did nothing',
-      bump: 'bumped into ' + res.what,
-      off: 'drove off the map and went back to the start',
-    }[res.result];
-    announce('Piece ' + (st.i + 1) + ', ' + what + ': Roversa ' + told + '.');
+    const what = cmd ? PIECE_NAMES[cmd] : tr('sr.repeatNothing');
+    const told = tr('told.' + res.result, { where: where(st.r.x, st.r.y), dir: DIR_WORDS[st.r.dir], what: res.what });
+    announce(tr('sr.ran', { n: st.i + 1, what, told }));
     describeBoard();
     game.doneUpTo = st.i;
     st.i++;
@@ -1141,7 +1154,7 @@
     game.running = true;
     game.stepping = null;
     renderAll();
-    setMessage('Roversa is driving...');
+    setMessage(tr('msg.driving'));
     let outcome = { result: 'done' };
     while (st.i < st.steps.length) {
       const res = await runOne(st);
@@ -1168,7 +1181,7 @@
     game.running = false;
     renderAll();
     if (!$('#message').classList.contains('good')) {
-      setMessage('Piece ' + st.i + ' of ' + st.steps.length + ' done. Press STEP for the next one, or GO to finish.');
+      setMessage(tr('msg.stepDone', { n: st.i, total: st.steps.length }));
     }
   }
 
@@ -1176,8 +1189,8 @@
     if (!game.predict) return '';
     const right = game.predict.x === r.x && game.predict.y === r.y;
     game.predict = null;
-    if (right) { setTimeout(SND.predict, 400); return ' Your guess was right!'; }
-    return ' Your guess was not quite right.';
+    if (right) { setTimeout(SND.predict, 400); return tr('msg.guessRight'); }
+    return tr('msg.guessWrong');
   }
 
   function finishLevelRun(r, outcome) {
@@ -1188,19 +1201,19 @@
       const best = par(game.levelIndex);
       const stars = used <= best ? 3 : used <= best + 2 ? 2 : 1;
       saveStars(game.level.name, stars);
-      setMessage('You did it!' + note, 'good');
+      setMessage(tr('msg.didIt') + note, 'good');
       setTimeout(() => {
         SND.win();
         confetti();
         const next = game.levelIndex + 1 < LEVELS.length;
         openModal(
-          '<h3>Level complete!</h3>' +
+          '<h3>' + tr('modal.levelDone') + '</h3>' +
           '<div class="big-stars">' + [0, 1, 2].map((k) => '<span class="' + (k < stars ? 'on' : '') + '">&#9733;</span>').join('') + '</div>' +
-          '<p>You used ' + used + ' piece' + (used === 1 ? '' : 's') + '.' +
-          (stars < 3 ? ' Can you do it with only ' + best + '?' : ' That is the fewest possible!') + note + '</p>' +
+          '<p>' + tr('modal.used', { n: used }) +
+          (stars < 3 ? tr('modal.canYou', { n: best }) : tr('modal.fewest')) + note + '</p>' +
           '<div class="choices">' +
-          '<button class="btn gray" data-act="again">Try again</button>' +
-          (next ? '<button class="btn big green" data-act="next">Next &#9654;</button>' : '<button class="btn big green" data-act="levels">All levels</button>') +
+          '<button class="btn gray" data-act="again">' + tr('modal.tryAgain') + '</button>' +
+          (next ? '<button class="btn big green" data-act="next">' + tr('modal.next') + ' &#9654;</button>' : '<button class="btn big green" data-act="levels">' + tr('modal.allLevels') + '</button>') +
           '</div>'
         );
         modal.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
@@ -1214,10 +1227,10 @@
         if (nextBtn) nextBtn.focus();
       }, 600);
     } else if (outcome.result === 'bump') {
-      setMessage('Bump! Roversa ran into ' + outcome.what + '. Change the program and try again.' + note, 'bad');
+      setMessage(tr('msg.bumpLevel', { what: outcome.what }) + note, 'bad');
     } else {
       const left = game.map.goals.filter((g) => !r.visited.has(g.id)).map((g) => GOAL_NAMES[g.id]);
-      setMessage('Almost! Roversa still needs to visit ' + left.join(' and ') + '. Change the program and try again.' + note, 'bad');
+      setMessage(tr('msg.almost', { list: left.join(tr('and')) }) + note, 'bad');
     }
     renderButtons();
   }
@@ -1230,16 +1243,16 @@
       q.phase = 'over';
       q.winner = r;
       renderAll();
-      setMessage(r.name + ' visited all three!', 'good');
+      setMessage(tr('msg.visitedAll', { robot: r.name }), 'good');
       setTimeout(() => {
         SND.win();
         confetti();
         openModal(
-          '<h3>' + (game.robots.length > 1 ? r.name + ' wins!' : 'Quest complete!') + '</h3>' +
+          '<h3>' + (game.robots.length > 1 ? tr('modal.wins', { team: r.name }) : tr('modal.questDone')) + '</h3>' +
           '<canvas class="winner" width="32" height="32" aria-hidden="true"></canvas>' +
-          '<p>' + r.name + ' found all three treasures in ' + r.turns + ' turn' + (r.turns === 1 ? '' : 's') + '.</p>' +
-          '<div class="choices"><button class="btn gray" data-act="home">Home</button>' +
-          '<button class="btn big green" data-act="again">Play again</button></div>'
+          '<p>' + tr('modal.foundAll', { robot: r.name, n: r.turns }) + '</p>' +
+          '<div class="choices"><button class="btn gray" data-act="home">' + tr('home') + '</button>' +
+          '<button class="btn big green" data-act="again">' + tr('modal.playAgain') + '</button></div>'
         );
         modal.querySelector('.winner').getContext('2d').drawImage(r.character || r.sprite, 0, 0);
         modal.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
@@ -1252,16 +1265,16 @@
       return;
     }
     let text = '';
-    if (outcome.result === 'bump') text = 'Bump! ' + r.name + ' ran into ' + outcome.what + ' and stopped.';
-    else if (outcome.result === 'off') text = 'Whoops! ' + r.name + ' drove off the map and went back to the start.';
-    else text = r.name + ' stopped here.';
+    if (outcome.result === 'bump') text = tr('msg.bumpQuest', { robot: r.name, what: outcome.what });
+    else if (outcome.result === 'off') text = tr('msg.offQuest', { robot: r.name });
+    else text = tr('msg.stopped', { robot: r.name });
     text += note;
     q.phase = 'roll';
     if (game.robots.length > 1) {
       game.active = (game.active + 1) % game.robots.length;
-      text += ' Now it is ' + game.robots[game.active].name + "'s turn. Press Roll!";
+      text += tr('msg.nextTurn', { team: game.robots[game.active].name });
     } else {
-      text += ' Press Roll for your next turn.';
+      text += tr('msg.rollAgain');
     }
     setMessage(text, outcome.result === 'done' ? '' : 'bad');
     renderAll();
@@ -1286,7 +1299,7 @@
     q.phase = 'arrange';
     game.rolling = false;
     renderAll();
-    setMessage('Put all 5 pieces in the program row in the order you want, then press GO.');
+    setMessage(tr('msg.arrange'));
   }
 
   $('#btn-go').addEventListener('click', run);
@@ -1296,16 +1309,16 @@
   function syncSpeedBtn() {
     const sp = SPEEDS[speedIndex];
     speedBtn.querySelector('.btn-sym').textContent = sp.icon;
-    speedBtn.querySelector('.btn-label').textContent = sp.name;
-    speedBtn.setAttribute('aria-label', 'Speed: ' + sp.name);
-    speedBtn.title = 'Speed: ' + sp.name;
+    speedBtn.querySelector('.btn-label').textContent = speedName(sp);
+    speedBtn.setAttribute('aria-label', tr('speedIs', { name: speedName(sp) }));
+    speedBtn.title = tr('speedIs', { name: speedName(sp) });
   }
   speedBtn.addEventListener('click', () => {
     speedIndex = (speedIndex + 1) % SPEEDS.length;
     try { localStorage.setItem('roversa-speed', String(speedIndex)); } catch (e) { /* storage blocked */ }
     syncSpeedBtn();
     SND.tap();
-    if (!game.running) setMessage('Speed: ' + SPEEDS[speedIndex].name + '.');
+    if (!game.running) setMessage(tr('speedIs', { name: speedName(SPEEDS[speedIndex]) }) + '.');
   });
   syncSpeedBtn();
   $('#btn-roll').addEventListener('click', roll);
@@ -1328,13 +1341,13 @@
       game.predict = null;
       clearRunMarks();
       renderAll();
-      setMessage(game.level.hint);
+      setMessage(levelHint());
       return;
     }
     openModal(
-      '<h3>New game?</h3><p>Start a new Dice Quest with a new map.</p>' +
-      '<div class="choices"><button class="btn gray" data-act="no">Keep playing</button>' +
-      '<button class="btn big red" data-act="yes">New game</button></div>'
+      '<h3>' + tr('modal.newGameQ') + '</h3><p>' + tr('modal.newGameText') + '</p>' +
+      '<div class="choices"><button class="btn gray" data-act="no">' + tr('modal.keepPlaying') + '</button>' +
+      '<button class="btn big red" data-act="yes">' + tr('newGame') + '</button></div>'
     );
     modal.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
       SND.tap();
@@ -1342,6 +1355,20 @@
       if (b.dataset.act === 'yes') startQuest(game.robots.length);
     }));
   });
+
+  // ---------- Language ----------
+
+  document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => {
+    SND.tap();
+    I18N.setLang(b.dataset.lang);
+  }));
+  I18N.onChange(() => {
+    syncSpeedBtn();
+    syncGameText();
+    if ($('#screen-levels').classList.contains('active')) renderLevelGrid();
+    if (game.map) { renderAll(); describeBoard(); }
+  });
+  I18N.applyStatic();
 
   // ---------- Start ----------
 
