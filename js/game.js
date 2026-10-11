@@ -1351,11 +1351,16 @@
     if (game.running || game.rolling) return;
     SND.tap();
     if (game.mode === 'level') {
-      resetRobot(game.robots[0]);
+      // Start the level fresh: Roversa back on the start, an empty program row
+      // and a clean map, with a sparkle so the restart is easy to see.
+      const r = game.robots[0];
+      resetRobot(r);
+      game.program = [];
       game.trail = [];
       game.predict = null;
       clearRunMarks();
       renderAll();
+      sparkle(r.x, r.y);
       setMessage(levelHint());
       return;
     }
