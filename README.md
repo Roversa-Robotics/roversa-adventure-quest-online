@@ -10,7 +10,7 @@ HTML, CSS and JavaScript, so GitHub Pages serves it as is.
 ## Ways to play
 
 - **Adventures**: eight short levels that introduce one idea at a time
-  (forward, turns, obstacles, back, repeat). Earn up to three stars by using the
+  (Forward, Turn Left and Turn Right, obstacles, Backward, repeat). Earn up to three stars by using the
   fewest pieces.
 - **Dice Quest**: the classroom game. Roll the Roversa die five times, arrange all
   five pieces, and run them. Roversa stays where it stops. First robot to visit
@@ -24,13 +24,16 @@ The pieces match the 3D-printed ones in
 [roversa-quest](https://github.com/Roversa-Robotics/roversa-quest), and the Dice
 Quest die has the same six faces.
 
-| Piece | Color | What it does |
-| --- | --- | --- |
-| Up arrow | purple | Drive one square forward |
-| Down arrow | yellow | Drive one square backward (no turning) |
-| Curved arrows | orange (left), blue (right) | Turn 90 degrees in place |
-| Roversa word | red | Repeat the piece before it |
-| Roversa logo | green | Wild: becomes any arrow you choose (Dice Quest) |
+| Piece | Name | Color | What it does |
+| --- | --- | --- | --- |
+| Up arrow | Forward | purple | Drive one square forward |
+| Down arrow | Backward | yellow | Drive one square backward (no turning) |
+| Curved arrows | Turn Left, Turn Right | orange (left), blue (right) | Turn 90 degrees in place |
+| Roversa word | Repeat | red | Repeat the piece before it |
+| Roversa logo | Wild | green | Becomes any arrow you choose (Dice Quest) |
+
+The game always calls the directions **Forward**, **Backward**, **Turn Left** and
+**Turn Right**.
 
 ## Running it locally
 

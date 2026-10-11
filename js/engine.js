@@ -17,7 +17,7 @@
   const BLOCKING = { T: true, R: true, W: true };
 
   // Gamepiece commands.
-  //   F forward, B back, L turn left, R turn right,
+  //   F Forward, B Backward, L Turn Left, R Turn Right,
   //   P repeat the previous command, W wild (player picks F, B, L or R)
   const COMMANDS = ['F', 'B', 'L', 'R', 'P', 'W'];
 
