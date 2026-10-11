@@ -375,18 +375,21 @@
     show(game.mode === 'level' ? 'levels' : 'quest-setup');
   });
 
-  const soundBtn = $('#btn-sound');
-  function syncSoundBtn() { soundBtn.classList.toggle('off', AUDIO.isMuted()); }
-  soundBtn.addEventListener('click', () => { AUDIO.setMuted(!AUDIO.isMuted()); syncSoundBtn(); SND.tap(); });
+  // Sound and read-aloud buttons sit on every screen and share one setting each.
+  const soundBtns = document.querySelectorAll('.btn-sound');
+  function syncSoundBtn() { soundBtns.forEach((b) => b.classList.toggle('off', AUDIO.isMuted())); }
+  soundBtns.forEach((b) => b.addEventListener('click', () => { AUDIO.setMuted(!AUDIO.isMuted()); syncSoundBtn(); SND.tap(); }));
   syncSoundBtn();
 
   // Read aloud: speaks messages and piece names for children who are still learning to read.
   let voiceOn = false;
   try { voiceOn = localStorage.getItem('roversa-voice') === '1'; } catch (e) { /* storage blocked */ }
-  const voiceBtn = $('#btn-voice');
+  const voiceBtns = document.querySelectorAll('.btn-voice');
   function syncVoiceBtn() {
-    voiceBtn.classList.toggle('off', !voiceOn);
-    voiceBtn.setAttribute('aria-pressed', String(voiceOn));
+    voiceBtns.forEach((b) => {
+      b.classList.toggle('off', !voiceOn);
+      b.setAttribute('aria-pressed', String(voiceOn));
+    });
   }
   function say(text) {
     if (!voiceOn || !('speechSynthesis' in window)) return;
@@ -398,14 +401,16 @@
       speechSynthesis.speak(u);
     } catch (e) { /* speech unavailable */ }
   }
-  voiceBtn.hidden = !('speechSynthesis' in window);
-  voiceBtn.addEventListener('click', () => {
-    voiceOn = !voiceOn;
-    try { localStorage.setItem('roversa-voice', voiceOn ? '1' : '0'); } catch (e) { /* storage blocked */ }
-    syncVoiceBtn();
-    SND.tap();
-    if (voiceOn) say(tr('msg.readAloudOn'));
-    else if ('speechSynthesis' in window) speechSynthesis.cancel();
+  voiceBtns.forEach((b) => {
+    b.hidden = !('speechSynthesis' in window);
+    b.addEventListener('click', () => {
+      voiceOn = !voiceOn;
+      try { localStorage.setItem('roversa-voice', voiceOn ? '1' : '0'); } catch (e) { /* storage blocked */ }
+      syncVoiceBtn();
+      SND.tap();
+      if (voiceOn) say(tr('msg.readAloudOn'));
+      else if ('speechSynthesis' in window) speechSynthesis.cancel();
+    });
   });
   syncVoiceBtn();
 
