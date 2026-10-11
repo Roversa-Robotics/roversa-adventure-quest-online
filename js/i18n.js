@@ -8,7 +8,7 @@
     en: {
       'page.title': 'Roversa Adventure Quest',
       'lang.label': 'Language',
-      'title.tagline': 'Line up the puzzle pieces. Press GO. Drive Roversa to every treasure!',
+      'title.tagline': 'Choose a game. Create algorithms. Guide Roversa on a treasure-filled adventure!',
       'menu.adventures': 'Adventures',
       'menu.quest': 'Dice Quest',
       'credit': 'Inspired by Roversa Adventure Quest from <a href="https://roversa.com" target="_blank" rel="noopener">Roversa Robotics</a> (CC BY-NC-SA 4.0).',
@@ -147,7 +147,7 @@
     es: {
       'page.title': 'Roversa Adventure Quest',
       'lang.label': 'Idioma',
-      'title.tagline': 'Pon las piezas de rompecabezas en orden. Pulsa VAMOS. ¡Lleva a Roversa a cada tesoro!',
+      'title.tagline': 'Elige un juego. Crea algoritmos. ¡Guía a Roversa en una aventura llena de tesoros!',
       'menu.adventures': 'Aventuras',
       'menu.quest': 'Búsqueda con dado',
       'credit': 'Inspirado en Roversa Adventure Quest de <a href="https://roversa.com" target="_blank" rel="noopener">Roversa Robotics</a> (CC BY-NC-SA 4.0).',
