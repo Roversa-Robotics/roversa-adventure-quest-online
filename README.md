@@ -9,9 +9,10 @@ HTML, CSS and JavaScript, so GitHub Pages serves it as is.
 
 ## Ways to play
 
-- **Adventures**: eight short levels that introduce one idea at a time
+- **Adventures**: twelve short levels that introduce one idea at a time
   (Forward, Turn Left and Turn Right, obstacles, Backward, repeat). Earn up to three stars by using the
-  fewest pieces.
+  fewest pieces. Levels 9 to 12 are 6 x 4 maps based on the printed Roversa mats
+  (Duck Duck Robot, I Feel, Grid Challenges and Underwater Adventure).
 - **Dice Quest**: the classroom game. Roll the Roversa die five times, arrange all
   five pieces, and run them. Roversa stays where it stops. First robot to visit
   all three treasures wins. One or two players, each picking a robot costume.

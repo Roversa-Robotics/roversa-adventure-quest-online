@@ -255,6 +255,10 @@
       { name: 'Vuelta al lago', hint: 'Roversa no sabe nadar. Rodea el lago.' },
       { name: 'Sendero del bosque', hint: 'Sigue el camino de arena entre los árboles.' },
       { name: 'La gran búsqueda', hint: '¡Encuentra los tres tesoros en un solo programa!' },
+      { name: 'El estanque', hint: 'Rodea el estanque hasta el cofre del tesoro. ¡Las fichas de repetir ahorran fichas de Adelante!' },
+      { name: 'Prado soleado', hint: 'Visita los dos tesoros. Los arbustos estorban arriba.' },
+      { name: 'Isla del tesoro', hint: 'Busca el cofre del tesoro, luego las bolsas de oro y luego las monedas de oro. ¡Atrás puede ayudar!' },
+      { name: 'Bajo el mar', hint: 'Roversa no sabe nadar. Rodea el mar para encontrar los tres tesoros.' },
     ],
   };
 

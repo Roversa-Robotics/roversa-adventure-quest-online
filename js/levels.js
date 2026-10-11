@@ -127,4 +127,63 @@ globalThis.ROVERSA_LEVELS = [
       'TTTTTTTT',
     ],
   },
+  // The next four maps are 6 x 4, like the printed Roversa mats (columns A-F,
+  // rows 1-4), and borrow their scenes.
+  {
+    // Duck Duck Robot mat: a pond with cattails, rocks and lily pads.
+    name: 'Duck Pond',
+    hint: 'Drive around the pond to the treasure chest. Repeat pieces save Forward pieces!',
+    startDir: 'E',
+    pieces: { F: 4, L: 2, R: 2, P: 4 },
+    slots: 12,
+    map: [
+      'f.WW.A',
+      'T.WW..',
+      'T.....',
+      'S=.RR.',
+    ],
+  },
+  {
+    // I Feel mat: a sunny meadow with bushy hills at the top.
+    name: 'Sunny Meadow',
+    hint: 'Visit both treasures. The bushes are in the way at the top.',
+    startDir: 'E',
+    pieces: { F: 4, L: 2, R: 2, P: 8 },
+    slots: 15,
+    map: [
+      'TTA.TT',
+      'f..T.f',
+      '......',
+      'S....B',
+    ],
+  },
+  {
+    // Grid Challenges mat: Roversa Island, from the charging station to the X,
+    // Roversa HQ and Roboland.
+    name: 'Treasure Island',
+    hint: 'Find the treasure chest, then the bags of gold, then the gold coins. Backward can help!',
+    startDir: 'E',
+    pieces: { F: 6, B: 2, L: 3, R: 3, P: 4 },
+    slots: 14,
+    map: [
+      'WW.TCR',
+      'WW.B.W',
+      'W.A..W',
+      'WS=..W',
+    ],
+  },
+  {
+    // Underwater Adventure mat: a sea between two sandy shores, with a deep trench.
+    name: 'Under the Sea',
+    hint: 'Roversa cannot swim. Go around the sea to find all three treasures.',
+    startDir: 'E',
+    pieces: { F: 5, B: 2, L: 3, R: 3, P: 7 },
+    slots: 16,
+    map: [
+      '...C..',
+      '.WWWW.',
+      'AWWWWB',
+      '.SWW==',
+    ],
+  },
 ];
