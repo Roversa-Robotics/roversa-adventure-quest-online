@@ -12,21 +12,6 @@
     return c;
   }
 
-  // Draws a sprite from rows of characters; '.' is transparent.
-  function fromRows(rows, palette, base) {
-    const c = base || canvas();
-    const g = c.getContext('2d');
-    rows.forEach((row, y) => {
-      for (let x = 0; x < row.length; x++) {
-        const col = palette[row[x]];
-        if (!col) continue;
-        g.fillStyle = col;
-        g.fillRect(x, y, 1, 1);
-      }
-    });
-    return c;
-  }
-
   function rng(seed) {
     let a = seed >>> 0;
     return function () {
@@ -164,103 +149,73 @@
     return c;
   }
 
-  const ROBOT_ROWS = [
-    '................',
-    '....rRRRRRRr....',
-    '...rRYRRRRYRr...',
-    '...RRRRRRRRRR...',
-    '.KKRggggggggRKK.',
-    '.kKRgDDDDDDgRKk.',
-    '.KKRgDLDDLDgRKK.',
-    '.kKRgDDDDDDgRKk.',
-    '.KKRgLDDDDLgRKK.',
-    '.kKRgDLLLLDgRKk.',
-    '.KKRgDDDDDDgRKK.',
-    '...RggggggggR...',
-    '...RgGgGgGgGR...',
-    '...RggggggggR...',
-    '...rRRRRRRRRr...',
-    '................',
-  ];
+  // ---------- Sprites made from the Roversa brand art (see tools/pixelate.py) ----------
 
-  // Robot facing up (north). The game rotates it for other directions.
-  function robot(body, dark) {
-    return fromRows(ROBOT_ROWS, {
-      R: body, r: dark, Y: '#fff59d', g: '#d4d8de', G: '#7d8590',
-      D: '#1b1b1f', L: '#ff4436', K: '#222222', k: '#5a5a5a',
+  const ASSETS = 'assets/sprites/';
+
+  // Blank canvases are handed out right away and painted once the images load,
+  // so drawing code never has to wait for them.
+  function imageCanvas(file, size) {
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    c.loaded = new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => { c.getContext('2d').drawImage(img, 0, 0, size, size); resolve(c); };
+      img.onerror = () => resolve(c);
+      img.src = ASSETS + file;
     });
+    return c;
   }
 
-  const FLAG = [
-    '................',
-    '....KrRRRR......',
-    '....KRRRRRRR....',
-    '....KrRRRRRRR...',
-    '....KRRRRRRR....',
-    '....KRRRRR......',
-    '....K...........',
-    '....K...........',
-    '....K...........',
-    '....K...........',
-    '....K...........',
-    '....K...........',
-    '...KKK..........',
-    '..ddddd.........',
-    '................',
-    '................',
+  const TEAM_COLORS = [
+    { name: 'Red', css: '#ff3633', dark: '#8f1513' },
+    { name: 'Blue', css: '#2f7bff', dark: '#0d3a8a' },
   ];
 
-  const CHEST = [
-    '................',
-    '................',
-    '................',
-    '...KKKKKKKKKK...',
-    '..KbbbbbbbbbbK..',
-    '..KbBBBBBBBBbK..',
-    '..KKKKKKKKKKKK..',
-    '..KbbbbYYbbbbK..',
-    '..KbBBBYYBBBbK..',
-    '..KbbbbbbbbbbK..',
-    '..KbBBBBBBBBbK..',
-    '..KKKKKKKKKKKK..',
-    '...dddddddddd...',
-    '................',
-    '................',
-    '................',
-  ];
+  // The top-down Roversa, facing up (north); the game rotates it for other directions.
+  const robotBase = imageCanvas('robot.png', 32);
 
-  const GEM = [
-    '................',
-    '................',
-    '....KKKKKKKK....',
-    '...KcCCcCCcCK...',
-    '..KcCCCcCCCcCK..',
-    '.KKKKKKKKKKKKKK.',
-    '..KCccCCCCccCK..',
-    '...KCcCCCCcCK...',
-    '....KCcCCcCK....',
-    '.....KCcCcK.....',
-    '......KCcK......',
-    '.......KK.......',
-    '....dddddddd....',
-    '................',
-    '................',
-    '................',
-  ];
+  // Each team's robot carries a colored dot, like the dots used to tell robots apart in the classroom game.
+  function robot(team) {
+    const c = document.createElement('canvas');
+    c.width = 32;
+    c.height = 32;
+    const paint = () => {
+      const g = c.getContext('2d');
+      g.clearRect(0, 0, 32, 32);
+      g.drawImage(robotBase, 0, 0);
+      const col = TEAM_COLORS[team || 0];
+      g.fillStyle = col.dark;
+      g.fillRect(23, 15, 5, 5);
+      g.fillStyle = col.css;
+      g.fillRect(24, 16, 3, 3);
+    };
+    paint();
+    robotBase.loaded.then(paint);
+    return c;
+  }
 
-  const SHADOW = 'rgba(0,0,0,0.28)';
+  // Destinations: A treasure chest, B bags of gold, C gold coins.
   const goals = {
-    A: fromRows(FLAG, { K: '#4a2f17', R: '#e53935', r: '#ff8a80', d: SHADOW }),
-    B: fromRows(CHEST, { K: '#3b2412', b: '#b06a2c', B: '#7a4520', Y: '#ffd23f', d: SHADOW }),
-    C: fromRows(GEM, { K: '#1a2a6c', C: '#3fb6f0', c: '#c4f1ff', d: SHADOW }),
+    A: imageCanvas('treasure-chest.png', 32),
+    B: imageCanvas('treasure-bags.png', 32),
+    C: imageCanvas('treasure-coins.png', 32),
   };
 
-  const TEAM_COLORS = [
-    { name: 'Red', body: '#c8372d', dark: '#7d241b', css: '#e0483c' },
-    { name: 'Blue', body: '#2f6fd8', dark: '#1c428a', css: '#4a8cf0' },
-  ];
+  // Robot costumes players can pick in Dice Quest.
+  const CHARACTERS = [
+    { id: 'robot', name: 'Robot' },
+    { id: 'octopus', name: 'Octopus' },
+    { id: 'angler', name: 'Angler fish' },
+    { id: 'monkey', name: 'Monkey' },
+    { id: 'seal', name: 'Seal' },
+    { id: 'tank', name: 'Tank' },
+  ].map((ch) => Object.assign(ch, { sprite: imageCanvas('char-' + ch.id + '.png', 32) }));
+
+  const ready = Promise.all([robotBase.loaded, ...Object.values(goals).map((g) => g.loaded), ...CHARACTERS.map((ch) => ch.sprite.loaded)]);
 
   root.RoversaSprites = {
-    SIZE, rng, grass, flowers, sand, tree, rock, water, startPad, robot, goals, TEAM_COLORS,
+    SIZE, rng, grass, flowers, sand, tree, rock, water, startPad, robot, goals, TEAM_COLORS, CHARACTERS, ready,
   };
 })(globalThis);

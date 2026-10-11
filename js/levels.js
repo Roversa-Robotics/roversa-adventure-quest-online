@@ -4,7 +4,7 @@
 //   .  grass        f  flowers      =  sand path     (Roversa can drive here)
 //   T  tree         R  rock         W  water         (Roversa bumps into these)
 //   S  where Roversa starts
-//   A  flag   B  treasure chest   C  gem             (destinations to visit)
+//   A  treasure chest   B  bags of gold   C  gold coins   (destinations to visit)
 //
 // startDir: which way Roversa faces at the start: 'N' up, 'E' right, 'S' down, 'W' left.
 // pieces:   how many of each gamepiece the player gets.
@@ -115,7 +115,7 @@ globalThis.ROVERSA_LEVELS = [
   },
   {
     name: 'Grand Quest',
-    hint: 'Visit the flag, the chest and the gem in one program!',
+    hint: 'Find all three treasures in one program!',
     startDir: 'E',
     pieces: { F: 5, B: 3, L: 3, R: 3, P: 8 },
     slots: 15,

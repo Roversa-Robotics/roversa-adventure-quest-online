@@ -13,7 +13,7 @@
   //   T  tree         R  rock         W  water       (all block the robot)
   //   S  start square (level mode)
   //   1, 2  player start squares (quest mode)
-  //   A, B, C  destinations (flag, treasure chest, gem)
+  //   A, B, C  destinations (treasure chest, bags of gold, gold coins)
   const BLOCKING = { T: true, R: true, W: true };
 
   // Gamepiece commands.
