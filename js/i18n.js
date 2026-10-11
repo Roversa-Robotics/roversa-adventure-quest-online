@@ -59,6 +59,7 @@
 
       'piece.F': 'Forward', 'piece.B': 'Backward', 'piece.L': 'Turn Left', 'piece.R': 'Turn Right', 'piece.P': 'Repeat', 'piece.W': 'Wild',
       'wildAs': 'Wild: {name}',
+      'repeatAs': 'Repeat: {name}',
       'team.0': 'Red', 'team.1': 'Blue',
       'robot': '{team} Roversa',
       'char.octopus': 'Octopus', 'char.turtle': 'Turtle', 'char.monkey': 'Monkey', 'char.tiger': 'Tiger', 'char.elephant': 'Elephant', 'char.manatee': 'Manatee',
@@ -198,6 +199,7 @@
 
       'piece.F': 'Adelante', 'piece.B': 'Atrás', 'piece.L': 'Girar a la izquierda', 'piece.R': 'Girar a la derecha', 'piece.P': 'Repetir', 'piece.W': 'Comodín',
       'wildAs': 'Comodín: {name}',
+      'repeatAs': 'Repetir: {name}',
       'team.0': 'roja', 'team.1': 'azul',
       'robot': 'Roversa {team}',
       'char.octopus': 'Pulpo', 'char.turtle': 'Tortuga', 'char.monkey': 'Mico', 'char.tiger': 'Tigre', 'char.elephant': 'Elefante', 'char.manatee': 'Manatí',
