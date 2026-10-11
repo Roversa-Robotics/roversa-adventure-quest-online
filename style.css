@@ -302,6 +302,7 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 }
 .score.turn { border-color: var(--yellow); box-shadow: 0 0 0 2px var(--yellow); }
 .score canvas { width: 36px; height: 36px; image-rendering: pixelated; }
+.score canvas.flag { width: 21px; height: 28.5px; margin: 0 -4px 0 -6px; }
 .score .goal-icons { display: flex; gap: 4px; margin-left: auto; }
 .score .goal-icons canvas { width: 26px; height: 26px; opacity: 0.25; filter: grayscale(1); }
 .score .goal-icons canvas.got { opacity: 1; filter: none; }
@@ -355,6 +356,7 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
   touch-action: manipulation;
 }
 .character canvas { width: 64px; height: 64px; image-rendering: pixelated; }
+.character canvas.flag { width: 14px; height: 19px; margin-right: 5px; vertical-align: -3px; }
 .character:hover:not(:disabled), .character:focus-visible { border-color: var(--team); box-shadow: 0 0 0 3px var(--team); outline: none; }
 .character:disabled { opacity: 0.3; }
 .modal-box canvas.winner { width: 96px; height: 96px; image-rendering: pixelated; }

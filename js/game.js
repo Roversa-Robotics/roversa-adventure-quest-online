@@ -149,13 +149,14 @@
   };
 
   function makeRobot(start, dir, team, teamWheels) {
-    const colors = SP.TEAM_COLORS[team];
+    const flagColor = SP.TEAM_COLORS[team].flag;
     return {
-      team, css: colors.css,
+      team, flagColor, css: SP.FLAG_COLORS[flagColor].css,
+      flag: SP.flag(flagColor),
       charId: null, // set in Dice Quest to the costume the player picked
       // Players are named after their costume, like "Elephant", else "Red Roversa".
       get name() { return this.charId ? tr('char.' + this.charId) : tr('robot', { team: tr('team.' + this.team) }); },
-      sprite: SP.robot(teamWheels ? team : undefined),
+      sprite: SP.robot(teamWheels ? flagColor : undefined),
       sx: start.x, sy: start.y, sdir: dir,
       x: start.x, y: start.y, dir,
       rx: start.x, ry: start.y, ang: (dir * Math.PI) / 2, scale: 1, alpha: 1, bump: 0,
@@ -251,12 +252,12 @@
       g.drawImage(SP.goals[goal.id], goal.x * S, goal.y * S + bob, S, S);
       g.globalAlpha = 1;
       if (game.mode === 'level' && who.length) drawCheck(g, goal.x * S + S * 0.62, goal.y * S + S * 0.05, S * 0.36);
+      // In Dice Quest each player who found this treasure plants a small flag on it.
       if (game.mode === 'quest') {
         who.forEach((r, k) => {
-          g.fillStyle = '#0e1024';
-          g.fillRect(goal.x * S + S * 0.08 + k * S * 0.3 - SCALE, goal.y * S + S * 0.74 - SCALE, S * 0.24 + SCALE * 2, S * 0.2 + SCALE * 2);
-          g.fillStyle = r.css;
-          g.fillRect(goal.x * S + S * 0.08 + k * S * 0.3, goal.y * S + S * 0.74, S * 0.24, S * 0.2);
+          const fw = r.flag.width * SCALE / 2, fh = r.flag.height * SCALE / 2;
+          const fx = k === 0 ? goal.x * S - SCALE : (goal.x + 1) * S - fw + SCALE;
+          g.drawImage(r.flag, fx, (goal.y + 1) * S - fh, fw, fh);
         });
       }
     });
@@ -270,6 +271,7 @@
       g.globalAlpha = r.alpha;
       g.drawImage(r.sprite, -S / 2, -S / 2, S, S);
       g.restore();
+      drawRobotFlag(g, r, S);
       if (game.mode === 'quest' && game.robots.length > 1 && i === game.active && r.alpha > 0.5) {
         const bob = Math.round(Math.sin(now / 200) * 1.5) * SCALE;
         const cx = (r.rx + 0.5) * S;
@@ -290,6 +292,22 @@
       g.fillStyle = p.color;
       g.fillRect(p.x, p.y, SCALE * 2, SCALE * 2);
     });
+  }
+
+  // Roversa's flag stands up from its back right corner, like on the real robot.
+  // It is drawn upright whichever way the robot faces, so it always reads as a flag.
+  function drawRobotFlag(g, r, S) {
+    if (!r.flag || r.alpha < 0.05) return;
+    const px = SCALE * 0.5 * r.scale;
+    const dx = 0.3 * S, dy = 0.36 * S;
+    const c = Math.cos(r.ang), s = Math.sin(r.ang);
+    const bx = (r.rx + 0.5) * S + r.bump + (dx * c - dy * s) * r.scale;
+    // Keep the whole flag on the map when the robot is on the top row.
+    const by = Math.max((r.ry + 0.5) * S + (dx * s + dy * c) * r.scale, r.flag.height * px);
+    g.save();
+    g.globalAlpha = r.alpha;
+    g.drawImage(r.flag, bx - 12.5 * px, by - r.flag.height * px, r.flag.width * px, r.flag.height * px);
+    g.restore();
   }
 
   // The running puzzle piece pops up just above the robot (below it on the top row)
@@ -624,7 +642,7 @@
           const b = document.createElement('button');
           b.type = 'button';
           b.className = 'character';
-          b.style.setProperty('--team', team.css);
+          b.style.setProperty('--team', SP.FLAG_COLORS[ch.flag].css);
           b.setAttribute('aria-label', tr('char.' + ch.id));
           b.disabled = picks.includes(ch);
           const c = document.createElement('canvas');
@@ -632,7 +650,9 @@
           c.getContext('2d').drawImage(ch.sprite, 0, 0);
           b.appendChild(c);
           b.insertAdjacentHTML('beforeend', '<span></span>');
-          b.querySelector('span').textContent = tr('char.' + ch.id);
+          const f = SP.flag(ch.flag);
+          f.className = 'flag';
+          b.querySelector('span').append(f, tr('char.' + ch.id));
           b.addEventListener('click', () => { SND.tap(); closeModal(ch); });
           box.appendChild(b);
         });
@@ -654,7 +674,13 @@
     game.robots = [makeRobot(game.map.starts['1'], 0, 0, true)];
     if (players > 1) game.robots.push(makeRobot(game.map.starts['2'], 2, 1, true));
     (game.characters || []).forEach((ch, i) => {
-      if (game.robots[i]) Object.assign(game.robots[i], { character: ch.sprite, charId: ch.id });
+      if (game.robots[i]) {
+        Object.assign(game.robots[i], {
+          character: ch.sprite, charId: ch.id,
+          flagColor: ch.flag, css: SP.FLAG_COLORS[ch.flag].css,
+          flag: SP.flag(ch.flag), sprite: SP.robot(ch.flag),
+        });
+      }
     });
     game.active = 0;
     game.tray = [];
@@ -794,6 +820,11 @@
       icon.width = look.width; icon.height = look.height;
       icon.getContext('2d').drawImage(look, 0, 0);
       box.appendChild(icon);
+      const flagIcon = document.createElement('canvas');
+      flagIcon.className = 'flag';
+      flagIcon.width = r.flag.width; flagIcon.height = r.flag.height;
+      flagIcon.getContext('2d').drawImage(r.flag, 0, 0);
+      box.appendChild(flagIcon);
       const label = document.createElement('span');
       label.textContent = r.name;
       if (game.robots.length > 1 && i === game.active) box.setAttribute('aria-label', tr('sr.turn', { team: r.name }));
