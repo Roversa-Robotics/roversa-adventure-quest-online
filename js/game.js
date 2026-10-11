@@ -83,19 +83,21 @@
     'V57 Q77,64 70,64 H20 Q13,64 13,57 V43 L5,45.4 Q3,45.8 3,43.8 V20.2 Q3,18.2 5,18.6 L13,21 V7 Q13,0 20,0 Z';
 
   function pieceSvg(t, chosen) {
-    const [color, dark] = PIECE_COLORS[t];
+    const shown = t === 'W' && chosen ? chosen : t;
+    const [color, dark] = PIECE_COLORS[shown];
     const id = 'arc' + uid();
-    // A wild piece keeps its green logo color but shows the arrow the player picked.
+    // A wild piece that has been set takes the color and arrow of the piece it
+    // stands for, with a small Roversa logo in the corner to show it is wild.
     // The socket eats into the right side, so the picture sits a little left of the
     // outline's middle to look centered on the solid part of the piece.
-    const icon = '<g transform="translate(-5,0)">' + iconMarkup(t === 'W' && chosen ? chosen : t, id) + '</g>';
+    const icon = '<g transform="translate(-5,0)">' + iconMarkup(shown, id) + '</g>';
     return '<svg viewBox="0 0 77 64" aria-hidden="true">' +
       (t === 'P' ? '<defs><path id="' + id + '" d="M33.5,42.6 A15,15 0 1 1 56.5,42.6"/></defs>' : '') +
       '<path d="' + PIECE_SHAPE + '" fill="' + color + '" stroke="' + dark + '" stroke-width="2.5" stroke-linejoin="round"/>' +
       '<path d="M20,3.5 H70" stroke="rgba(255,255,255,0.35)" stroke-width="2.5" stroke-linecap="round"/>' +
       '<g style="color:rgba(0,0,0,0.3)" fill="currentColor" transform="translate(0,2)">' + icon + '</g>' +
       '<g style="color:' + ICON_COLOR + '" fill="currentColor" stroke="' + dark + '" stroke-width="1.4" paint-order="stroke">' + icon + '</g>' +
-      (t === 'W' && chosen ? '<g fill="' + ICON_COLOR + '" transform="translate(41,41) scale(0.32)">' + iconMarkup('W') + '</g>' : '') +
+      (t === 'W' && chosen ? '<g fill="' + ICON_COLOR + '" stroke="' + dark + '" stroke-width="3" paint-order="stroke" transform="translate(41,41) scale(0.32)">' + iconMarkup('W') + '</g>' : '') +
       '</svg>';
   }
 
