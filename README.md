@@ -14,7 +14,7 @@ HTML, CSS and JavaScript, so GitHub Pages serves it as is.
   fewest pieces.
 - **Dice Quest**: the classroom game. Roll the Roversa die five times, arrange all
   five pieces, and run them. Roversa stays where it stops. First robot to visit
-  the flag, the chest and the gem wins. One or two players.
+  all three treasures wins. One or two players, each picking a robot costume.
 
 Tap the map before pressing GO to guess where Roversa will stop.
 
@@ -59,6 +59,20 @@ number is what earns three stars).
 
 Settings > Pages > Build and deployment > Source: **Deploy from a branch**,
 Branch: `main`, folder `/ (root)`.
+
+## Art
+
+The robot, treasures and robot costumes are 8-bit versions of Roversa brand
+art. Reduced copies of the originals live in `assets/source/`, and
+`python3 tools/pixelate.py` (needs Pillow) rebuilds `assets/sprites/` from them.
+The top-down robot is drawn pixel by pixel in that script so the micro:bit and
+button pad stay readable. Map tiles (grass, trees, rocks, water) are drawn in
+`js/sprites.js`.
+
+Fonts and colors follow the Roversa Brand Guidelines (May 2026): Bevan for
+headings, Open Sans for body text and Space Mono for labels, all from Google
+Fonts. The pixel font Press Start 2P stays on the title and buttons for the
+8-bit look. The brand colors are CSS tokens at the top of `style.css`.
 
 ## Credits
 
