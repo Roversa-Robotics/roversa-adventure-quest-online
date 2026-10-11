@@ -1,4 +1,4 @@
-// Screens, drawing, gamepiece drag-and-drop and running programs.
+// Screens, drawing, puzzle piece drag-and-drop and running programs.
 (function () {
   'use strict';
 
@@ -45,7 +45,7 @@
     try { localStorage.setItem('roversa-stars', JSON.stringify(all)); } catch (e) { /* storage blocked */ }
   }
 
-  // ---------- Gamepiece pictures ----------
+  // ---------- Puzzle piece pictures ----------
 
   // Colors and icons follow the 3D-printed pieces in Roversa-Robotics/roversa-quest:
   // orange Turn Left, blue Turn Right, purple Forward, yellow Backward,
@@ -396,7 +396,7 @@
   function syncGameText() {
     if (game.mode === 'level') {
       $('#game-title').textContent = (game.levelIndex + 1) + '. ' + I18N.levelText(game.levelIndex, game.level).name;
-      $('#pool-label').textContent = tr('gamepieces');
+      $('#pool-label').textContent = tr('puzzlePieces');
       labelButton('#btn-reset', tr('startOver'), tr('startOver'));
       labelButton('#btn-clear', tr('clear'), tr('clearProgram'));
     } else if (game.mode === 'quest') {
