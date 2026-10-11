@@ -372,6 +372,13 @@
   });
   syncVoiceBtn();
 
+  // Small action buttons show an icon with a short word under it.
+  function labelButton(sel, label, aria) {
+    const b = $(sel);
+    b.querySelector('.btn-label').textContent = label;
+    b.setAttribute('aria-label', aria);
+  }
+
   function setMessage(text, kind) {
     const m = $('#message');
     m.textContent = text;
@@ -487,8 +494,8 @@
     $('#scoreboard').hidden = true;
     $('#btn-roll').hidden = true;
     $('#pool-label').textContent = 'Gamepieces';
-    $('#btn-reset').setAttribute('aria-label', 'Start over');
-    $('#btn-clear').setAttribute('aria-label', 'Clear program');
+    labelButton('#btn-reset', 'Start over', 'Start over');
+    labelButton('#btn-clear', 'Clear', 'Clear program');
     enterGame();
     setMessage(level.hint);
   }
@@ -598,8 +605,8 @@
     $('#scoreboard').hidden = false;
     $('#btn-roll').hidden = false;
     $('#pool-label').textContent = 'Your roll';
-    $('#btn-reset').setAttribute('aria-label', 'New game');
-    $('#btn-clear').setAttribute('aria-label', 'Take pieces out');
+    labelButton('#btn-reset', 'New game', 'New game');
+    labelButton('#btn-clear', 'Take out', 'Take pieces out');
     enterGame();
     promptRoll();
   }
@@ -1283,7 +1290,8 @@
   const speedBtn = $('#btn-speed');
   function syncSpeedBtn() {
     const sp = SPEEDS[speedIndex];
-    speedBtn.textContent = sp.icon;
+    speedBtn.querySelector('.btn-sym').textContent = sp.icon;
+    speedBtn.querySelector('.btn-label').textContent = sp.name;
     speedBtn.setAttribute('aria-label', 'Speed: ' + sp.name);
     speedBtn.title = 'Speed: ' + sp.name;
   }
