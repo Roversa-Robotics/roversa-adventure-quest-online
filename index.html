@@ -63,15 +63,17 @@
     <header class="bar">
       <button class="icon-btn" id="btn-back" aria-label="Back">&#9664;</button>
       <h2 id="game-title">Level</h2>
+      <button class="icon-btn" id="btn-voice" aria-label="Read aloud" title="Read aloud">&#128483;</button>
       <button class="icon-btn" id="btn-sound" aria-label="Sound on or off">&#9835;</button>
     </header>
     <main class="game">
       <div class="board-col">
         <div id="scoreboard" class="scoreboard" hidden></div>
         <div class="board-frame">
-          <canvas id="board"></canvas>
+          <canvas id="board" role="img" tabindex="0" aria-label="Map"></canvas>
         </div>
         <p id="message" class="message" role="status" aria-live="polite"></p>
+        <p id="sr-status" class="sr-only" aria-live="polite"></p>
       </div>
       <div class="controls-col">
         <div class="panel">
