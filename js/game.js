@@ -209,6 +209,11 @@
     const frame = Math.floor(now / 600) % 2;
     v.water.forEach((w) => g.drawImage(w.frames[frame], w.x * S, w.y * S, S, S));
 
+    // Faint grid: each square is one Forward or Back step.
+    g.fillStyle = 'rgba(0, 0, 0, 0.16)';
+    for (let c = 1; c < v.cols; c++) g.fillRect(c * S - 1, 0, 2, board.height);
+    for (let r = 1; r < v.rows; r++) g.fillRect(0, r * S - 1, board.width, 2);
+
     // Path the robot drove on this run.
     g.fillStyle = 'rgba(255,255,255,0.55)';
     game.trail.forEach((p) => g.fillRect((p.x + 0.5) * S - SCALE * 1.5, (p.y + 0.5) * S - SCALE * 1.5, SCALE * 3, SCALE * 3));
