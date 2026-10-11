@@ -211,12 +211,12 @@
 
   // Robot costumes players can pick in Dice Quest.
   const CHARACTERS = [
-    { id: 'robot', name: 'Robot' },
     { id: 'octopus', name: 'Octopus' },
-    { id: 'angler', name: 'Angler fish' },
+    { id: 'turtle', name: 'Turtle' },
     { id: 'monkey', name: 'Monkey' },
-    { id: 'seal', name: 'Seal' },
+    { id: 'tiger', name: 'Tiger' },
     { id: 'elephant', name: 'Elephant' },
+    { id: 'manatee', name: 'Manatee' },
   ].map((ch) => Object.assign(ch, { sprite: imageCanvas('char-' + ch.id + '.png', 32) }));
 
   const ready = Promise.all([robotBase.loaded, ...Object.values(goals).map((g) => g.loaded), ...CHARACTERS.map((ch) => ch.sprite.loaded)]);

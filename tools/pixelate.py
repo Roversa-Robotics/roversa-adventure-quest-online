@@ -16,18 +16,17 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'assets' / 'source'
 OUT = ROOT / 'assets' / 'sprites'
 
-# The character drawings carry a "Roversa" badge; these boxes (in the original
-# 716x619 drawings) cover the logo and text, which are painted over with the
-# badge color before shrinking.
+# The character drawings carry a small "Roversa" label; these boxes (in each
+# drawing's own pixels) cover it, and it is painted over with the color around
+# it before shrinking.
 BADGES = {
-    'char-robot.png': (258, 318, 455, 376),
-    'char-octopus.png': (290, 255, 440, 306),
-    'char-angler.png': (283, 400, 457, 449),
-    'char-monkey.png': (243, 314, 501, 385),
-    'char-seal.png': (247, 324, 442, 385),
-    'char-elephant.png': (205, 460, 481, 536),
+    'char-octopus.png': (838, 893, 962, 937),
+    'char-turtle.png': (720, 1205, 915, 1258),
+    'char-monkey.png': (188, 238, 272, 270),
+    'char-tiger.png': (245, 422, 352, 456),
+    'char-elephant.png': (170, 372, 285, 410),
+    'char-manatee.png': (357, 310, 440, 333),
 }
-ORIGINAL_WIDTH = 716
 
 # Optional crops (in the assets/source/ copies) applied before shrinking, so a
 # small detail fills more of the sprite. The coins keep the parrot and the stack
@@ -42,21 +41,20 @@ SPRITES = {
     'treasure-chest.png': ('treasure-chest.png', 32, 32),
     'treasure-bags.png': ('treasure-bags.png', 32, 32),
     'treasure-coins.png': ('treasure-coins.png', 32, 48, 1.35),
-    'char-robot.png': ('char-robot.png', 32, 12),
-    'char-octopus.png': ('char-octopus.png', 32, 12),
-    'char-angler.png': ('char-angler.png', 32, 16),
-    'char-monkey.png': ('char-monkey.png', 32, 12),
-    'char-seal.png': ('char-seal.png', 32, 12),
-    'char-elephant.png': ('char-elephant.png', 32, 12),
+    'char-octopus.png': ('char-octopus.png', 32, 16, 1.3),
+    'char-turtle.png': ('char-turtle.png', 32, 16, 1.3),
+    'char-monkey.png': ('char-monkey.png', 32, 16, 1.3),
+    'char-tiger.png': ('char-tiger.png', 32, 16, 1.3),
+    'char-elephant.png': ('char-elephant.png', 32, 16, 1.3),
+    'char-manatee.png': ('char-manatee.png', 32, 16, 1.3),
 }
 
 
 def remove_badge(im, box):
-    scale = im.width / ORIGINAL_WIDTH
-    x0, y0, x1, y1 = (round(v * scale) for v in box)
+    x0, y0, x1, y1 = box
     # The badge color is the most common color just outside the box's left and right edges.
     samples = [im.getpixel((x, y)) for y in range(y0, y1) for x in (max(0, x0 - 4), min(im.width - 1, x1 + 4))]
-    samples = [p for p in samples if sum(p[:3]) > 150]
+    samples = [p for p in samples if p[3] and sum(p[:3]) > 90]  # skip outlines and see-through edges
     color = max(set(samples), key=samples.count) if samples else (255, 255, 255, 255)
     ImageDraw.Draw(im).rectangle((x0, y0, x1, y1), fill=color)
     return im
