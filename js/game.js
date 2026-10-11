@@ -60,25 +60,27 @@
   const DOT = '<circle cx="45" cy="54" r="3.6"/>';
 
   function iconMarkup(t, id) {
-    const turn = '<path d="M36,17 H45 A10,10 0 0 1 45,37 V45" fill="none" stroke="currentColor" stroke-width="7"/>' +
-      '<polygon points="24,17 37,6 37,28"/>';
+    // A thick half-circle hook with the arrowhead on top, like the printed turn pieces.
+    const turn = '<path d="M40,17.5 H47 A12,12 0 0 1 47,41.5" fill="none" stroke="currentColor" stroke-width="10.5"/>' +
+      '<polygon points="25,17.5 41,3.5 41,31.5"/>';
     switch (t) {
       case 'F': return '<polygon points="45,6 60,23 51,23 51,44 39,44 39,23 30,23"/>' + DOT;
       case 'B': return '<polygon points="45,46 60,29 51,29 51,8 39,8 39,29 30,29"/>' + DOT;
       case 'L': return turn + DOT;
       case 'R': return '<g transform="translate(90,0) scale(-1,1)">' + turn + '</g>' + DOT;
-      case 'P': return '<text font-family="\'Arial Rounded MT Bold\', \'Trebuchet MS\', system-ui, sans-serif" font-weight="700" font-size="10.5">' +
-        '<textPath href="#' + id + '" textLength="60" lengthAdjust="spacing">Roversa</textPath></text>';
-      case 'W': return [[45, 9], [36.5, 19], [53.5, 19], [45, 29], [36.5, 39], [53.5, 39]]
-        .map(([x, y]) => '<rect x="' + (x - 4.5) + '" y="' + (y - 4.5) + '" width="9" height="9" rx="2"/>').join('');
+      case 'P': return '<text font-family="\'Arial Rounded MT Bold\', \'Trebuchet MS\', system-ui, sans-serif" font-weight="700" font-size="12.5">' +
+        '<textPath href="#' + id + '" textLength="68" lengthAdjust="spacing">Roversa</textPath></text>';
+      // The Roversa logo's six squares, centered on the piece.
+      case 'W': return [[45, 15], [33, 26], [57, 26], [45, 37], [33, 48], [57, 48]]
+        .map(([x, y]) => '<rect x="' + (x - 5) + '" y="' + (y - 5) + '" width="10" height="10" rx="2.5"/>').join('');
       default: return '';
     }
   }
 
-  // Puzzle outline: a knob sticks out on the left and a matching socket is cut
-  // into the right, so pieces in a row lock together like the real ones.
-  const PIECE_SHAPE = 'M20,0 H70 Q77,0 77,7 V26 L75,28.7 A6,6 0 1 0 75,35.3 L77,38 V57 Q77,64 70,64 ' +
-    'H20 Q13,64 13,57 V38 L11,35.3 A6,6 0 1 1 11,28.7 L13,26 V7 Q13,0 20,0 Z';
+  // Puzzle outline: a flat dovetail tab sticks out on the left and a matching
+  // socket is cut into the right, so pieces in a row lock together like the real ones.
+  const PIECE_SHAPE = 'M20,0 H70 Q77,0 77,7 V20.5 L69,18.6 Q67,18.2 67,20.2 V43.8 Q67,45.8 69,45.4 L77,43.5 ' +
+    'V57 Q77,64 70,64 H20 Q13,64 13,57 V43 L5,45.4 Q3,45.8 3,43.8 V20.2 Q3,18.2 5,18.6 L13,21 V7 Q13,0 20,0 Z';
 
   function pieceSvg(t, chosen) {
     const [color, dark] = PIECE_COLORS[t];
@@ -86,12 +88,12 @@
     // A wild piece keeps its green logo color but shows the arrow the player picked.
     const icon = iconMarkup(t === 'W' && chosen ? chosen : t, id);
     return '<svg viewBox="0 0 77 64" aria-hidden="true">' +
-      (t === 'P' ? '<defs><path id="' + id + '" d="M35.8,36.2 A13,13 0 1 1 54.2,17.8 A13,13 0 1 1 35.8,36.2"/></defs>' : '') +
+      (t === 'P' ? '<defs><path id="' + id + '" d="M33.5,42.6 A15,15 0 1 1 56.5,42.6"/></defs>' : '') +
       '<path d="' + PIECE_SHAPE + '" fill="' + color + '" stroke="' + dark + '" stroke-width="2.5" stroke-linejoin="round"/>' +
       '<path d="M20,3.5 H70" stroke="rgba(255,255,255,0.35)" stroke-width="2.5" stroke-linecap="round"/>' +
       '<g style="color:rgba(0,0,0,0.3)" fill="currentColor" transform="translate(0,2)">' + icon + '</g>' +
       '<g style="color:' + ICON_COLOR + '" fill="currentColor">' + icon + '</g>' +
-      (t === 'W' && chosen ? '<g fill="' + ICON_COLOR + '" transform="translate(48,42) scale(0.38)">' + iconMarkup('W') + '</g>' : '') +
+      (t === 'W' && chosen ? '<g fill="' + ICON_COLOR + '" transform="translate(13,41) scale(0.32)">' + iconMarkup('W') + '</g>' : '') +
       '</svg>';
   }
 
