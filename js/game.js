@@ -17,13 +17,6 @@
   const MOVE_MS = 380;
   const TURN_MS = 300;
   const PAUSE_MS = 140;
-  // Animation speeds; the factor stretches or shrinks every move, turn and pause.
-  const SPEEDS = [
-    { key: 'Slow', icon: '\u{1F422}', factor: 2 },
-    { key: 'Normal', icon: '\u{1F697}', factor: 1 },
-    { key: 'Fast', icon: '\u{1F407}', factor: 0.45 },
-  ];
-  const speedName = (sp) => tr('speed.' + sp.key);
   const DICE_FACES = ['F', 'B', 'L', 'R', 'W', 'P'];
   const GOAL_NAMES = named('goal.');
   const TILE_NAMES = named('tile.');
@@ -106,6 +99,19 @@
       '</svg>';
   }
 
+  // The same picture as an image the map can draw, cached per piece and wild choice.
+  const pieceImages = {};
+  function pieceImage(t, chosen) {
+    const key = t + (chosen || '');
+    if (!pieceImages[key]) {
+      const img = new Image();
+      img.src = 'data:image/svg+xml;charset=utf-8,' +
+        encodeURIComponent(pieceSvg(t, chosen).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="154" height="128" '));
+      pieceImages[key] = img;
+    }
+    return pieceImages[key];
+  }
+
   function pieceEl(t, chosen) {
     const el = document.createElement('button');
     el.type = 'button';
@@ -117,13 +123,6 @@
   }
 
   // ---------- Game state ----------
-
-  let speedIndex = 1;
-  try {
-    const saved = localStorage.getItem('roversa-speed');
-    if (saved !== null && SPEEDS[Number(saved)]) speedIndex = Number(saved);
-  } catch (e) { /* storage blocked */ }
-  const ms = (t) => t * SPEEDS[speedIndex].factor;
 
   const game = {
     mode: null, // 'level' or 'quest'
@@ -143,6 +142,7 @@
     trail: [],
     particles: [],
     runIndex: -1,
+    shownPiece: null, // the piece being run, drawn on the map by the robot
     doneUpTo: -1,
     stepping: null, // a program being run one piece at a time: { r, steps, i }
     quest: null,
@@ -281,6 +281,8 @@
       }
     });
 
+    if (game.shownPiece) drawShownPiece(g, now, S);
+
     // Sparkles.
     game.particles = game.particles.filter((p) => p.life > 0);
     game.particles.forEach((p) => {
@@ -288,6 +290,30 @@
       g.fillStyle = p.color;
       g.fillRect(p.x, p.y, SCALE * 2, SCALE * 2);
     });
+  }
+
+  // The running puzzle piece pops up just above the robot (below it on the top row)
+  // and gently pulses while it runs, so players can match the move to the piece.
+  function drawShownPiece(g, now, S) {
+    const sp = game.shownPiece;
+    const r = game.robots[game.active];
+    const img = pieceImage(sp.t, sp.chosen);
+    if (!r || !img.complete || r.alpha < 0.5) return;
+    const age = now - sp.at;
+    const pop = Math.min(1, age / 160);
+    const pulse = game.running ? 1 + 0.06 * Math.sin(age / 90) : 1;
+    const k = (0.6 + 0.4 * pop) * pulse;
+    const w = S * 0.8 * k, h = w * 64 / 77;
+    const cx = (r.rx + 0.5) * S;
+    const above = r.ry >= 0.75;
+    const cy = above ? r.ry * S - h / 2 + S * 0.05 : (r.ry + 1) * S + h / 2 - S * 0.05;
+    g.save();
+    g.globalAlpha = 0.25 + 0.75 * pop;
+    g.fillStyle = 'rgba(14, 16, 36, 0.55)';
+    g.fillRect(cx - w / 2 + SCALE, cy - h / 2 + SCALE * 2, w - SCALE * 2, h);
+    g.imageSmoothingEnabled = true;
+    g.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+    g.restore();
   }
 
   function drawCheck(g, x, y, size) {
@@ -502,6 +528,7 @@
     game.particles = [];
     game.runIndex = -1;
     game.doneUpTo = -1;
+    game.shownPiece = null;
     game.program = [];
     renderAll();
   }
@@ -812,6 +839,7 @@
     game.runIndex = -1;
     game.doneUpTo = -1;
     game.stepping = null;
+    game.shownPiece = null;
   }
 
   async function addPiece(key, at) {
@@ -1069,7 +1097,7 @@
     const res = E.step(game.map.grid, r, cmd, occupied);
     if (res.result === 'turn') {
       SND.turn();
-      await tween(r, { ang: r.ang + (cmd === 'L' ? -1 : 1) * (Math.PI / 2) }, ms(TURN_MS));
+      await tween(r, { ang: r.ang + (cmd === 'L' ? -1 : 1) * (Math.PI / 2) }, TURN_MS);
       r.dir = res.dir;
     } else if (res.result === 'noop') {
       SND.noop();
@@ -1077,7 +1105,7 @@
       await tween(r, { scale: 1 }, 150);
     } else if (res.result === 'move') {
       SND.move();
-      await tween(r, { rx: res.x, ry: res.y }, ms(MOVE_MS));
+      await tween(r, { rx: res.x, ry: res.y }, MOVE_MS);
       r.x = res.x;
       r.y = res.y;
       game.trail.push({ x: r.x, y: r.y });
@@ -1125,6 +1153,8 @@
 
   async function runOne(st) {
     game.runIndex = st.i;
+    const piece = game.program[st.i];
+    game.shownPiece = piece ? { t: piece.t, chosen: piece.chosen, at: performance.now() } : null;
     renderProgram();
     const cmd = st.steps[st.i];
     const res = await doStep(st.r, cmd);
@@ -1139,6 +1169,7 @@
 
   function endRun(st, outcome) {
     game.runIndex = -1;
+    game.shownPiece = null;
     game.running = false;
     game.stepping = null;
     renderProgram();
@@ -1159,7 +1190,7 @@
     while (st.i < st.steps.length) {
       const res = await runOne(st);
       if (res.result === 'bump' || res.result === 'off') { outcome = res; break; }
-      await sleep(ms(PAUSE_MS));
+      await sleep(PAUSE_MS);
     }
     endRun(st, outcome);
   }
@@ -1305,22 +1336,6 @@
   $('#btn-go').addEventListener('click', run);
   $('#btn-step').addEventListener('click', step);
 
-  const speedBtn = $('#btn-speed');
-  function syncSpeedBtn() {
-    const sp = SPEEDS[speedIndex];
-    speedBtn.querySelector('.btn-sym').textContent = sp.icon;
-    speedBtn.querySelector('.btn-label').textContent = speedName(sp);
-    speedBtn.setAttribute('aria-label', tr('speedIs', { name: speedName(sp) }));
-    speedBtn.title = tr('speedIs', { name: speedName(sp) });
-  }
-  speedBtn.addEventListener('click', () => {
-    speedIndex = (speedIndex + 1) % SPEEDS.length;
-    try { localStorage.setItem('roversa-speed', String(speedIndex)); } catch (e) { /* storage blocked */ }
-    syncSpeedBtn();
-    SND.tap();
-    if (!game.running) setMessage(tr('speedIs', { name: speedName(SPEEDS[speedIndex]) }) + '.');
-  });
-  syncSpeedBtn();
   $('#btn-roll').addEventListener('click', roll);
 
   $('#btn-clear').addEventListener('click', () => {
@@ -1363,7 +1378,6 @@
     I18N.setLang(b.dataset.lang);
   }));
   I18N.onChange(() => {
-    syncSpeedBtn();
     syncGameText();
     if ($('#screen-levels').classList.contains('active')) renderLevelGrid();
     if (game.map) { renderAll(); describeBoard(); }
