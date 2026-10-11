@@ -20,7 +20,7 @@
     { name: 'Fast', icon: '\u{1F407}', factor: 0.45 },
   ];
   const DICE_FACES = ['F', 'B', 'L', 'R', 'W', 'P'];
-  const GOAL_NAMES = { A: 'the flag', B: 'the treasure chest', C: 'the gem' };
+  const GOAL_NAMES = { A: 'the treasure chest', B: 'the bags of gold', C: 'the gold coins' };
   const TILE_NAMES = { T: 'a tree', R: 'a rock', W: 'the water' };
 
   const $ = (sel) => document.querySelector(sel);
@@ -141,11 +141,11 @@
     quest: null,
   };
 
-  function makeRobot(start, dir, team) {
+  function makeRobot(start, dir, team, teamWheels) {
     const colors = SP.TEAM_COLORS[team];
     return {
       team, name: colors.name, css: colors.css,
-      sprite: SP.robot(colors.body, colors.dark),
+      sprite: SP.robot(teamWheels ? team : undefined),
       sx: start.x, sy: start.y, sdir: dir,
       x: start.x, y: start.y, dir,
       rx: start.x, ry: start.y, ang: (dir * Math.PI) / 2, scale: 1, alpha: 1, bump: 0,
@@ -325,7 +325,7 @@
   }
 
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => { SND.tap(); show(b.dataset.go); }));
-  document.querySelectorAll('[data-players]').forEach((b) => b.addEventListener('click', () => { SND.tap(); startQuest(Number(b.dataset.players)); }));
+  document.querySelectorAll('[data-players]').forEach((b) => b.addEventListener('click', () => { SND.tap(); chooseCharacters(Number(b.dataset.players)); }));
 
   $('#btn-back').addEventListener('click', () => {
     if (game.running) return;
@@ -434,12 +434,12 @@
       c.height = v.bg.height;
       const g = c.getContext('2d');
       g.drawImage(v.bg, 0, 0);
-      map.goals.forEach((goal) => g.drawImage(SP.goals[goal.id], goal.x * T, goal.y * T));
+      map.goals.forEach((goal) => g.drawImage(SP.goals[goal.id], goal.x * T, goal.y * T, T, T));
       const st = map.starts['1'];
       g.save();
       g.translate(st.x * T + T / 2, st.y * T + T / 2);
       g.rotate((E.DIR_NAMES[level.startDir || 'N'] * Math.PI) / 2);
-      g.drawImage(SP.robot(SP.TEAM_COLORS[0].body, SP.TEAM_COLORS[0].dark), -T / 2, -T / 2);
+      g.drawImage(SP.robot(), -T / 2, -T / 2, T, T);
       g.restore();
       const n = stars[level.name] || 0;
       card.innerHTML = '<div class="num">LEVEL ' + (i + 1) + '</div><div class="name"></div>' +
@@ -488,7 +488,7 @@
     setMessage(level.hint);
   }
 
-  // Builds a random 8x8 quest map with the flag, chest and gem.
+  // Builds a random 8x8 quest map with the three treasures.
   function questMap(players) {
     const N = 8;
     for (let attempt = 0; attempt < 200; attempt++) {
@@ -542,13 +542,49 @@
     return E.parseMap(['.......2', 'A.......', '........', '...B....', '........', '......C.', '........', '1.......']);
   }
 
+  // Each player picks a robot costume before a new Dice Quest.
+  async function chooseCharacters(players) {
+    const picks = [];
+    for (let i = 0; i < players; i++) {
+      const team = SP.TEAM_COLORS[i];
+      const pick = await new Promise((resolve) => {
+        openModal('<h3>' + (players > 1 ? team.name + ' player' : 'Pick your robot') + '</h3>' +
+          (players > 1 ? '<p>Pick your robot!</p>' : '') + '<div class="choices characters"></div>', resolve);
+        const box = modal.querySelector('.characters');
+        SP.CHARACTERS.forEach((ch) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'character';
+          b.style.setProperty('--team', team.css);
+          b.setAttribute('aria-label', ch.name);
+          b.disabled = picks.includes(ch);
+          const c = document.createElement('canvas');
+          c.width = 32; c.height = 32;
+          c.getContext('2d').drawImage(ch.sprite, 0, 0);
+          b.appendChild(c);
+          b.insertAdjacentHTML('beforeend', '<span></span>');
+          b.querySelector('span').textContent = ch.name;
+          b.addEventListener('click', () => { SND.tap(); closeModal(ch); });
+          box.appendChild(b);
+        });
+        const first = box.querySelector('button:not(:disabled)');
+        if (first) first.focus();
+      });
+      const left = SP.CHARACTERS.filter((ch) => !picks.includes(ch));
+      picks.push(pick || left[Math.floor(Math.random() * left.length)]);
+    }
+    game.characters = picks;
+    startQuest(players);
+  }
+
   function startQuest(players) {
     game.mode = 'quest';
     game.level = null;
     game.map = questMap(players);
     game.view = buildView(game.map, Math.floor(Math.random() * 1000));
-    game.robots = [makeRobot(game.map.starts['1'], 0, 0)];
-    if (players > 1) game.robots.push(makeRobot(game.map.starts['2'], 2, 1));
+    game.robots = [makeRobot(game.map.starts['1'], 0, 0, true)];
+    if (players > 1) game.robots.push(makeRobot(game.map.starts['2'], 2, 1, true));
+    (game.characters || []).forEach((ch, i) => { if (game.robots[i]) game.robots[i].character = ch.sprite; });
     game.active = 0;
     game.tray = [];
     game.slots = 5;
@@ -686,8 +722,9 @@
       const box = document.createElement('div');
       box.className = 'score' + (i === game.active && game.robots.length > 1 ? ' turn' : '');
       const icon = document.createElement('canvas');
-      icon.width = T; icon.height = T;
-      icon.getContext('2d').drawImage(r.sprite, 0, 0);
+      const look = r.character || r.sprite;
+      icon.width = look.width; icon.height = look.height;
+      icon.getContext('2d').drawImage(look, 0, 0);
       box.appendChild(icon);
       const label = document.createElement('span');
       label.textContent = r.name;
@@ -697,7 +734,7 @@
       goals.className = 'goal-icons';
       ['A', 'B', 'C'].forEach((id) => {
         const gc = document.createElement('canvas');
-        gc.width = T; gc.height = T;
+        gc.width = 32; gc.height = 32;
         gc.getContext('2d').drawImage(SP.goals[id], 0, 0);
         if (r.visited.has(id)) gc.classList.add('got');
         gc.setAttribute('aria-label', GOAL_NAMES[id] + (r.visited.has(id) ? ' visited' : ' not yet'));
@@ -932,7 +969,7 @@
 
   function confetti() {
     const box = $('#confetti');
-    const colors = ['#f2c230', '#e0483c', '#4a8cf0', '#2fa84f', '#ffffff', '#ff8fc8'];
+    const colors = ['#8e43c6', '#124eaf', '#f56a00', '#fbbd27', '#ff3633', '#17c065'];
     for (let i = 0; i < 70; i++) {
       const c = document.createElement('div');
       c.className = 'confetto';
@@ -1182,10 +1219,12 @@
         confetti();
         openModal(
           '<h3>' + (game.robots.length > 1 ? r.name + ' wins!' : 'Quest complete!') + '</h3>' +
-          '<p>' + r.name + ' Roversa visited the flag, the chest and the gem in ' + r.turns + ' turn' + (r.turns === 1 ? '' : 's') + '.</p>' +
+          '<canvas class="winner" width="32" height="32" aria-hidden="true"></canvas>' +
+          '<p>' + r.name + ' Roversa found all three treasures in ' + r.turns + ' turn' + (r.turns === 1 ? '' : 's') + '.</p>' +
           '<div class="choices"><button class="btn gray" data-act="home">Home</button>' +
           '<button class="btn big green" data-act="again">Play again</button></div>'
         );
+        modal.querySelector('.winner').getContext('2d').drawImage(r.character || r.sprite, 0, 0);
         modal.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
           SND.tap();
           closeModal();
@@ -1289,7 +1328,6 @@
   // ---------- Start ----------
 
   const titleRobot = $('#title-robot');
-  titleRobot.getContext('2d').drawImage(SP.robot(SP.TEAM_COLORS[0].body, SP.TEAM_COLORS[0].dark), 0, 0);
   requestAnimationFrame(drawFrame);
 
   // Handy for testing: index.html#level=3 or #quest=2 jumps straight in.
@@ -1301,5 +1339,8 @@
     else if (hash.has('quest')) startQuest(hash.get('quest') === '2' ? 2 : 1);
   }
   window.addEventListener('hashchange', openFromHash);
-  openFromHash();
+  SP.ready.then(() => {
+    titleRobot.getContext('2d').drawImage(SP.robot(), 0, 0);
+    openFromHash();
+  });
 })();
