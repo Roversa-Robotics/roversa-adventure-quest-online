@@ -13,6 +13,12 @@
   const MOVE_MS = 380;
   const TURN_MS = 300;
   const PAUSE_MS = 140;
+  // Animation speeds; the factor stretches or shrinks every move, turn and pause.
+  const SPEEDS = [
+    { name: 'Slow', icon: '\u{1F422}', factor: 2 },
+    { name: 'Normal', icon: '\u{1F697}', factor: 1 },
+    { name: 'Fast', icon: '\u{1F407}', factor: 0.45 },
+  ];
   const DICE_FACES = ['F', 'B', 'L', 'R', 'W', 'P'];
   const GOAL_NAMES = { A: 'the flag', B: 'the treasure chest', C: 'the gem' };
   const TILE_NAMES = { T: 'a tree', R: 'a rock', W: 'the water' };
@@ -105,6 +111,13 @@
 
   // ---------- Game state ----------
 
+  let speedIndex = 1;
+  try {
+    const saved = localStorage.getItem('roversa-speed');
+    if (saved !== null && SPEEDS[Number(saved)]) speedIndex = Number(saved);
+  } catch (e) { /* storage blocked */ }
+  const ms = (t) => t * SPEEDS[speedIndex].factor;
+
   const game = {
     mode: null, // 'level' or 'quest'
     levelIndex: 0,
@@ -124,6 +137,7 @@
     particles: [],
     runIndex: -1,
     doneUpTo: -1,
+    stepping: null, // a program being run one piece at a time: { r, steps, i }
     quest: null,
   };
 
@@ -601,8 +615,9 @@
     const quest = game.quest;
     const goReady = game.program.length > 0 && (!quest || (quest.phase === 'arrange' && game.tray.length === 0));
     $('#btn-go').disabled = busy || !goReady;
+    $('#btn-step').disabled = busy || !goReady;
     $('#btn-reset').disabled = busy;
-    $('#btn-clear').disabled = busy || !game.program.length || (quest && quest.phase !== 'arrange');
+    $('#btn-clear').disabled = busy || !game.program.length || (quest && (quest.phase !== 'arrange' || !!game.stepping));
     $('#btn-roll').hidden = !quest || quest.phase !== 'roll';
     $('#btn-roll').disabled = busy;
   }
@@ -615,13 +630,16 @@
   }
 
   function editable() {
-    return !game.running && !game.rolling && (game.mode === 'level' || game.quest.phase === 'arrange');
+    if (game.running || game.rolling) return false;
+    // Once a Dice Quest program starts stepping, the robot has moved, so the turn is locked in.
+    return game.mode === 'level' || (game.quest.phase === 'arrange' && !game.stepping);
   }
 
   // After a run, editing the program clears the old run's marks.
   function clearRunMarks() {
     game.runIndex = -1;
     game.doneUpTo = -1;
+    game.stepping = null;
   }
 
   async function addPiece(key, at) {
@@ -843,7 +861,7 @@
     const res = E.step(game.map.grid, r, cmd, occupied);
     if (res.result === 'turn') {
       SND.turn();
-      await tween(r, { ang: r.ang + (cmd === 'L' ? -1 : 1) * (Math.PI / 2) }, TURN_MS);
+      await tween(r, { ang: r.ang + (cmd === 'L' ? -1 : 1) * (Math.PI / 2) }, ms(TURN_MS));
       r.dir = res.dir;
     } else if (res.result === 'noop') {
       SND.noop();
@@ -851,7 +869,7 @@
       await tween(r, { scale: 1 }, 150);
     } else if (res.result === 'move') {
       SND.move();
-      await tween(r, { rx: res.x, ry: res.y }, MOVE_MS);
+      await tween(r, { rx: res.x, ry: res.y }, ms(MOVE_MS));
       r.x = res.x;
       r.y = res.y;
       game.trail.push({ x: r.x, y: r.y });
@@ -888,31 +906,70 @@
     return { result: res.result };
   }
 
-  async function run() {
-    if (game.running || !game.program.length) return;
+  // Starts a program from the beginning: in Adventures the robot goes back to its start first.
+  function beginRun() {
     const r = game.robots[game.active];
-    game.running = true;
-    closeModal();
     if (game.mode === 'level') resetRobot(r);
     game.trail = [{ x: r.x, y: r.y }];
     clearRunMarks();
-    renderAll();
-    setMessage('Roversa is driving...');
-    const steps = E.resolve(game.program);
-    let outcome = { result: 'done' };
-    for (let i = 0; i < steps.length; i++) {
-      game.runIndex = i;
-      renderProgram();
-      const res = await doStep(r, steps[i]);
-      game.doneUpTo = i;
-      if (res.result === 'bump' || res.result === 'off') { outcome = res; break; }
-      await sleep(PAUSE_MS);
-    }
+    return { r, steps: E.resolve(game.program), i: 0 };
+  }
+
+  async function runOne(st) {
+    game.runIndex = st.i;
+    renderProgram();
+    const res = await doStep(st.r, st.steps[st.i]);
+    game.doneUpTo = st.i;
+    st.i++;
+    return res;
+  }
+
+  function endRun(st, outcome) {
     game.runIndex = -1;
     game.running = false;
+    game.stepping = null;
     renderProgram();
-    if (game.mode === 'level') finishLevelRun(r, outcome);
-    else finishQuestTurn(r, outcome);
+    if (game.mode === 'level') finishLevelRun(st.r, outcome);
+    else finishQuestTurn(st.r, outcome);
+  }
+
+  // GO runs the whole program, or the rest of it after some Steps.
+  async function run() {
+    if (game.running || !game.program.length) return;
+    closeModal();
+    const st = game.stepping || beginRun();
+    game.running = true;
+    game.stepping = null;
+    renderAll();
+    setMessage('Roversa is driving...');
+    let outcome = { result: 'done' };
+    while (st.i < st.steps.length) {
+      const res = await runOne(st);
+      if (res.result === 'bump' || res.result === 'off') { outcome = res; break; }
+      await sleep(ms(PAUSE_MS));
+    }
+    endRun(st, outcome);
+  }
+
+  // Step runs just the next piece, so players can watch where the program goes wrong.
+  async function step() {
+    if (game.running || !game.program.length) return;
+    closeModal();
+    const st = game.stepping || beginRun();
+    game.running = true;
+    renderAll();
+    const res = await runOne(st);
+    if (res.result === 'bump' || res.result === 'off' || st.i >= st.steps.length) {
+      endRun(st, res.result === 'move' || res.result === 'turn' || res.result === 'noop' ? { result: 'done' } : res);
+      return;
+    }
+    game.stepping = st;
+    game.runIndex = -1;
+    game.running = false;
+    renderAll();
+    if (!$('#message').classList.contains('good')) {
+      setMessage('Piece ' + st.i + ' of ' + st.steps.length + ' done. Press STEP for the next one, or GO to finish.');
+    }
   }
 
   function predictionNote(r) {
@@ -1031,6 +1088,23 @@
   }
 
   $('#btn-go').addEventListener('click', run);
+  $('#btn-step').addEventListener('click', step);
+
+  const speedBtn = $('#btn-speed');
+  function syncSpeedBtn() {
+    const sp = SPEEDS[speedIndex];
+    speedBtn.textContent = sp.icon;
+    speedBtn.setAttribute('aria-label', 'Speed: ' + sp.name);
+    speedBtn.title = 'Speed: ' + sp.name;
+  }
+  speedBtn.addEventListener('click', () => {
+    speedIndex = (speedIndex + 1) % SPEEDS.length;
+    try { localStorage.setItem('roversa-speed', String(speedIndex)); } catch (e) { /* storage blocked */ }
+    syncSpeedBtn();
+    SND.tap();
+    if (!game.running) setMessage('Speed: ' + SPEEDS[speedIndex].name + '.');
+  });
+  syncSpeedBtn();
   $('#btn-roll').addEventListener('click', roll);
 
   $('#btn-clear').addEventListener('click', () => {
