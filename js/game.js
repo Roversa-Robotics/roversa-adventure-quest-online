@@ -90,8 +90,8 @@
     'V57 Q77,64 70,64 H20 Q13,64 13,57 V43 L5,45.4 Q3,45.8 3,43.8 V20.2 Q3,18.2 5,18.6 L13,21 V7 Q13,0 20,0 Z';
 
   // A Repeat puzzle piece in the program shows the piece it copies (copies is that
-  // piece's type, or 'W' for a Wild piece not set yet), with a small red Roversa
-  // badge in the corner, the same way a set Wild piece shows its direction.
+  // piece's type, or 'W' for a Wild piece not set yet), with a small curved Roversa
+  // stamp in the corner, the same way a set Wild piece shows its direction.
   function pieceSvg(t, chosen, copies) {
     const repeatOf = t === 'P' && copies ? copies : null;
     const shown = t === 'W' && chosen ? chosen : repeatOf || t;
@@ -109,8 +109,7 @@
       '<g style="color:rgba(0,0,0,0.3)" fill="currentColor" transform="translate(0,2)">' + icon + '</g>' +
       '<g style="color:' + ICON_COLOR + '" fill="currentColor" stroke="' + dark + '" stroke-width="1.4" paint-order="stroke">' + icon + '</g>' +
       (t === 'W' && chosen ? '<g fill="' + ICON_COLOR + '" stroke="' + dark + '" stroke-width="3" paint-order="stroke" transform="translate(41,41) scale(0.32)">' + iconMarkup('W') + '</g>' : '') +
-      (repeatOf ? '<g transform="translate(55.4,51)"><circle r="8.6" fill="' + PIECE_COLORS.P[0] + '" stroke="' + ICON_COLOR + '" stroke-width="1.6"/>' +
-        '<g fill="' + ICON_COLOR + '" transform="scale(0.43) translate(-45,-33)">' + iconMarkup('P', id) + '</g></g>' : '') +
+      (repeatOf ? '<g fill="' + ICON_COLOR + '" stroke="' + dark + '" stroke-width="4" paint-order="stroke" transform="translate(35.5,37.5) scale(0.42)">' + iconMarkup('P', id) + '</g>' : '') +
       '</svg>';
   }
 
