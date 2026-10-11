@@ -16,7 +16,7 @@
   //   A, B, C  destinations (treasure chest, bags of gold, gold coins)
   const BLOCKING = { T: true, R: true, W: true };
 
-  // Gamepiece commands.
+  // Puzzle piece commands.
   //   F Forward, B Backward, L Turn Left, R Turn Right,
   //   P repeat the previous command, W wild (player picks F, B, L or R)
   const COMMANDS = ['F', 'B', 'L', 'R', 'P', 'W'];
@@ -87,7 +87,7 @@
   }
 
   // Finds the shortest program that visits every destination in a level,
-  // respecting how many of each gamepiece the level provides.
+  // respecting how many of each puzzle piece the level provides.
   // Returns the list of commands, or null if no program fits in maxLen.
   function solve(level, maxLen) {
     const map = parseMap(level.map);

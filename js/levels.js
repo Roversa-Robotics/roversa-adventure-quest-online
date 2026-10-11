@@ -7,7 +7,7 @@
 //   A  treasure chest   B  bags of gold   C  gold coins   (destinations to visit)
 //
 // startDir: which way Roversa faces at the start: 'N' up, 'E' right, 'S' down, 'W' left.
-// pieces:   how many of each gamepiece the player gets.
+// pieces:   how many of each puzzle piece the player gets.
 //           F Forward, B Backward, L Turn Left, R Turn Right, P repeat.
 // slots:    how many pieces fit in the program row.
 //
