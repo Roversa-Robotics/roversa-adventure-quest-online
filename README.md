@@ -65,7 +65,8 @@ Branch: `main`, folder `/ (root)`.
 
 ## Art
 
-The robot, treasures and robot costumes are 8-bit versions of Roversa brand
+The robot, treasures and robot costumes (octopus, turtle, monkey, tiger, elephant and
+manatee) are 8-bit versions of Roversa brand
 art. Reduced copies of the originals live in `assets/source/`, and
 `python3 tools/pixelate.py` (needs Pillow) rebuilds `assets/sprites/` from them.
 The top-down robot is drawn pixel by pixel in that script so the micro:bit and
