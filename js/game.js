@@ -43,7 +43,7 @@
   // ---------- Gamepiece pictures ----------
 
   // Colors and icons follow the 3D-printed pieces in Roversa-Robotics/roversa-quest:
-  // orange turn left, blue turn right, purple forward, yellow back,
+  // orange Turn Left, blue Turn Right, purple Forward, yellow Backward,
   // red "Roversa" word (repeat) and green Roversa logo (wild).
   const PIECE_COLORS = {
     F: ['#b665c7', '#6f347d'],
@@ -53,7 +53,7 @@
     P: ['#d43a32', '#7e1d18'],
     W: ['#488f3f', '#264f20'],
   };
-  const PIECE_NAMES = { F: 'Forward', B: 'Back', L: 'Turn left', R: 'Turn right', P: 'Repeat', W: 'Wild' };
+  const PIECE_NAMES = { F: 'Forward', B: 'Backward', L: 'Turn Left', R: 'Turn Right', P: 'Repeat', W: 'Wild' };
   const ICON_COLOR = '#efe8d6';
 
   // The direction dot under each arrow, as on the printed pieces.
@@ -211,7 +211,7 @@
     const frame = Math.floor(now / 600) % 2;
     v.water.forEach((w) => g.drawImage(w.frames[frame], w.x * S, w.y * S, S, S));
 
-    // Faint grid: each square is one Forward or Back step.
+    // Faint grid: each square is one Forward or Backward step.
     g.fillStyle = 'rgba(0, 0, 0, 0.16)';
     for (let c = 1; c < v.cols; c++) g.fillRect(c * S - 1, 0, 2, board.height);
     for (let r = 1; r < v.rows; r++) g.fillRect(0, r * S - 1, board.width, 2);

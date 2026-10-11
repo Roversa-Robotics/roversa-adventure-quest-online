@@ -8,7 +8,7 @@
 //
 // startDir: which way Roversa faces at the start: 'N' up, 'E' right, 'S' down, 'W' left.
 // pieces:   how many of each gamepiece the player gets.
-//           F forward, B back, L turn left, R turn right, P repeat.
+//           F Forward, B Backward, L Turn Left, R Turn Right, P repeat.
 // slots:    how many pieces fit in the program row.
 //
 // Run `node tools/check-levels.js` after editing to make sure every level
@@ -30,7 +30,7 @@ globalThis.ROVERSA_LEVELS = [
   },
   {
     name: 'Turn the Corner',
-    hint: 'Turn pieces spin Roversa in place. They do not move it.',
+    hint: 'Turn Left and Turn Right spin Roversa in place. They do not move it.',
     startDir: 'N',
     pieces: { F: 5, L: 2, R: 2 },
     slots: 7,
@@ -58,7 +58,7 @@ globalThis.ROVERSA_LEVELS = [
   },
   {
     name: 'Back It Up',
-    hint: 'The Back piece drives backward without turning around.',
+    hint: 'The Backward piece drives backward without turning around.',
     startDir: 'E',
     pieces: { F: 5, B: 3, L: 2, R: 2 },
     slots: 7,
