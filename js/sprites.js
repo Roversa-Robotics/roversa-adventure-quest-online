@@ -176,7 +176,8 @@
   // The top-down Roversa, facing up (north); the game rotates it for other directions.
   const robotBase = imageCanvas('robot.png', 32);
 
-  // Each team's robot carries a colored dot, like the dots used to tell robots apart in the classroom game.
+  // In Dice Quest each team's robot gets wheels in its team color, so two robots on
+  // one map are easy to tell apart. With no team, it is the plain robot.
   function robot(team) {
     const c = document.createElement('canvas');
     c.width = 32;
@@ -185,11 +186,16 @@
       const g = c.getContext('2d');
       g.clearRect(0, 0, 32, 32);
       g.drawImage(robotBase, 0, 0);
-      const col = TEAM_COLORS[team || 0];
-      g.fillStyle = col.dark;
-      g.fillRect(23, 15, 5, 5);
-      g.fillStyle = col.css;
-      g.fillRect(24, 16, 3, 3);
+      if (team === undefined) return;
+      const col = TEAM_COLORS[team];
+      for (const x of [0, 29]) {
+        g.fillStyle = col.dark;
+        g.fillRect(x, 1, 3, 13);
+        g.fillStyle = col.css;
+        g.fillRect(x, 2, 3, 11);
+        g.fillStyle = col.dark;
+        for (let y = 3; y < 13; y += 2) g.fillRect(x, y, 3, 1);
+      }
     };
     paint();
     robotBase.loaded.then(paint);
@@ -210,7 +216,7 @@
     { id: 'angler', name: 'Angler fish' },
     { id: 'monkey', name: 'Monkey' },
     { id: 'seal', name: 'Seal' },
-    { id: 'tank', name: 'Tank' },
+    { id: 'elephant', name: 'Elephant' },
   ].map((ch) => Object.assign(ch, { sprite: imageCanvas('char-' + ch.id + '.png', 32) }));
 
   const ready = Promise.all([robotBase.loaded, ...Object.values(goals).map((g) => g.loaded), ...CHARACTERS.map((ch) => ch.sprite.loaded)]);

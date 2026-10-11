@@ -25,22 +25,29 @@ BADGES = {
     'char-angler.png': (283, 400, 457, 449),
     'char-monkey.png': (243, 314, 501, 385),
     'char-seal.png': (247, 324, 442, 385),
-    'char-tank.png': (205, 460, 481, 536),
+    'char-elephant.png': (205, 460, 481, 536),
 }
 ORIGINAL_WIDTH = 716
+
+# Optional crops (in the assets/source/ copies) applied before shrinking, so a
+# small detail fills more of the sprite. The coins keep the parrot and the stack
+# it stands on, because the whole pile hides the parrot at 32 pixels.
+CROPS = {
+    'treasure-coins.png': (0, 0, 268, 305),
+}
 
 # name: (source, size in pixels, colors, punch)
 # punch > 1 boosts color and contrast so small details survive shrinking.
 SPRITES = {
     'treasure-chest.png': ('treasure-chest.png', 32, 32),
     'treasure-bags.png': ('treasure-bags.png', 32, 32),
-    'treasure-coins.png': ('treasure-coins.png', 32, 32),
+    'treasure-coins.png': ('treasure-coins.png', 32, 48, 1.35),
     'char-robot.png': ('char-robot.png', 32, 12),
     'char-octopus.png': ('char-octopus.png', 32, 12),
     'char-angler.png': ('char-angler.png', 32, 16),
     'char-monkey.png': ('char-monkey.png', 32, 12),
     'char-seal.png': ('char-seal.png', 32, 12),
-    'char-tank.png': ('char-tank.png', 32, 12),
+    'char-elephant.png': ('char-elephant.png', 32, 12),
 }
 
 
@@ -148,6 +155,8 @@ def main():
     print('wrote', (OUT / 'robot.png').relative_to(ROOT))
     for name, (source, size, colors, *rest) in SPRITES.items():
         im = Image.open(SRC / source).convert('RGBA')
+        if source in CROPS:
+            im = im.crop(CROPS[source])
         punch = rest[0] if rest else 1
         if punch != 1:
             alpha = im.getchannel('A')
