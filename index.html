@@ -60,8 +60,15 @@
       <button class="icon-btn btn-sound" type="button" aria-label="Sound on or off" data-i18n-attr="aria-label:sound">&#9835;</button>
     </header>
     <div class="setup">
-      <p data-i18n="quest.intro">Roll the Roversa die five times to get five puzzle pieces. Put them in order and press GO. First robot to find all three treasures wins!</p>
-      <p class="small" data-i18n="quest.rules">Every rolled piece must be used. The green Roversa logo piece is wild: it can be any arrow. The red Roversa word piece repeats the piece before it. If Roversa drives off the map it goes back to the start.</p>
+      <p class="quest-tagline" data-i18n="quest.tagline">Roll the dice. Create an algorithm. Find the treasure!</p>
+      <p data-i18n="quest.goal">Be the first robot to collect all three treasures to win!</p>
+      <p class="small" data-i18n="quest.turn">Each turn, roll 5 virtual dice and arrange the resulting puzzle piece commands into an algorithm to guide Roversa toward a treasure on the map. You must use all 5 commands, but you can arrange them in any order.</p>
+      <h4 data-i18n="quest.special">Special puzzle pieces:</h4>
+      <ul class="special-pieces">
+        <li><span class="piece-pic" data-piece="W" role="img" aria-label="Green Roversa logo" data-i18n-attr="aria-label:quest.wildPiece"></span><span data-i18n="quest.wild">Wild! Use it as any arrow command.</span></li>
+        <li><span class="piece-pic" data-piece="P" role="img" aria-label="Red ROVERSA word" data-i18n-attr="aria-label:quest.repeatPiece"></span><span data-i18n="quest.repeat">Repeat the command immediately before it.</span></li>
+      </ul>
+      <p class="small" data-i18n="quest.offMap">Watch out! If Roversa drives off the map, it returns to the start.</p>
       <h3 data-i18n="quest.howMany">How many players?</h3>
       <div class="menu row">
         <button class="btn big red" data-players="1" data-i18n="players.1">1 Player</button>
