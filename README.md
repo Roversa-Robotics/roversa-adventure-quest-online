@@ -20,13 +20,17 @@ Tap the map before pressing GO to guess where Roversa will stop.
 
 ## Gamepieces
 
-| Piece | What it does |
-| --- | --- |
-| Forward | Drive one square ahead |
-| Back | Drive one square backward (no turning) |
-| Turn left / Turn right | Turn 90 degrees in place |
-| Repeat | Do the piece before it again |
-| Wild (Dice Quest) | Becomes any arrow you choose |
+The pieces match the 3D-printed ones in
+[roversa-quest](https://github.com/Roversa-Robotics/roversa-quest), and the Dice
+Quest die has the same six faces.
+
+| Piece | Color | What it does |
+| --- | --- | --- |
+| Up arrow | purple | Drive one square forward |
+| Down arrow | yellow | Drive one square backward (no turning) |
+| Curved arrows | orange (left), blue (right) | Turn 90 degrees in place |
+| Roversa word | red | Repeat the piece before it |
+| Roversa logo | green | Wild: becomes any arrow you choose (Dice Quest) |
 
 ## Running it locally
 

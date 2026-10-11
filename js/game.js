@@ -36,55 +36,56 @@
 
   // ---------- Gamepiece pictures ----------
 
+  // Colors and icons follow the 3D-printed pieces in Roversa-Robotics/roversa-quest:
+  // orange turn left, blue turn right, purple forward, yellow back,
+  // red "Roversa" word (repeat) and green Roversa logo (wild).
   const PIECE_COLORS = {
-    F: ['#2fa84f', '#17602a'],
-    B: ['#ef7d2a', '#9a4610'],
-    L: ['#3b78e0', '#1f4592'],
-    R: ['#9b4fe0', '#5c2494'],
-    P: ['#e9b520', '#94700a'],
-    W: ['#e04a8a', '#7f1f4b'],
+    F: ['#b665c7', '#6f347d'],
+    B: ['#e3dc38', '#8f8a14'],
+    L: ['#ff8529', '#a84f0c'],
+    R: ['#466fc4', '#273f7a'],
+    P: ['#d43a32', '#7e1d18'],
+    W: ['#488f3f', '#264f20'],
   };
   const PIECE_NAMES = { F: 'Forward', B: 'Back', L: 'Turn left', R: 'Turn right', P: 'Repeat', W: 'Wild' };
+  const ICON_COLOR = '#efe8d6';
 
-  function starPoints(cx, cy, outer, inner) {
-    const pts = [];
-    for (let i = 0; i < 10; i++) {
-      const r = i % 2 ? inner : outer;
-      const a = -Math.PI / 2 + (i * Math.PI) / 5;
-      pts.push((cx + r * Math.cos(a)).toFixed(1) + ',' + (cy + r * Math.sin(a)).toFixed(1));
-    }
-    return pts.join(' ');
-  }
+  // The direction dot under each arrow, as on the printed pieces.
+  const DOT = '<circle cx="45" cy="54" r="3.6"/>';
 
-  function iconMarkup(t) {
-    const turn = '<path d="M46,48 V33 Q46,22 35,22 H30" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round"/>' +
-      '<polygon points="16,22 32,9 32,35"/>';
+  function iconMarkup(t, id) {
+    const turn = '<path d="M36,17 H45 A10,10 0 0 1 45,37 V45" fill="none" stroke="currentColor" stroke-width="7"/>' +
+      '<polygon points="24,17 37,6 37,28"/>';
     switch (t) {
-      case 'F': return '<polygon points="36,9 53,28 43,28 43,49 29,49 29,28 19,28"/>';
-      case 'B': return '<polygon points="36,51 53,32 43,32 43,11 29,11 29,32 19,32"/>';
-      case 'L': return turn;
-      case 'R': return '<g transform="translate(72,0) scale(-1,1)">' + turn + '</g>';
-      case 'P': return '<path d="M49,31 A13,13 0 1 1 42,18.5" fill="none" stroke="currentColor" stroke-width="7"/>' +
-        '<polygon points="52,26 46,11 36,23"/>';
-      case 'W': return '<polygon points="' + starPoints(36, 31, 18, 8) + '"/>';
+      case 'F': return '<polygon points="45,6 60,23 51,23 51,44 39,44 39,23 30,23"/>' + DOT;
+      case 'B': return '<polygon points="45,46 60,29 51,29 51,8 39,8 39,29 30,29"/>' + DOT;
+      case 'L': return turn + DOT;
+      case 'R': return '<g transform="translate(90,0) scale(-1,1)">' + turn + '</g>' + DOT;
+      case 'P': return '<text font-family="\'Arial Rounded MT Bold\', \'Trebuchet MS\', system-ui, sans-serif" font-weight="700" font-size="10.5">' +
+        '<textPath href="#' + id + '" textLength="60" lengthAdjust="spacing">Roversa</textPath></text>';
+      case 'W': return [[45, 9], [36.5, 19], [53.5, 19], [45, 29], [36.5, 39], [53.5, 39]]
+        .map(([x, y]) => '<rect x="' + (x - 4.5) + '" y="' + (y - 4.5) + '" width="9" height="9" rx="2"/>').join('');
       default: return '';
     }
   }
 
+  // Puzzle outline: a knob sticks out on the left and a matching socket is cut
+  // into the right, so pieces in a row lock together like the real ones.
+  const PIECE_SHAPE = 'M20,0 H70 Q77,0 77,7 V26 L75,28.7 A6,6 0 1 0 75,35.3 L77,38 V57 Q77,64 70,64 ' +
+    'H20 Q13,64 13,57 V38 L11,35.3 A6,6 0 1 1 11,28.7 L13,26 V7 Q13,0 20,0 Z';
+
   function pieceSvg(t, chosen) {
     const [color, dark] = PIECE_COLORS[t];
-    const gid = 'rainbow' + uid();
-    const shape = 'M8,4 H64 V23 A7,7 0 0 1 64,37 V56 H8 V37 A7,7 0 0 0 8,23 Z';
-    const fill = t === 'W' ? 'url(#' + gid + ')' : color;
-    const icon = iconMarkup(t === 'W' && chosen ? chosen : t);
-    return '<svg viewBox="0 0 72 60" aria-hidden="true">' +
-      (t === 'W' ? '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="1" y2="1">' +
-        '<stop offset="0" stop-color="#ff5a5a"/><stop offset="0.35" stop-color="#ffb000"/>' +
-        '<stop offset="0.65" stop-color="#2fbf71"/><stop offset="1" stop-color="#4a6cf0"/></linearGradient></defs>' : '') +
-      '<path d="' + shape + '" fill="' + fill + '" stroke="' + dark + '" stroke-width="3" stroke-linejoin="round"/>' +
-      '<path d="M11,8 H61" stroke="rgba(255,255,255,0.45)" stroke-width="3"/>' +
-      '<g style="color:rgba(0,0,0,0.35)" fill="currentColor" transform="translate(0,2.5)">' + icon + '</g>' +
-      '<g style="color:#fff" fill="currentColor">' + icon + '</g>' +
+    const id = 'arc' + uid();
+    // A wild piece keeps its green logo color but shows the arrow the player picked.
+    const icon = iconMarkup(t === 'W' && chosen ? chosen : t, id);
+    return '<svg viewBox="0 0 77 64" aria-hidden="true">' +
+      (t === 'P' ? '<defs><path id="' + id + '" d="M35.8,36.2 A13,13 0 1 1 54.2,17.8 A13,13 0 1 1 35.8,36.2"/></defs>' : '') +
+      '<path d="' + PIECE_SHAPE + '" fill="' + color + '" stroke="' + dark + '" stroke-width="2.5" stroke-linejoin="round"/>' +
+      '<path d="M20,3.5 H70" stroke="rgba(255,255,255,0.35)" stroke-width="2.5" stroke-linecap="round"/>' +
+      '<g style="color:rgba(0,0,0,0.3)" fill="currentColor" transform="translate(0,2)">' + icon + '</g>' +
+      '<g style="color:' + ICON_COLOR + '" fill="currentColor">' + icon + '</g>' +
+      (t === 'W' && chosen ? '<g fill="' + ICON_COLOR + '" transform="translate(48,42) scale(0.38)">' + iconMarkup('W') + '</g>' : '') +
       '</svg>';
   }
 
@@ -491,6 +492,18 @@
   const programEl = $('#program');
   const poolEl = $('#pool');
 
+  // Pointer taps and drags are handled in startDrag. Keyboard users press Enter
+  // or Space. Click events are not used here, because after a tap re-renders
+  // the row, the browser can send the click to the new piece under the finger
+  // and add it twice.
+  function onActivate(el, fn) {
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      fn();
+    });
+  }
+
   function usedCount(t) { return game.program.filter((p) => p.t === t).length; }
 
   function renderProgram(caretAt, hideIndex) {
@@ -505,7 +518,7 @@
       if (i === game.runIndex) el.classList.add('running');
       else if (i <= game.doneUpTo) el.classList.add('done');
       el.addEventListener('pointerdown', (e) => startDrag(e, 'program', i, el));
-      el.addEventListener('click', (e) => { if (e.detail === 0) tapProgram(i); });
+      onActivate(el, () => tapProgram(i));
       programEl.appendChild(el);
     });
     if (caretAt != null && shown === caretAt) addCaret();
@@ -533,14 +546,14 @@
         el.setAttribute('aria-label', PIECE_NAMES[t] + ', ' + left + ' left');
         if (left <= 0) el.classList.add('empty');
         el.addEventListener('pointerdown', (e) => startDrag(e, 'pool', t, el));
-        el.addEventListener('click', (e) => { if (e.detail === 0) addPiece(t); });
+        onActivate(el, () => addPiece(t));
         poolEl.appendChild(el);
       });
     } else {
       game.tray.forEach((p) => {
         const el = pieceEl(p.t);
         el.addEventListener('pointerdown', (e) => startDrag(e, 'pool', p.id, el));
-        el.addEventListener('click', (e) => { if (e.detail === 0) addPiece(p.id); });
+        onActivate(el, () => addPiece(p.id));
         poolEl.appendChild(el);
       });
       if (!game.tray.length && game.quest.phase === 'arrange') {

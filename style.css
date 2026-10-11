@@ -189,7 +189,7 @@ h1 span { font-size: 0.48em; color: var(--text); text-shadow: 3px 3px 0 var(--ed
 .program, .pool {
   display: flex; flex-wrap: wrap; align-items: center;
   gap: 8px 0;
-  min-height: calc(var(--piece) * 0.84 + 8px);
+  min-height: calc(var(--piece) * 0.83 + 8px);
 }
 .program {
   background: rgba(0,0,0,0.25);
@@ -203,9 +203,9 @@ h1 span { font-size: 0.48em; color: var(--text); text-shadow: 3px 3px 0 var(--ed
 .piece {
   position: relative;
   width: var(--piece);
-  height: calc(var(--piece) * 0.84);
+  height: calc(var(--piece) * 0.83);
   flex: 0 0 auto;
-  margin-right: calc(var(--piece) * -0.1);
+  margin-left: calc(var(--piece) * -0.17);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -214,7 +214,7 @@ h1 span { font-size: 0.48em; color: var(--text); text-shadow: 3px 3px 0 var(--ed
   filter: drop-shadow(0 3px 0 rgba(0,0,0,0.45));
 }
 .piece svg { width: 100%; height: 100%; display: block; pointer-events: none; }
-.pool .piece { margin-right: 0; }
+.pool .piece, .program .piece:first-child, .choices .piece { margin-left: 0; }
 .piece .count {
   position: absolute; right: -2px; top: -6px;
   min-width: 24px; height: 24px; padding: 0 4px;
