@@ -89,8 +89,12 @@
   const PIECE_SHAPE = 'M20,0 H70 Q77,0 77,7 V20.5 L69,18.6 Q67,18.2 67,20.2 V43.8 Q67,45.8 69,45.4 L77,43.5 ' +
     'V57 Q77,64 70,64 H20 Q13,64 13,57 V43 L5,45.4 Q3,45.8 3,43.8 V20.2 Q3,18.2 5,18.6 L13,21 V7 Q13,0 20,0 Z';
 
-  function pieceSvg(t, chosen) {
-    const shown = t === 'W' && chosen ? chosen : t;
+  // A Repeat puzzle piece in the program shows the piece it copies (copies is that
+  // piece's type, or 'W' for a Wild piece not set yet), with a small red Roversa
+  // badge in the corner, the same way a set Wild piece shows its direction.
+  function pieceSvg(t, chosen, copies) {
+    const repeatOf = t === 'P' && copies ? copies : null;
+    const shown = t === 'W' && chosen ? chosen : repeatOf || t;
     const [color, dark] = PIECE_COLORS[shown];
     const id = 'arc' + uid();
     // A wild piece that has been set takes the color and arrow of the piece it
@@ -105,17 +109,19 @@
       '<g style="color:rgba(0,0,0,0.3)" fill="currentColor" transform="translate(0,2)">' + icon + '</g>' +
       '<g style="color:' + ICON_COLOR + '" fill="currentColor" stroke="' + dark + '" stroke-width="1.4" paint-order="stroke">' + icon + '</g>' +
       (t === 'W' && chosen ? '<g fill="' + ICON_COLOR + '" stroke="' + dark + '" stroke-width="3" paint-order="stroke" transform="translate(41,41) scale(0.32)">' + iconMarkup('W') + '</g>' : '') +
+      (repeatOf ? '<g transform="translate(55.4,51)"><circle r="8.6" fill="' + PIECE_COLORS.P[0] + '" stroke="' + ICON_COLOR + '" stroke-width="1.6"/>' +
+        '<g fill="' + ICON_COLOR + '" transform="scale(0.43) translate(-45,-33)">' + iconMarkup('P', id) + '</g></g>' : '') +
       '</svg>';
   }
 
   // The same picture as an image the map can draw, cached per piece and wild choice.
   const pieceImages = {};
-  function pieceImage(t, chosen) {
-    const key = t + (chosen || '');
+  function pieceImage(t, chosen, copies) {
+    const key = t + (chosen || '') + (t === 'P' && copies ? '>' + copies : '');
     if (!pieceImages[key]) {
       const img = new Image();
       img.src = 'data:image/svg+xml;charset=utf-8,' +
-        encodeURIComponent(pieceSvg(t, chosen).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="154" height="128" '));
+        encodeURIComponent(pieceSvg(t, chosen, copies).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="154" height="128" '));
       pieceImages[key] = img;
     }
     return pieceImages[key];
@@ -124,13 +130,26 @@
   // The special puzzle pieces pictured in the Dice Quest rules.
   document.querySelectorAll('.piece-pic[data-piece]').forEach((el) => { el.innerHTML = pieceSvg(el.dataset.piece); });
 
-  function pieceEl(t, chosen) {
+  // What the Repeat puzzle piece at index i of a program copies: the piece just
+  // before it (a set Wild piece counts as its direction, an unset one as 'W'),
+  // or null when there is nothing before it.
+  function repeatCopies(program, i) {
+    for (let j = i - 1; j >= 0; j--) {
+      const p = program[j];
+      if (p.t === 'P') continue;
+      return p.t === 'W' ? p.chosen || 'W' : p.t;
+    }
+    return null;
+  }
+
+  function pieceEl(t, chosen, copies) {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'piece';
     el.dataset.t = t;
-    el.innerHTML = pieceSvg(t, chosen);
-    el.setAttribute('aria-label', t === 'W' && chosen ? tr('wildAs', { name: PIECE_NAMES[chosen] }) : PIECE_NAMES[t]);
+    el.innerHTML = pieceSvg(t, chosen, copies);
+    el.setAttribute('aria-label', t === 'W' && chosen ? tr('wildAs', { name: PIECE_NAMES[chosen] }) :
+      t === 'P' && copies ? tr('repeatAs', { name: PIECE_NAMES[copies] }) : PIECE_NAMES[t]);
     return el;
   }
 
@@ -332,7 +351,7 @@
   function drawShownPiece(g, now, S) {
     const sp = game.shownPiece;
     const r = game.robots[game.active];
-    const img = pieceImage(sp.t, sp.chosen);
+    const img = pieceImage(sp.t, sp.chosen, sp.copies);
     if (!r || !img.complete || r.alpha < 0.5) return;
     const age = now - sp.at;
     const pop = Math.min(1, age / 160);
@@ -823,7 +842,7 @@
     let shown = 0;
     game.program.forEach((p, i) => {
       if (caretAt != null && shown === caretAt && i !== hideIndex) addCaret();
-      const el = pieceEl(p.t, p.chosen);
+      const el = pieceEl(p.t, p.chosen, p.t === 'P' ? repeatCopies(game.program, i) : null);
       el.dataset.index = i;
       if (i === hideIndex) el.classList.add('ghost-src');
       else shown++;
@@ -1291,7 +1310,7 @@
   async function runOne(st) {
     game.runIndex = st.i;
     const piece = game.program[st.i];
-    game.shownPiece = piece ? { t: piece.t, chosen: piece.chosen, at: performance.now() } : null;
+    game.shownPiece = piece ? { t: piece.t, chosen: piece.chosen, copies: piece.t === 'P' ? repeatCopies(game.program, st.i) : null, at: performance.now() } : null;
     renderProgram();
     const cmd = st.steps[st.i];
     const res = await doStep(st.r, cmd);
