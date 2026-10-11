@@ -1,7 +1,7 @@
 # Roversa Adventure Quest (online)
 
 A browser game for all ages, based on the Roversa Adventure Quest classroom game
-from [Roversa Robotics](https://roversa.com). Line up Roversa gamepieces to build a
+from [Roversa Robotics](https://roversa.com). Line up Roversa puzzle pieces to build a
 program, press **GO**, and watch the robot drive to every destination.
 
 Works on computers, tablets and phones. No install, no build step: it is plain
@@ -19,7 +19,7 @@ HTML, CSS and JavaScript, so GitHub Pages serves it as is.
 
 Tap the map before pressing GO to guess where Roversa will stop.
 
-## Gamepieces
+## Puzzle pieces
 
 The pieces match the 3D-printed ones in
 [roversa-quest](https://github.com/Roversa-Robotics/roversa-quest), and the Dice
