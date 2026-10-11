@@ -76,6 +76,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .btn.blue { background: var(--blue); }
 .btn.red { background: var(--red); }
 .btn.gray { background: var(--gray); }
+.btn.purple { background: var(--brand-purple); }
+.ai-btn { margin: 0 auto; }
+.choices.ai-levels { flex-direction: column; }
+.btn.ai-level { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 220px; }
+.ai-level-name { font-size: 14px; }
+.ai-level-desc { font-family: var(--body, system-ui, sans-serif); font-size: 13px; text-transform: none; opacity: 0.9; }
 .btn-icon { font-family: system-ui, sans-serif; font-size: 1.3em; vertical-align: -0.1em; margin-right: 6px; }
 .btn:focus-visible, .icon-btn:focus-visible, .piece:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
 
@@ -302,6 +308,12 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 }
 .score.turn { border-color: var(--yellow); box-shadow: 0 0 0 2px var(--yellow); }
 .score canvas { width: 36px; height: 36px; image-rendering: pixelated; }
+.score:has(.ai-badge) { flex-wrap: wrap; row-gap: 4px; }
+.ai-badge {
+  flex-basis: 100%; padding: 3px 6px; text-align: center;
+  font-family: var(--pixel); font-size: 8px; line-height: 1.4; font-weight: 400;
+  color: #fff; background: var(--brand-purple); border-radius: 4px;
+}
 .score canvas.flag { width: 21px; height: 28.5px; margin: 0 -4px 0 -6px; }
 .score .goal-icons { display: flex; gap: 4px; margin-left: auto; }
 .score .goal-icons canvas { width: 26px; height: 26px; opacity: 0.25; filter: grayscale(1); }
