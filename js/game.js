@@ -491,6 +491,18 @@
   const programEl = $('#program');
   const poolEl = $('#pool');
 
+  // Pointer taps and drags are handled in startDrag. Keyboard users press Enter
+  // or Space. Click events are not used here, because after a tap re-renders
+  // the row, the browser can send the click to the new piece under the finger
+  // and add it twice.
+  function onActivate(el, fn) {
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      fn();
+    });
+  }
+
   function usedCount(t) { return game.program.filter((p) => p.t === t).length; }
 
   function renderProgram(caretAt, hideIndex) {
@@ -505,7 +517,7 @@
       if (i === game.runIndex) el.classList.add('running');
       else if (i <= game.doneUpTo) el.classList.add('done');
       el.addEventListener('pointerdown', (e) => startDrag(e, 'program', i, el));
-      el.addEventListener('click', (e) => { if (e.detail === 0) tapProgram(i); });
+      onActivate(el, () => tapProgram(i));
       programEl.appendChild(el);
     });
     if (caretAt != null && shown === caretAt) addCaret();
@@ -533,14 +545,14 @@
         el.setAttribute('aria-label', PIECE_NAMES[t] + ', ' + left + ' left');
         if (left <= 0) el.classList.add('empty');
         el.addEventListener('pointerdown', (e) => startDrag(e, 'pool', t, el));
-        el.addEventListener('click', (e) => { if (e.detail === 0) addPiece(t); });
+        onActivate(el, () => addPiece(t));
         poolEl.appendChild(el);
       });
     } else {
       game.tray.forEach((p) => {
         const el = pieceEl(p.t);
         el.addEventListener('pointerdown', (e) => startDrag(e, 'pool', p.id, el));
-        el.addEventListener('click', (e) => { if (e.detail === 0) addPiece(p.id); });
+        onActivate(el, () => addPiece(p.id));
         poolEl.appendChild(el);
       });
       if (!game.tray.length && game.quest.phase === 'arrange') {
