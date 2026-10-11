@@ -169,16 +169,56 @@
   }
 
   const TEAM_COLORS = [
-    { name: 'Red', css: '#ff3638', dark: '#8f1513' },
-    { name: 'Blue', css: '#2f7bff', dark: '#0d3a8a' },
+    { name: 'Red', css: '#ff3638', dark: '#8f1513', flag: 'red' },
+    { name: 'Blue', css: '#2f7bff', dark: '#0d3a8a', flag: 'blue' },
   ];
+
+  // Flags come in the puzzle piece colors, like the printed flags on the real robots.
+  const FLAG_COLORS = {
+    red: { css: '#d43a32', dark: '#7e1d18' },
+    orange: { css: '#ff8529', dark: '#a84f0c' },
+    yellow: { css: '#e3dc38', dark: '#8f8a14' },
+    green: { css: '#488f3f', dark: '#264f20' },
+    blue: { css: '#466fc4', dark: '#273f7a' },
+    purple: { css: '#b665c7', dark: '#6f347d' },
+  };
+
+  // The Roversa pennant: a triangle on a tall pole with little holes cut out of it,
+  // drawn upright with the pole at the right and the bottom of the pole at the bottom.
+  const FLAG_W = 14, FLAG_H = 19;
+  function flag(color) {
+    const col = FLAG_COLORS[color] || FLAG_COLORS.red;
+    const c = document.createElement('canvas');
+    c.width = FLAG_W;
+    c.height = FLAG_H;
+    const g = c.getContext('2d');
+    const OUT = '#14162b', POLE = '#e8e4d8';
+    const cloth = [];
+    for (let y = 2; y <= 10; y++) {
+      for (let x = 1 + Math.round((y - 2) * 1.15); x <= 11; x++) cloth.push([x, y]);
+    }
+    // Outline first, one pixel bigger all round, then the cloth on top.
+    g.fillStyle = OUT;
+    cloth.forEach(([x, y]) => g.fillRect(x - 1, y - 1, 3, 3));
+    g.fillRect(11, 0, 3, FLAG_H);
+    g.fillStyle = col.css;
+    cloth.forEach(([x, y]) => g.fillRect(x, y, 1, 1));
+    g.fillStyle = 'rgba(255,255,255,0.35)';
+    g.fillRect(1, 2, 10, 1);
+    // The cut-outs, in the same zig-zag as the holes in the printed flag.
+    g.fillStyle = col.dark;
+    [[4, 3], [8, 3], [6, 5], [10, 5], [8, 7], [10, 9]].forEach(([x, y]) => g.fillRect(x, y, 1, 1));
+    g.fillStyle = POLE;
+    g.fillRect(12, 1, 1, FLAG_H - 2);
+    return c;
+  }
 
   // The top-down Roversa, facing up (north); the game rotates it for other directions.
   const robotBase = imageCanvas('robot.png', 32);
 
-  // In Dice Quest each team's robot gets wheels in its team color, so two robots on
-  // one map are easy to tell apart. With no team, it is the plain robot.
-  function robot(team) {
+  // In Dice Quest each robot gets wheels in its flag color, so two robots on
+  // one map are easy to tell apart. With no color, it is the plain robot.
+  function robot(color) {
     const c = document.createElement('canvas');
     c.width = 32;
     c.height = 32;
@@ -186,8 +226,8 @@
       const g = c.getContext('2d');
       g.clearRect(0, 0, 32, 32);
       g.drawImage(robotBase, 0, 0);
-      if (team === undefined) return;
-      const col = TEAM_COLORS[team];
+      const col = FLAG_COLORS[color];
+      if (!col) return;
       for (const x of [0, 29]) {
         g.fillStyle = col.dark;
         g.fillRect(x, 1, 3, 13);
@@ -209,19 +249,19 @@
     C: imageCanvas('treasure-coins.png', 32),
   };
 
-  // Robot costumes players can pick in Dice Quest.
+  // Robot costumes players can pick in Dice Quest, each with its own flag color.
   const CHARACTERS = [
-    { id: 'octopus', name: 'Octopus' },
-    { id: 'turtle', name: 'Turtle' },
-    { id: 'monkey', name: 'Monkey' },
-    { id: 'tiger', name: 'Tiger' },
-    { id: 'elephant', name: 'Elephant' },
-    { id: 'manatee', name: 'Manatee' },
+    { id: 'octopus', name: 'Octopus', flag: 'red' },
+    { id: 'turtle', name: 'Turtle', flag: 'green' },
+    { id: 'monkey', name: 'Monkey', flag: 'yellow' },
+    { id: 'tiger', name: 'Tiger', flag: 'orange' },
+    { id: 'elephant', name: 'Elephant', flag: 'purple' },
+    { id: 'manatee', name: 'Manatee', flag: 'blue' },
   ].map((ch) => Object.assign(ch, { sprite: imageCanvas('char-' + ch.id + '.png', 32) }));
 
   const ready = Promise.all([robotBase.loaded, ...Object.values(goals).map((g) => g.loaded), ...CHARACTERS.map((ch) => ch.sprite.loaded)]);
 
   root.RoversaSprites = {
-    SIZE, rng, grass, flowers, sand, tree, rock, water, startPad, robot, goals, TEAM_COLORS, CHARACTERS, ready,
+    SIZE, rng, grass, flowers, sand, tree, rock, water, startPad, robot, flag, FLAG_COLORS, goals, TEAM_COLORS, CHARACTERS, ready,
   };
 })(globalThis);
