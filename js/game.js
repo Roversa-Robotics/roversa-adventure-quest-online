@@ -139,11 +139,11 @@
     quest: null,
   };
 
-  function makeRobot(start, dir, team) {
+  function makeRobot(start, dir, team, teamWheels) {
     const colors = SP.TEAM_COLORS[team];
     return {
       team, name: colors.name, css: colors.css,
-      sprite: SP.robot(team),
+      sprite: SP.robot(teamWheels ? team : undefined),
       sx: start.x, sy: start.y, sdir: dir,
       x: start.x, y: start.y, dir,
       rx: start.x, ry: start.y, ang: (dir * Math.PI) / 2, scale: 1, alpha: 1, bump: 0,
@@ -437,7 +437,7 @@
       g.save();
       g.translate(st.x * T + T / 2, st.y * T + T / 2);
       g.rotate((E.DIR_NAMES[level.startDir || 'N'] * Math.PI) / 2);
-      g.drawImage(SP.robot(0), -T / 2, -T / 2, T, T);
+      g.drawImage(SP.robot(), -T / 2, -T / 2, T, T);
       g.restore();
       const n = stars[level.name] || 0;
       card.innerHTML = '<div class="num">LEVEL ' + (i + 1) + '</div><div class="name"></div>' +
@@ -580,8 +580,8 @@
     game.level = null;
     game.map = questMap(players);
     game.view = buildView(game.map, Math.floor(Math.random() * 1000));
-    game.robots = [makeRobot(game.map.starts['1'], 0, 0)];
-    if (players > 1) game.robots.push(makeRobot(game.map.starts['2'], 2, 1));
+    game.robots = [makeRobot(game.map.starts['1'], 0, 0, true)];
+    if (players > 1) game.robots.push(makeRobot(game.map.starts['2'], 2, 1, true));
     (game.characters || []).forEach((ch, i) => { if (game.robots[i]) game.robots[i].character = ch.sprite; });
     game.active = 0;
     game.tray = [];
@@ -1338,7 +1338,7 @@
   }
   window.addEventListener('hashchange', openFromHash);
   SP.ready.then(() => {
-    titleRobot.getContext('2d').drawImage(SP.robot(0), 0, 0);
+    titleRobot.getContext('2d').drawImage(SP.robot(), 0, 0);
     openFromHash();
   });
 })();
