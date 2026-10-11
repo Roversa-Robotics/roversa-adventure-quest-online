@@ -4,6 +4,7 @@
 
   const E = globalThis.RoversaEngine;
   const SP = globalThis.RoversaSprites;
+  const AI = globalThis.RoversaAI;
   const AUDIO = globalThis.RoversaAudio;
   const SND = AUDIO.sfx;
   const LEVELS = globalThis.ROVERSA_LEVELS;
@@ -134,6 +135,8 @@
 
   const game = {
     mode: null, // 'level' or 'quest'
+    aiLevel: null, // 'easy', 'medium' or 'hard' when playing the Dice Quest AI Opponent
+    aiToken: 0, // changes whenever an AI Opponent turn should stop
     levelIndex: 0,
     level: null,
     map: null,
@@ -162,8 +165,11 @@
       team, flagColor, css: SP.FLAG_COLORS[flagColor].css,
       flag: SP.flag(flagColor),
       charId: null, // set in Dice Quest to the costume the player picked
+      ai: null, // the skill level when this robot is the Dice Quest AI Opponent
       // Players are named after their costume, like "Elephant", else "Red Roversa".
-      get name() { return this.charId ? tr('char.' + this.charId) : tr('robot', { team: tr('team.' + this.team) }); },
+      get baseName() { return this.charId ? tr('char.' + this.charId) : tr('robot', { team: tr('team.' + this.team) }); },
+      // The AI Opponent always says so in its name, like "Tiger (AI Opponent)".
+      get name() { return this.ai ? tr('aiName', { name: this.baseName }) : this.baseName; },
       sprite: SP.robot(teamWheels ? flagColor : undefined),
       sx: start.x, sy: start.y, sdir: dir,
       x: start.x, y: start.y, dir,
@@ -393,6 +399,7 @@
 
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => { SND.tap(); show(b.dataset.go); }));
   document.querySelectorAll('[data-players]').forEach((b) => b.addEventListener('click', () => { SND.tap(); chooseCharacters(Number(b.dataset.players)); }));
+  $('#btn-ai').addEventListener('click', () => { SND.tap(); chooseAiLevel(); });
 
   $('#btn-back').addEventListener('click', () => {
     if (game.running) return;
@@ -702,8 +709,29 @@
     });
   }
 
-  // Each player picks a robot costume before a new Dice Quest.
-  async function chooseCharacters(players) {
+  // Playing the AI Opponent starts with choosing how strong it is.
+  function chooseAiLevel() {
+    openModal('<h3>' + tr('ai.title') + '</h3><p>' + tr('ai.pick') + '</p><div class="choices ai-levels"></div>', (level) => {
+      if (level) chooseCharacters(1, level);
+    });
+    const box = modal.querySelector('.ai-levels');
+    AI.LEVELS.forEach((level) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn ai-level ' + { easy: 'green', medium: 'blue', hard: 'red' }[level];
+      b.innerHTML = '<span class="ai-level-name"></span><span class="ai-level-desc"></span>';
+      b.querySelector('.ai-level-name').textContent = tr('ai.level.' + level);
+      b.querySelector('.ai-level-desc').textContent = tr('ai.desc.' + level);
+      b.addEventListener('click', () => { SND.tap(); closeModal(level); });
+      box.appendChild(b);
+    });
+    box.querySelector('button').focus();
+  }
+
+  // Each player picks a robot costume before a new Dice Quest. Against the AI
+  // Opponent only the player picks; the AI Opponent takes another costume.
+  async function chooseCharacters(players, aiLevel) {
+    game.aiLevel = aiLevel || null;
     const picks = [];
     for (let i = 0; i < players; i++) {
       const pick = await pickCostume(players > 1 ? tr('modal.player', { n: i + 1 }) : tr('modal.pickRobot'),
@@ -711,8 +739,12 @@
       const left = SP.CHARACTERS.filter((ch) => !picks.includes(ch));
       picks.push(pick || left[Math.floor(Math.random() * left.length)]);
     }
+    if (aiLevel) {
+      const left = SP.CHARACTERS.filter((ch) => !picks.includes(ch));
+      picks.push(left[Math.floor(Math.random() * left.length)]);
+    }
     game.characters = picks;
-    startQuest(players);
+    startQuest(picks.length);
   }
 
   // Dresses a robot in a costume: its flag, wheel color and name.
@@ -732,6 +764,8 @@
     game.robots = [makeRobot(game.map.starts['1'], 0, 0, true)];
     if (players > 1) game.robots.push(makeRobot(game.map.starts['2'], 2, 1, true));
     (game.characters || []).forEach((ch, i) => { if (game.robots[i]) wearCostume(game.robots[i], ch); });
+    if (game.aiLevel && game.robots[1]) game.robots[1].ai = game.aiLevel;
+    game.aiToken++;
     game.active = 0;
     game.tray = [];
     game.slots = 5;
@@ -876,7 +910,7 @@
       flagIcon.getContext('2d').drawImage(r.flag, 0, 0);
       box.appendChild(flagIcon);
       const label = document.createElement('span');
-      label.textContent = r.name;
+      label.textContent = r.ai ? r.baseName : r.name;
       if (game.robots.length > 1 && i === game.active) box.setAttribute('aria-label', tr('sr.turn', { team: r.name }));
       box.appendChild(label);
       // In Adventures the costume is shown on its own; the treasures are on the map.
@@ -892,19 +926,31 @@
         goals.appendChild(gc);
       });
       box.appendChild(goals);
+      // The AI Opponent gets a banner across the bottom of its box.
+      if (r.ai) {
+        const badge = document.createElement('span');
+        badge.className = 'ai-badge';
+        badge.textContent = tr('ai.badge', { level: tr('ai.level.' + r.ai) });
+        box.appendChild(badge);
+      }
       sb.appendChild(box);
     });
   }
 
+  // True while it is the AI Opponent's turn, when the player's controls are locked.
+  function isAiTurn() {
+    return game.mode === 'quest' && !!game.robots[game.active] && !!game.robots[game.active].ai;
+  }
+
   function renderButtons() {
-    const busy = game.running || game.rolling;
+    const busy = game.running || game.rolling || isAiTurn();
     const quest = game.quest;
     const goReady = game.program.length > 0 && (!quest || (quest.phase === 'arrange' && game.tray.length === 0));
     $('#btn-go').disabled = busy || !goReady;
     $('#btn-step').disabled = busy || !goReady;
-    $('#btn-reset').disabled = busy;
+    $('#btn-reset').disabled = game.running || game.rolling;
     $('#btn-clear').disabled = busy || !game.program.length || (quest && (quest.phase !== 'arrange' || !!game.stepping));
-    $('#btn-roll').hidden = !quest || quest.phase !== 'roll';
+    $('#btn-roll').hidden = !quest || quest.phase !== 'roll' || isAiTurn();
     $('#btn-roll').disabled = busy;
   }
 
@@ -917,7 +963,7 @@
   }
 
   function editable() {
-    if (game.running || game.rolling) return false;
+    if (game.running || game.rolling || isAiTurn()) return false;
     // Once a Dice Quest program starts stepping, the robot has moved, so the turn is locked in.
     return game.mode === 'level' || (game.quest.phase === 'arrange' && !game.stepping);
   }
@@ -1266,14 +1312,14 @@
   }
 
   // GO runs the whole program, or the rest of it after some Steps.
-  async function run() {
-    if (game.running || !game.program.length) return;
+  async function run(byAi) {
+    if (game.running || !game.program.length || (isAiTurn() && byAi !== true)) return;
     closeModal();
     const st = game.stepping || beginRun();
     game.running = true;
     game.stepping = null;
     renderAll();
-    setMessage(tr('msg.driving'));
+    setMessage(isAiTurn() ? tr('msg.drivingNamed', { robot: st.r.name }) : tr('msg.driving'));
     let outcome = { result: 'done' };
     while (st.i < st.steps.length) {
       const res = await runOne(st);
@@ -1285,7 +1331,7 @@
 
   // Step runs just the next piece, so players can watch where the program goes wrong.
   async function step() {
-    if (game.running || !game.program.length) return;
+    if (game.running || !game.program.length || isAiTurn()) return;
     closeModal();
     const st = game.stepping || beginRun();
     game.running = true;
@@ -1391,17 +1437,52 @@
     q.phase = 'roll';
     if (game.robots.length > 1) {
       game.active = (game.active + 1) % game.robots.length;
-      text += tr('msg.nextTurn', { team: game.robots[game.active].name });
+      const next = game.robots[game.active];
+      text += next.ai ? tr('ai.nextTurn', { robot: next.name }) : tr('msg.nextTurn', { team: next.name });
     } else {
       text += tr('msg.rollAgain');
     }
     setMessage(text, outcome.result === 'done' ? '' : 'bad');
     renderAll();
+    if (isAiTurn()) aiTurn();
   }
 
-  async function roll() {
+  // The AI Opponent's turn: it rolls, lays out its puzzle pieces one at a time and
+  // presses GO, slowly enough for kids to watch. Leaving the game or starting a
+  // new one stops it.
+  async function aiTurn() {
+    const r = game.robots[game.active];
+    const token = ++game.aiToken;
+    const still = () => token === game.aiToken && game.robots[game.active] === r && game.quest && game.quest.phase !== 'over' &&
+      $('#screen-game').classList.contains('active');
+    await sleep(1800);
+    if (!still()) return;
+    setMessage(tr('ai.rolling', { robot: r.name }));
+    await roll(true);
+    if (!still()) return;
+    setMessage(tr('ai.thinking', { robot: r.name }));
+    await sleep(900);
+    if (!still()) return;
+    const occupied = (x, y) => game.robots.some((o) => o !== r && o.x === x && o.y === y);
+    const program = AI.plan(game.map, r, game.tray, r.ai, occupied);
+    for (const p of program) {
+      const i = game.tray.findIndex((t) => t.t === p.t);
+      const [piece] = game.tray.splice(i, 1);
+      game.program.push({ id: piece.id, t: p.t, chosen: p.chosen });
+      SND.drop();
+      renderAll();
+      await sleep(500);
+      if (!still()) return;
+    }
+    setMessage(tr('ai.go', { robot: r.name }));
+    await sleep(700);
+    if (!still()) return;
+    run(true);
+  }
+
+  async function roll(byAi) {
     const q = game.quest;
-    if (!q || q.phase !== 'roll' || game.rolling) return;
+    if (!q || q.phase !== 'roll' || game.rolling || (isAiTurn() && byAi !== true)) return;
     game.rolling = true;
     game.program = [];
     game.trail = [];
@@ -1418,7 +1499,7 @@
     q.phase = 'arrange';
     game.rolling = false;
     renderAll();
-    setMessage(tr('msg.arrange'));
+    if (!isAiTurn()) setMessage(tr('msg.arrange'));
   }
 
   $('#btn-go').addEventListener('click', run);
