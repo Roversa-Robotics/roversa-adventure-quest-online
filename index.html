@@ -116,7 +116,10 @@
         <div class="board-frame">
           <canvas id="board" role="img" tabindex="0" aria-label="Map" data-i18n-attr="aria-label:map"></canvas>
         </div>
-        <p id="message" class="message" role="status" aria-live="polite"></p>
+        <div class="message-row">
+          <p id="message" class="message" role="status" aria-live="polite"></p>
+          <button id="btn-demo" class="icon-btn demo-btn" type="button" hidden aria-label="Show the new puzzle piece again" title="Show the new puzzle piece again" data-i18n-attr="aria-label:new.again; title:new.again">?</button>
+        </div>
         <p id="sr-status" class="sr-only" aria-live="polite"></p>
       </div>
       <div class="controls-col">

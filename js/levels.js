@@ -25,11 +25,89 @@
 // pieces:   how many of each puzzle piece the player gets.
 //           F Forward, B Backward, L Turn Left, R Turn Right, P repeat.
 // slots:    how many pieces fit in the program row.
+// newPiece: a puzzle piece this level uses for the first time. The first time the
+//           level opens, a hand points at it and the map shows what it does.
+//
+// The first level, Meet Roversa, is the guided tutorial. Instead of one map it
+// has stages, each with its own map, pieces and guide: the steps a pointing hand
+// walks the player through. Guide steps:
+//   { do: 'robot' }           tap Roversa (the duck pops up after the tap)
+//   { do: 'add', t, n }       add n of puzzle piece t (n defaults to 1)
+//   { do: 'go' }              press GO
+//   { do: 'free' }            no hand: the player works it out
+// `say` is the line shown (and read aloud) for the step, a key in js/i18n.js.
+// `show` is what the map draws to help: 'front' (arrows off Roversa's front),
+// 'target' (where Roversa will end up), 'count' (numbered squares ahead) or
+// 'turn' (an arc for the Turn piece being added).
 //
 // Run `node tools/check-levels.js` after editing to make sure every level
 // can be solved and to see the shortest solution.
 globalThis.ROVERSA_LEVELS = [
   // ---------- Duck Pond ----------
+  {
+    name: 'Meet Roversa',
+    hint: 'Get Roversa to the duck!',
+    world: 'pond',
+    stages: [
+      {
+        startDir: 'E',
+        pieces: { F: 1 },
+        slots: 1,
+        map: [
+          '..V..',
+          'SA...',
+          'L...L',
+        ],
+        guide: [
+          { do: 'robot', say: 'tut.front', show: 'front' },
+          { do: 'add', t: 'F', say: 'tut.forward', show: 'target' },
+          { do: 'go', say: 'tut.go', show: 'target' },
+        ],
+      },
+      {
+        startDir: 'E',
+        pieces: { F: 3 },
+        slots: 3,
+        map: [
+          '..V..',
+          'S..A.',
+          'L...L',
+        ],
+        guide: [
+          { do: 'add', t: 'F', n: 3, say: 'tut.count', show: 'count' },
+          { do: 'go', say: 'tut.go', show: 'target' },
+        ],
+      },
+      {
+        startDir: 'E',
+        pieces: { F: 1, L: 1 },
+        slots: 2,
+        map: [
+          'A.V..',
+          'S....',
+          'L...L',
+        ],
+        guide: [
+          { do: 'add', t: 'L', say: 'tut.turn', show: 'turn' },
+          { do: 'add', t: 'F', say: 'tut.thenForward', show: 'target' },
+          { do: 'go', say: 'tut.go', show: 'target' },
+        ],
+      },
+      {
+        startDir: 'E',
+        pieces: { F: 4, L: 1, R: 1 },
+        slots: 6,
+        map: [
+          '...A.',
+          'S.L..',
+          'L...V',
+        ],
+        guide: [
+          { do: 'free', say: 'tut.free' },
+        ],
+      },
+    ],
+  },
   {
     name: 'First Steps',
     hint: 'Welcome to Duck Pond! Line up Forward pieces, then press GO!',
@@ -47,6 +125,7 @@ globalThis.ROVERSA_LEVELS = [
     name: 'Turn the Corner',
     hint: 'Turn Left and Turn Right spin Roversa in place. They do not move it.',
     world: 'pond',
+    newPiece: 'R',
     startDir: 'N',
     pieces: { F: 5, L: 2, R: 2 },
     slots: 7,
@@ -74,6 +153,7 @@ globalThis.ROVERSA_LEVELS = [
     name: 'Back It Up',
     hint: 'Welcome to Roversa Island! The Backward piece drives backward without turning around.',
     world: 'island',
+    newPiece: 'B',
     startDir: 'E',
     pieces: { F: 5, B: 3, L: 2, R: 2 },
     slots: 7,
@@ -87,6 +167,7 @@ globalThis.ROVERSA_LEVELS = [
     name: 'Repeat Power',
     hint: 'Only one Forward piece! The red Roversa piece repeats the piece before it.',
     world: 'island',
+    newPiece: 'P',
     startDir: 'E',
     pieces: { F: 1, P: 5 },
     slots: 6,
