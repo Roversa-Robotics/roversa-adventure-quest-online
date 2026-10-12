@@ -23,7 +23,7 @@
 //
 // startDir: which way Roversa faces at the start: 'N' up, 'E' right, 'S' down, 'W' left.
 // pieces:   how many of each puzzle piece the player gets.
-//           F Forward, B Backward, L Turn Left, R Turn Right, P repeat.
+//           F Forward, B Backward, L Turn Left, R Turn Right, P repeat, W wild.
 // slots:    how many pieces fit in the algorithm row.
 // newPiece: a puzzle piece this level uses for the first time. The first time the
 //           level opens, a pop-up shows the piece and says what it does.
@@ -178,6 +178,20 @@ globalThis.ROVERSA_LEVELS = [
     ],
   },
   {
+    name: 'Wild Card',
+    hint: 'No Turn pieces here! Use the green Wild piece as the turn you need.',
+    world: 'island',
+    newPiece: 'W',
+    startDir: 'E',
+    pieces: { F: 3, W: 1 },
+    slots: 4,
+    map: [
+      'M..P..M',
+      'f..A..P',
+      'PS....f',
+    ],
+  },
+  {
     name: 'Around the Bay',
     hint: 'Roversa cannot swim, and the Captain and Byteclaw will not move. Drive around them.',
     world: 'island',
@@ -206,16 +220,30 @@ globalThis.ROVERSA_LEVELS = [
     ],
   },
   {
-    name: 'Grand Quest',
-    hint: 'Visit the chest, the octopus and Toothie in one algorithm!',
+    name: 'Wild Waters',
+    hint: 'Two turns, but only one Turn piece. Use the Wild piece for the other one!',
     world: 'sea',
     startDir: 'E',
-    pieces: { F: 5, B: 3, L: 3, R: 3, P: 8 },
-    slots: 15,
+    pieces: { F: 3, L: 1, W: 1, P: 4 },
+    slots: 9,
     map: [
-      'A...C.',
-      '.*%%..',
-      'S.##.B',
+      '*%.A.B%',
+      '#.*.%..',
+      'S...%*#',
+    ],
+  },
+  {
+    name: 'Grand Quest',
+    hint: 'Visit the chest, the octopus and Toothie in one algorithm! Every puzzle piece counts.',
+    world: 'sea',
+    startDir: 'E',
+    pieces: { F: 4, B: 1, L: 1, R: 1, P: 7, W: 1 },
+    slots: 16,
+    map: [
+      '#%A%*C#',
+      '#*.%%.*',
+      '.%...B%',
+      'S..*%.#',
     ],
   },
 ];
