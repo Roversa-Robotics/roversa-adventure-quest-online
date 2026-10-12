@@ -7,8 +7,13 @@ const Engine = require(path.join(__dirname, '..', 'js', 'engine.js'));
 require(path.join(__dirname, '..', 'js', 'levels.js'));
 
 let failed = false;
+// The tutorial (Meet Roversa) is checked one stage at a time.
+const maps = [];
 globalThis.ROVERSA_LEVELS.forEach((level, i) => {
-  const label = `${i + 1}. ${level.name}`;
+  if (level.stages) level.stages.forEach((st, k) => maps.push({ label: `${i}. ${level.name} (stage ${k + 1})`, level: st }));
+  else maps.push({ label: `${i}. ${level.name}`, level });
+});
+maps.forEach(({ label, level }) => {
   const widths = new Set(level.map.map((r) => r.length));
   const map = Engine.parseMap(level.map);
   const problems = [];

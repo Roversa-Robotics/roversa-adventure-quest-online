@@ -177,7 +177,6 @@
     slots: 5,
     running: false,
     rolling: false,
-    predict: null,
     trail: [],
     particles: [],
     runIndex: -1,
@@ -185,6 +184,8 @@
     doneUpTo: -1,
     stepping: null, // a program being run one piece at a time: { r, steps, i }
     quest: null,
+    guide: null, // the hand guiding the player, see "Guided tutorial" below
+    hideGoals: false, // the tutorial's first duck pops up after Roversa is tapped
   };
 
   function makeRobot(start, dir, team, teamWheels) {
@@ -287,23 +288,8 @@
     g.fillStyle = 'rgba(255,255,255,0.55)';
     game.trail.forEach((p) => g.fillRect((p.x + 0.5) * S - SCALE * 1.5, (p.y + 0.5) * S - SCALE * 1.5, SCALE * 3, SCALE * 3));
 
-    // The player's guess of where Roversa will stop.
-    if (game.predict) {
-      const pulse = 0.55 + 0.45 * Math.sin(now / 200);
-      g.strokeStyle = 'rgba(255, 230, 80,' + pulse + ')';
-      g.lineWidth = SCALE * 1.5;
-      g.setLineDash([SCALE * 3, SCALE * 2]);
-      g.strokeRect(game.predict.x * S + SCALE * 1.5, game.predict.y * S + SCALE * 1.5, S - SCALE * 3, S - SCALE * 3);
-      g.setLineDash([]);
-      g.fillStyle = 'rgba(255, 230, 80,' + pulse + ')';
-      g.font = 'bold ' + S * 0.45 + 'px system-ui, sans-serif';
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.fillText('?', (game.predict.x + 0.5) * S, (game.predict.y + 0.5) * S);
-    }
-
     // Destinations.
-    game.map.goals.forEach((goal, i) => {
+    if (!game.hideGoals) game.map.goals.forEach((goal, i) => {
       const bob = Math.round(Math.sin(now / 300 + i) * 1.5) * SCALE;
       const who = game.robots.filter((r) => r.visited.has(goal.id));
       g.globalAlpha = game.mode === 'level' && who.length ? 0.6 : 1;
@@ -341,7 +327,9 @@
       }
     });
 
+    if (game.guide && !game.running) drawGuide(g, S, now);
     if (game.shownPiece) drawShownPiece(g, now, S);
+    placeHand();
 
     // Sparkles.
     game.particles = game.particles.filter((p) => p.life > 0);
@@ -442,7 +430,12 @@
     document.dispatchEvent(new CustomEvent('roversa:screen', { detail: id }));
   }
 
-  document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => { SND.tap(); show(b.dataset.go); }));
+  document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => {
+    SND.tap();
+    // A new player's first tap on Adventures opens the Meet Roversa tutorial.
+    if (b.dataset.go === 'levels' && firstVisit()) startLevel(0);
+    else show(b.dataset.go);
+  }));
   document.querySelectorAll('[data-players]').forEach((b) => b.addEventListener('click', () => { SND.tap(); chooseCharacters(Number(b.dataset.players)); }));
   $('#btn-ai').addEventListener('click', () => { SND.tap(); chooseAiLevel(); });
 
@@ -450,6 +443,8 @@
     if (game.running) return;
     SND.tap();
     closeModal();
+    game.guide = null;
+    hand.hidden = true;
     show(game.mode === 'level' ? 'levels' : 'quest-setup');
   });
 
@@ -500,11 +495,13 @@
   }
 
   const levelHint = () => I18N.levelText(game.levelIndex, game.level).hint;
+  // Level numbers start at 1 after the Meet Roversa tutorial, which has a star instead.
+  const FIRST_NUM = LEVELS[0] && LEVELS[0].stages ? 0 : 1;
 
   // Titles and button words on the game screen that depend on the mode and language.
   function syncGameText() {
     if (game.mode === 'level') {
-      $('#game-title').textContent = (game.levelIndex + 1) + '. ' + I18N.levelText(game.levelIndex, game.level).name;
+      $('#game-title').textContent = (game.level.stages ? '\u2605' : (game.levelIndex + FIRST_NUM) + '.') + ' ' + I18N.levelText(game.levelIndex, game.level).name;
       $('#pool-label').textContent = tr('puzzlePieces');
       labelButton('#btn-reset', tr('startOver'), tr('startOver'));
       labelButton('#btn-clear', tr('clear'), tr('clearProgram'));
@@ -553,8 +550,6 @@
       if (E.isBlocked(game.map.grid, x, y) && !(edge && ch === 'T')) blocked.push(tr('sr.goal', { goal: tr('tileShort.' + ch), where: where(x, y) }));
     }));
     if (blocked.length) parts.push(tr('sr.blocked', { list: blocked.join('; ') }));
-    if (game.predict) parts.push(tr('sr.guess', { where: where(game.predict.x, game.predict.y) }));
-    parts.push(tr('sr.keys'));
     board.setAttribute('aria-label', parts.join(' '));
   }
 
@@ -616,7 +611,9 @@
       }
       const card = document.createElement('button');
       card.className = 'level-card';
-      const map = E.parseMap(level.map);
+      // The tutorial's card shows its last map.
+      const src = level.stages ? level.stages[level.stages.length - 1] : level;
+      const map = E.parseMap(src.map);
       const v = buildView(map, i + 1, level.world);
       const c = document.createElement('canvas');
       c.width = v.bg.width;
@@ -628,11 +625,11 @@
       const st = map.starts['1'];
       g.save();
       g.translate(st.x * T + T / 2, st.y * T + T / 2);
-      g.rotate((E.DIR_NAMES[level.startDir || 'N'] * Math.PI) / 2);
+      g.rotate((E.DIR_NAMES[src.startDir || 'N'] * Math.PI) / 2);
       g.drawImage(thumbRobot, -T / 2, -T / 2, T, T);
       g.restore();
       const n = stars[level.name] || 0;
-      card.innerHTML = '<div class="num">' + tr('levelNum', { n: i + 1 }) + '</div><div class="name"></div>' +
+      card.innerHTML = '<div class="num">' + (level.stages ? tr('tut.label') : tr('levelNum', { n: i + FIRST_NUM })) + '</div><div class="name"></div>' +
         '<div class="stars" aria-label="' + tr('sr.stars', { n }) + '">' +
         [0, 1, 2].map((k) => '<span class="' + (k < n ? 'on' : '') + '">&#9733;</span>').join('') + '</div>';
       card.querySelector('.name').textContent = I18N.levelText(i, level).name;
@@ -645,11 +642,12 @@
   // ---------- Starting a level or a quest ----------
 
   function enterGame() {
+    game.guide = null;
+    game.hideGoals = false;
     show('game');
     $('#screen-game').classList.toggle('quest-mode', game.mode === 'quest');
     sizeBoard();
     game.trail = [];
-    game.predict = null;
     game.particles = [];
     game.runIndex = -1;
     game.doneUpTo = -1;
@@ -663,20 +661,31 @@
     game.mode = 'level';
     game.levelIndex = i;
     game.level = level;
-    game.map = E.parseMap(level.map);
-    game.view = buildView(game.map, i + 1, level.world);
-    game.robots = [makeRobot(game.map.starts['1'], E.DIR_NAMES[level.startDir || 'N'], 0)];
+    game.quest = null;
+    $('#btn-roll').hidden = true;
+    syncGameText();
+    if (level.stages) {
+      markSeen(TUTORIAL_KEY);
+      loadStage(0);
+      return;
+    }
+    setUpMap(level, i + 1);
+    setMessage(levelHint());
+    if (level.newPiece && !seen(NEW_PIECE_KEY + level.newPiece)) showNewPiece();
+  }
+
+  // Puts a level's map (or one stage of the tutorial) on the board, with Roversa on its start.
+  function setUpMap(src, seed) {
+    game.map = E.parseMap(src.map);
+    game.view = buildView(game.map, seed, game.level.world);
+    game.robots = [makeRobot(game.map.starts['1'], E.DIR_NAMES[src.startDir || 'N'], 0)];
     const costume = loadCostume();
     if (costume) wearCostume(game.robots[0], costume);
     game.active = 0;
-    game.limits = Object.assign({}, level.pieces);
-    game.slots = level.slots;
-    game.quest = null;
+    game.limits = Object.assign({}, src.pieces);
+    game.slots = src.slots;
     $('#scoreboard').hidden = !costume;
-    $('#btn-roll').hidden = true;
-    syncGameText();
     enterGame();
-    setMessage(levelHint());
   }
 
   // Builds a random 8x8 quest map with the three treasures.
@@ -1017,6 +1026,7 @@
     renderProgram();
     renderScoreboard();
     renderButtons();
+    syncGuide();
   }
 
   function editable() {
@@ -1031,10 +1041,11 @@
     game.doneUpTo = -1;
     game.stepping = null;
     game.shownPiece = null;
+    if (game.guide) game.guide.bad = null;
   }
 
   async function addPiece(key, at) {
-    if (!editable()) return;
+    if (!editable() || guideBlocks('add', key)) return;
     if (game.program.length >= game.slots) {
       setMessage(tr('msg.full'), 'bad');
       SND.bump();
@@ -1059,11 +1070,12 @@
     game.program.splice(at, 0, piece);
     SND.drop();
     say(PIECE_NAMES[piece.chosen || piece.t]);
+    guideAfterAdd();
     renderAll();
   }
 
   function removePiece(i) {
-    if (!editable()) return;
+    if (!editable() || guideBlocks('remove')) return;
     const [p] = game.program.splice(i, 1);
     if (game.mode === 'quest') game.tray.push({ id: p.id, t: p.t });
     clearRunMarks();
@@ -1074,6 +1086,7 @@
   function tapProgram(i) { removePiece(i); }
 
   function movePiece(from, to) {
+    if (guideBlocks('move')) { renderAll(); return; }
     const [p] = game.program.splice(from, 1);
     game.program.splice(to, 0, p);
     clearRunMarks();
@@ -1088,6 +1101,7 @@
   function startDrag(e, src, key, el) {
     if (!editable() || (e.button != null && e.button > 0)) return;
     if (src === 'pool' && el.classList.contains('empty')) { SND.bump(); return; }
+    if (src === 'pool' ? guideBlocks('add', key) : guideBlocks('remove')) return;
     e.preventDefault();
     drag = { src, key, el, x0: e.clientX, y0: e.clientY, moved: false, ghost: null, insert: null };
     window.addEventListener('pointermove', onDragMove);
@@ -1237,48 +1251,347 @@
     }
   }
 
-  // ---------- Prediction: tap the map to guess where Roversa stops ----------
+  // ---------- Guided tutorial and new puzzle pieces ----------
 
-  board.addEventListener('click', (e) => {
-    if (game.running || !game.view) return;
-    const r = board.getBoundingClientRect();
-    const x = Math.floor(((e.clientX - r.left) / r.width) * game.view.cols);
-    const y = Math.floor(((e.clientY - r.top) / r.height) * game.view.rows);
-    if (!E.inBounds(game.map.grid, x, y)) return;
-    if (game.predict && game.predict.x === x && game.predict.y === y) clearGuess();
-    else setGuess(x, y);
+  // game.guide is null, or, in the Meet Roversa tutorial (see js/levels.js),
+  //   { stage, step, need, bad, wait }
+  //       need: how many of the step's piece the algorithm must hold to move on,
+  //       bad: the piece that bumped, wait: between steps, nothing works
+  // While the hand guides, only the thing it points at works, and the rest dims.
+
+  const TUTORIAL_KEY = 'roversa-tutorial-seen';
+  const NEW_PIECE_KEY = 'roversa-new-seen-';
+  function seen(key) {
+    try { return localStorage.getItem(key) === '1'; } catch (e) { return false; }
+  }
+  function markSeen(key) {
+    try { localStorage.setItem(key, '1'); } catch (e) { /* storage blocked */ }
+  }
+  // A player who has never opened the tutorial or finished a level.
+  function firstVisit() {
+    return !!(LEVELS[0] && LEVELS[0].stages) && !seen(TUTORIAL_KEY) && !Object.keys(loadStars()).length;
+  }
+
+  // A pixel-art pointing hand.
+  const hand = document.createElement('div');
+  hand.className = 'guide-hand';
+  hand.hidden = true;
+  hand.setAttribute('aria-hidden', 'true');
+  hand.innerHTML = '<svg viewBox="0 0 12 14" shape-rendering="crispEdges">' +
+    '<path fill="#14172e" d="M3 0h2v1h1v4h2v1h2v1h1v1h1v5h-1v1h-1v1H4v-1H3v-1H2v-1H1V9H0V7h1V6h2V1z"/>' +
+    '<path fill="#fff" d="M4 1h1v5h1v-1h2v1h-1v1h1v-1h2v1h-1v1h1v-1h1v4h-1v1h-1v1H5v-1H4v-1H3v-1H2V9H1V8h1v1h1v1h1z"/></svg>';
+  document.body.appendChild(hand);
+  let handAt = null; // { el } or { robot }
+
+  function guideStep() {
+    const gd = game.guide;
+    if (!gd || !game.level || !game.level.stages) return null;
+    return game.level.stages[gd.stage].guide[gd.step] || null;
+  }
+
+  function loadStage(k) {
+    setUpMap(game.level.stages[k], game.levelIndex + 1 + k);
+    game.guide = { stage: k, step: -1 };
+    nextGuideStep();
+  }
+
+  function nextGuideStep() {
+    const gd = game.guide;
+    gd.step++;
+    gd.bad = null;
+    gd.wait = false;
+    const spec = guideStep();
+    gd.need = spec.do === 'add' ? usedCount(spec.t) + (spec.n || 1) : 0;
+    game.hideGoals = spec.do === 'robot';
+    setMessage(tr(spec.say), 'guide');
+    renderAll();
+  }
+
+  // A level's new puzzle piece gets a pop-up the first time the level opens.
+  // The ? button next to the hint shows it again.
+  function showNewPiece() {
+    const t = game.level.newPiece;
+    markSeen(NEW_PIECE_KEY + t);
+    openModal(
+      '<h3>' + tr('new.title') + '</h3>' +
+      '<div class="new-piece" role="img" aria-label="' + PIECE_NAMES[t] + '">' + pieceSvg(t) + '</div>' +
+      '<p>' + tr('new.' + t) + '</p>' +
+      '<div class="choices"><button class="btn big green" data-act="ok">' + tr('new.ok') + '</button></div>'
+    );
+    say(tr('new.title') + ' ' + tr('new.' + t));
+    modal.querySelector('[data-act="ok"]').addEventListener('click', () => { SND.tap(); closeModal(); });
+  }
+
+  // True when the hand is guiding and this action isn't the one it points at.
+  function guideBlocks(action, key) {
+    const gd = game.guide;
+    if (!gd) return false;
+    const spec = guideStep();
+    if (gd.wait || !spec) return true;
+    if (spec.do === 'free') return false;
+    if (spec.do === 'add') return !(action === 'add' && key === spec.t);
+    if (spec.do === 'go') return action !== 'go';
+    return true;
+  }
+
+  function guideAfterAdd() {
+    const gd = game.guide;
+    if (!gd) return;
+    const spec = guideStep();
+    if (spec && spec.do === 'add' && usedCount(spec.t) >= gd.need) nextGuideStep();
+  }
+
+  // "Tap Roversa": it nudges forward, so the front is easy to see, and the duck pops up.
+  function tapRobot() {
+    const gd = game.guide;
+    const spec = guideStep();
+    if (!spec || spec.do !== 'robot' || gd.wait || game.running) return;
+    gd.wait = true;
+    renderAll();
+    const r = game.robots[0];
+    SND.move();
+    tween(r, { rx: r.x + E.DX[r.dir] * 0.3, ry: r.y + E.DY[r.dir] * 0.3 }, 200)
+      .then(() => tween(r, { rx: r.x, ry: r.y }, 200))
+      .then(() => {
+        if (game.guide !== gd) return;
+        game.hideGoals = false;
+        game.map.goals.forEach((goal) => sparkle(goal.x, goal.y));
+        SND.goal();
+        setTimeout(() => { if (game.guide === gd) nextGuideStep(); }, 700);
+      });
+  }
+  board.addEventListener('click', tapRobot);
+  board.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    tapRobot();
   });
 
-  function setGuess(x, y) {
-    game.predict = { x, y };
-    setMessage(tr('msg.guess'));
-    announce(tr('sr.guessAt', { where: where(x, y) }));
-    describeBoard();
-    SND.tap();
-  }
-
-  function clearGuess() {
-    game.predict = null;
-    setMessage(tr('msg.guessRemoved'));
-    describeBoard();
-    SND.tap();
-  }
-
-  // Keyboard: arrow keys move the guess square, Delete or Escape removes it.
-  board.addEventListener('keydown', (e) => {
-    if (game.running || !game.view) return;
-    const moves = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
-    if (moves[e.key]) {
-      e.preventDefault();
-      const r = game.robots[game.active];
-      const from = game.predict || { x: r.x, y: r.y };
-      const nx = Math.max(0, Math.min(game.map.cols - 1, from.x + (game.predict ? moves[e.key][0] : 0)));
-      const ny = Math.max(0, Math.min(game.map.rows - 1, from.y + (game.predict ? moves[e.key][1] : 0)));
-      setGuess(nx, ny);
-    } else if ((e.key === 'Delete' || e.key === 'Backspace') && game.predict) {
-      e.preventDefault();
-      clearGuess();
+  function finishTutorialRun(r, outcome) {
+    const gd = game.guide;
+    if (game.map.goals.every((g) => r.visited.has(g.id))) {
+      gd.wait = true;
+      setMessage(tr('tut.yay'), 'good');
+      renderAll();
+      const last = gd.stage + 1 >= game.level.stages.length;
+      const still = () => game.guide === gd && $('#screen-game').classList.contains('active');
+      if (!last) {
+        setTimeout(() => { if (still()) loadStage(gd.stage + 1); }, 1600);
+        return;
+      }
+      saveStars(game.level.name, 3);
+      setTimeout(() => {
+        if (!still()) return;
+        SND.win();
+        confetti();
+        openModal(
+          '<h3>' + tr('tut.doneTitle') + '</h3>' +
+          '<div class="big-stars">' + [0, 1, 2].map(() => '<span class="on">&#9733;</span>').join('') + '</div>' +
+          '<p>' + tr('tut.doneText') + '</p>' +
+          '<div class="choices">' +
+          '<button class="btn gray" data-act="again">' + tr('modal.tryAgain') + '</button>' +
+          '<button class="btn big green" data-act="next">' + tr('modal.next') + ' &#9654;</button>' +
+          '</div>'
+        );
+        say(tr('tut.doneTitle') + ' ' + tr('tut.doneText'));
+        modal.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
+          SND.tap();
+          closeModal();
+          startLevel(game.levelIndex + (b.dataset.act === 'next' ? 1 : 0));
+        }));
+        modal.querySelector('.btn.green').focus();
+      }, 600);
+      return;
     }
+    if (outcome.result === 'bump') {
+      gd.bad = outcome.index;
+      setMessage(tr('tut.oops', { what: outcome.what }), 'bad');
+    } else {
+      setMessage(tr('tut.notYet'), 'bad');
+    }
+    renderAll();
+  }
+
+  // Dims and locks everything but what the hand points at.
+  function syncGuide() {
+    document.querySelectorAll('.guide-dim, .guide-lock, .guide-focus, .guide-bad, .guide-num').forEach((el) => {
+      el.classList.remove('guide-dim', 'guide-lock', 'guide-focus', 'guide-bad', 'guide-num');
+    });
+    const gd = game.guide;
+    const level = game.mode === 'level' ? game.level : null;
+    $('#btn-new-piece').hidden = !(level && level.newPiece && !gd);
+    handAt = null;
+    hand.hidden = true;
+    if (!gd || !level) return;
+    const spec = guideStep();
+    const dim = (els) => els.forEach((el) => el && el.classList.add('guide-dim'));
+    const poolPanel = poolEl.closest('.panel');
+    const others = ['#btn-step', '#btn-reset', '#btn-clear'].map($);
+    if (gd.wait || !spec) {
+      programEl.classList.add('guide-lock');
+      poolEl.classList.add('guide-lock');
+      return;
+    }
+    if (spec.do === 'robot') {
+      dim([programEl.closest('.panel'), poolPanel, $('#btn-go')].concat(others));
+      handAt = { robot: game.robots[0] };
+    } else if (spec.do === 'add') {
+      const target = poolEl.querySelector('.piece[data-t="' + spec.t + '"]');
+      dim([...poolEl.querySelectorAll('.piece')].filter((el) => el !== target).concat($('#btn-go'), others));
+      programEl.classList.add('guide-lock');
+      if (spec.show === 'count') {
+        programEl.querySelectorAll('.slot').forEach((el, j) => {
+          el.classList.add('guide-num');
+          el.dataset.n = game.program.length + j + 1;
+        });
+      }
+      if (target) {
+        target.classList.add('guide-focus');
+        handAt = { el: target };
+      }
+    } else if (spec.do === 'go') {
+      dim([poolPanel].concat(others));
+      programEl.classList.add('guide-lock');
+      $('#btn-go').classList.add('guide-focus');
+      handAt = { el: $('#btn-go') };
+    } else if (spec.do === 'free' && gd.bad != null) {
+      const el = programEl.querySelector('.piece[data-index="' + gd.bad + '"]');
+      if (el) {
+        el.classList.add('guide-bad');
+        handAt = { el };
+      }
+    }
+    hand.hidden = !handAt;
+    placeHand();
+  }
+
+  // Keeps the hand's fingertip on its target, even as the page scrolls or resizes.
+  function placeHand() {
+    if (!handAt || hand.hidden) return;
+    let rect, ax = 0.55, ay = 0.55;
+    if (handAt.el) {
+      if (!handAt.el.isConnected) return;
+      rect = handAt.el.getBoundingClientRect();
+    } else {
+      const b = board.getBoundingClientRect();
+      const s = b.width / game.view.cols;
+      rect = { left: b.left + handAt.robot.rx * s, top: b.top + handAt.robot.ry * s, width: s, height: s };
+      ay = 0.85;
+    }
+    hand.style.left = Math.round(rect.left + window.scrollX + rect.width * ax - hand.offsetWidth * 0.33) + 'px';
+    hand.style.top = Math.round(rect.top + window.scrollY + rect.height * ay) + 'px';
+  }
+
+  // Where Roversa ends up after these commands, from its start square.
+  function endOf(cmds) {
+    const r = game.robots[0];
+    let pos = { x: r.sx, y: r.sy, dir: r.sdir };
+    cmds.forEach((c) => {
+      const res = E.step(game.map.grid, pos, c);
+      if (res.result === 'move' || res.result === 'turn') pos = res;
+    });
+    return pos;
+  }
+
+  function drawGhost(g, S, x, y, ang, alpha) {
+    const r = game.robots[0];
+    g.save();
+    g.globalAlpha = alpha;
+    g.translate((x + 0.5) * S, (y + 0.5) * S);
+    g.rotate(ang);
+    g.drawImage(r.sprite, -S / 2, -S / 2, S, S);
+    g.restore();
+  }
+
+  // Yellow chevrons pointing up, drawn in a frame already turned to face a direction.
+  function drawChevrons(g, S, from, n, alpha) {
+    g.fillStyle = 'rgba(255, 216, 74,' + alpha + ')';
+    for (let k = 0; k < n; k++) {
+      const y = -S * (from + k * 0.24);
+      g.beginPath();
+      g.moveTo(-S * 0.2, y + S * 0.1);
+      g.lineTo(0, y - S * 0.08);
+      g.lineTo(S * 0.2, y + S * 0.1);
+      g.lineTo(0, y + S * 0.02);
+      g.fill();
+    }
+  }
+
+  // What the map draws to help: arrows off Roversa's front, the square it will end
+  // up on, numbered squares ahead, or an arc for a turn.
+  function drawGuide(g, S, now) {
+    const gd = game.guide;
+    if (gd.wait) return;
+    const spec = guideStep();
+    const show = spec && spec.show;
+    if (!show) return;
+    const r = game.robots[0];
+    const pulse = 0.6 + 0.4 * Math.sin(now / 200);
+    const loop = Math.min(1, (now % 1800) / 1200);
+    const ease = loop < 0.5 ? 2 * loop * loop : 1 - Math.pow(-2 * loop + 2, 2) / 2;
+    const cx = (r.rx + 0.5) * S, cy = (r.ry + 0.5) * S;
+    const dx = E.DX[r.dir], dy = E.DY[r.dir];
+    const yellow = (a) => 'rgba(255, 216, 74,' + a + ')';
+    g.save();
+    if (show === 'front') {
+      g.translate(cx, cy);
+      g.rotate(r.ang);
+      g.fillStyle = yellow(pulse);
+      g.fillRect(-S * 0.42, -S * 0.5, S * 0.84, SCALE * 2);
+      drawChevrons(g, S, 0.68, 3, pulse);
+    } else if (show === 'target') {
+      const cmds = E.resolve(game.program);
+      if (spec && spec.do === 'add') cmds.push(spec.t);
+      const end = endOf(cmds);
+      drawGhost(g, S, end.x, end.y, (end.dir * Math.PI) / 2, 0.3 + 0.15 * pulse);
+      g.setLineDash([SCALE * 3, SCALE * 2]);
+      g.strokeStyle = yellow(pulse);
+      g.lineWidth = SCALE * 1.5;
+      g.strokeRect(end.x * S + SCALE * 2, end.y * S + SCALE * 2, S - SCALE * 4, S - SCALE * 4);
+    } else if (show === 'count') {
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.font = S * 0.2 + 'px "Press Start 2P", monospace';
+      for (let k = 1; k <= spec.n; k++) {
+        const x = r.x + dx * k, y = r.y + dy * k;
+        if (!E.inBounds(game.map.grid, x, y)) break;
+        const on = k <= usedCount(spec.t) - (gd.need - spec.n);
+        g.fillStyle = yellow(on ? 1 : 0.55 + 0.3 * pulse);
+        g.beginPath();
+        g.arc((x + 0.5) * S, (y + 0.78) * S, S * 0.17, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = '#1b1f3b';
+        g.fillText(String(k), (x + 0.5) * S, (y + 0.79) * S);
+      }
+    } else if (show === 'turn') {
+      const sign = spec.t === 'L' ? -1 : 1;
+      drawGhost(g, S, r.rx, r.ry, r.ang + sign * (Math.PI / 2) * ease, 0.45);
+      g.translate(cx, cy);
+      g.rotate(r.ang);
+      const R = S * 0.62, a0 = -Math.PI / 2 + sign * 0.2, a1 = -Math.PI / 2 + sign * (Math.PI / 2 - 0.25);
+      g.strokeStyle = yellow(pulse);
+      g.lineWidth = SCALE * 2;
+      g.beginPath();
+      g.arc(0, 0, R, a0, a1, sign < 0);
+      g.stroke();
+      // Arrowhead along the arc at its end.
+      const ex = R * Math.cos(a1), ey = R * Math.sin(a1);
+      const tx = -Math.sin(a1) * sign, ty = Math.cos(a1) * sign;
+      const h = S * 0.16;
+      g.fillStyle = yellow(pulse);
+      g.beginPath();
+      g.moveTo(ex + tx * h, ey + ty * h);
+      g.lineTo(ex - ty * h * 0.7, ey + tx * h * 0.7);
+      g.lineTo(ex + ty * h * 0.7, ey - tx * h * 0.7);
+      g.fill();
+    }
+    g.restore();
+  }
+
+  $('#btn-new-piece').addEventListener('click', () => {
+    if (!editable() || game.guide || !game.level || !game.level.newPiece) return;
+    SND.tap();
+    showNewPiece();
   });
 
   // ---------- Running the program ----------
@@ -1354,6 +1667,7 @@
     announce(tr('sr.ran', { n: st.i + 1, what, told }));
     describeBoard();
     game.doneUpTo = st.i;
+    res.index = st.i;
     st.i++;
     return res;
   }
@@ -1364,13 +1678,14 @@
     game.running = false;
     game.stepping = null;
     renderProgram();
-    if (game.mode === 'level') finishLevelRun(st.r, outcome);
+    if (game.mode === 'level' && game.level.stages) finishTutorialRun(st.r, outcome);
+    else if (game.mode === 'level') finishLevelRun(st.r, outcome);
     else finishQuestTurn(st.r, outcome);
   }
 
   // GO runs the whole program, or the rest of it after some Steps.
   async function run(byAi) {
-    if (game.running || !game.program.length || (isAiTurn() && byAi !== true)) return;
+    if (game.running || !game.program.length || (isAiTurn() && byAi !== true) || guideBlocks('go')) return;
     closeModal();
     const st = game.stepping || beginRun();
     game.running = true;
@@ -1388,7 +1703,7 @@
 
   // Step runs just the next piece, so players can watch where the program goes wrong.
   async function step() {
-    if (game.running || !game.program.length || isAiTurn()) return;
+    if (game.running || !game.program.length || isAiTurn() || guideBlocks('step')) return;
     closeModal();
     const st = game.stepping || beginRun();
     game.running = true;
@@ -1407,23 +1722,14 @@
     }
   }
 
-  function predictionNote(r) {
-    if (!game.predict) return '';
-    const right = game.predict.x === r.x && game.predict.y === r.y;
-    game.predict = null;
-    if (right) { setTimeout(SND.predict, 400); return tr('msg.guessRight'); }
-    return tr('msg.guessWrong');
-  }
-
   function finishLevelRun(r, outcome) {
-    const note = predictionNote(r);
     const allDone = game.map.goals.every((g) => r.visited.has(g.id));
     if (allDone) {
       const used = game.program.length;
       const best = par(game.levelIndex);
       const stars = used <= best ? 3 : used <= best + 2 ? 2 : 1;
       saveStars(game.level.name, stars);
-      setMessage(tr('msg.didIt') + note, 'good');
+      setMessage(tr('msg.didIt'), 'good');
       setTimeout(() => {
         SND.win();
         confetti();
@@ -1432,7 +1738,7 @@
           '<h3>' + tr('modal.levelDone') + '</h3>' +
           '<div class="big-stars">' + [0, 1, 2].map((k) => '<span class="' + (k < stars ? 'on' : '') + '">&#9733;</span>').join('') + '</div>' +
           '<p>' + tr('modal.used', { n: used }) +
-          (stars < 3 ? tr('modal.canYou', { n: best }) : tr('modal.fewest')) + note + '</p>' +
+          (stars < 3 ? tr('modal.canYou', { n: best }) : tr('modal.fewest')) + '</p>' +
           '<div class="choices">' +
           '<button class="btn gray" data-act="again">' + tr('modal.tryAgain') + '</button>' +
           (next ? '<button class="btn big green" data-act="next">' + tr('modal.next') + ' &#9654;</button>' : '<button class="btn big green" data-act="levels">' + tr('modal.allLevels') + '</button>') +
@@ -1449,16 +1755,15 @@
         if (nextBtn) nextBtn.focus();
       }, 600);
     } else if (outcome.result === 'bump') {
-      setMessage(tr('msg.bumpLevel', { what: outcome.what }) + note, 'bad');
+      setMessage(tr('msg.bumpLevel', { what: outcome.what }), 'bad');
     } else {
       const left = game.map.goals.filter((g) => !r.visited.has(g.id)).map((g) => goalName(g.id));
-      setMessage(tr('msg.almost', { list: left.join(tr('and')) }) + note, 'bad');
+      setMessage(tr('msg.almost', { list: left.join(tr('and')) }), 'bad');
     }
     renderButtons();
   }
 
   function finishQuestTurn(r, outcome) {
-    const note = predictionNote(r);
     r.turns++;
     const q = game.quest;
     if (r.visited.size === 3) {
@@ -1490,7 +1795,6 @@
     if (outcome.result === 'bump') text = tr('msg.bumpQuest', { robot: r.name, what: outcome.what });
     else if (outcome.result === 'off') text = tr('msg.offQuest', { robot: r.name });
     else text = tr('msg.stopped', { robot: r.name });
-    text += note;
     q.phase = 'roll';
     if (game.robots.length > 1) {
       game.active = (game.active + 1) % game.robots.length;
@@ -1574,7 +1878,7 @@
   $('#btn-roll').addEventListener('click', roll);
 
   $('#btn-clear').addEventListener('click', () => {
-    if (!editable() || !game.program.length) return;
+    if (!editable() || !game.program.length || guideBlocks('clear')) return;
     if (game.mode === 'quest') game.program.forEach((p) => game.tray.push({ id: p.id, t: p.t }));
     game.program = [];
     clearRunMarks();
@@ -1583,7 +1887,7 @@
   });
 
   $('#btn-reset').addEventListener('click', () => {
-    if (game.running || game.rolling) return;
+    if (game.running || game.rolling || guideBlocks('reset')) return;
     SND.tap();
     if (game.mode === 'level') {
       // Start the level fresh: Roversa back on the start, an empty program row
@@ -1592,11 +1896,11 @@
       resetRobot(r);
       game.program = [];
       game.trail = [];
-      game.predict = null;
       clearRunMarks();
       renderAll();
       sparkle(r.x, r.y);
-      setMessage(levelHint());
+      if (game.guide) setMessage(tr(guideStep().say), 'guide');
+      else setMessage(levelHint());
       return;
     }
     openModal(
@@ -1621,6 +1925,7 @@
     syncGameText();
     if ($('#screen-levels').classList.contains('active')) { renderCostumeBar(); renderLevelGrid(); }
     if (game.map) { renderAll(); describeBoard(); }
+    if (guideStep() && !game.guide.wait && !game.running) setMessage(tr(guideStep().say), 'guide');
   });
   I18N.applyStatic();
 
@@ -1629,12 +1934,12 @@
   const titleRobot = $('#title-robot');
   requestAnimationFrame(drawFrame);
 
-  // Handy for testing: index.html#level=3 or #quest=2 jumps straight in.
+  // Handy for testing: index.html#level=3 or #quest=2 jumps straight in (#level=0 is the tutorial).
   function openFromHash() {
     const hash = new URLSearchParams(location.hash.slice(1));
     if (game.running || game.rolling) return;
     closeModal();
-    if (hash.has('level')) startLevel(Math.max(0, Math.min(LEVELS.length - 1, Number(hash.get('level')) - 1)));
+    if (hash.has('level')) startLevel(Math.max(0, Math.min(LEVELS.length - 1, Number(hash.get('level')) - FIRST_NUM)));
     else if (hash.has('quest')) startQuest(hash.get('quest') === '2' ? 2 : 1);
   }
   window.addEventListener('hashchange', openFromHash);

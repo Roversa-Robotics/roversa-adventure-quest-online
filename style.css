@@ -222,7 +222,6 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
   width: 100%; height: auto;
   image-rendering: pixelated;
   touch-action: manipulation;
-  cursor: crosshair;
 }
 .message {
   /* Room for two lines, so a longer message doesn't push the buttons down. */
@@ -236,6 +235,42 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 }
 .message.good { background: #1f6b3a; }
 .message.bad { background: #7a2a2a; }
+/* The hand's line in the tutorial. */
+.message.guide { border-color: var(--yellow); }
+.message-row { display: flex; gap: 8px; align-items: flex-start; }
+.message-row .message { flex: 1; }
+.new-piece-btn { flex: none; margin-top: 12px; font-family: var(--pixel); }
+
+/* ---------- Guided tutorial ---------- */
+.guide-dim { opacity: 0.3; filter: saturate(0.5); pointer-events: none; }
+.guide-lock { pointer-events: none; }
+.guide-focus, .guide-bad {
+  outline: 4px solid var(--yellow); outline-offset: 3px; border-radius: 8px;
+  box-shadow: 0 0 22px 6px rgba(255, 216, 74, 0.6);
+  z-index: 3;
+}
+.btn.guide-focus { position: relative; }
+.guide-bad { outline-color: #ff4b4b; box-shadow: 0 0 22px 6px rgba(255, 75, 75, 0.6); }
+/* Numbered slots: one puzzle piece for each square. */
+.slot.guide-num {
+  border-color: var(--yellow);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--yellow); font-family: var(--pixel); font-size: 14px;
+}
+.slot.guide-num::after { content: attr(data-n); }
+/* The new puzzle piece pop-up. */
+.new-piece { width: 120px; margin: 4px auto 0; filter: drop-shadow(0 4px 0 rgba(0,0,0,0.45)); }
+.new-piece svg { width: 100%; height: auto; display: block; }
+.guide-hand {
+  position: absolute; z-index: 40;
+  width: 48px; height: 56px;
+  pointer-events: none;
+  filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.5));
+  animation: guide-tap 1s ease-in-out infinite;
+}
+.guide-hand[hidden] { display: none; }
+.guide-hand svg { width: 100%; height: 100%; display: block; }
+@keyframes guide-tap { 50% { transform: translate(-3px, -9px); } }
 
 .panel {
   background: var(--panel);
@@ -399,7 +434,7 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #title-robot, .piece.running { animation: none; }
+  #title-robot, .piece.running, .guide-hand { animation: none; }
 }
 
 /* Costume row on the Adventures screen */

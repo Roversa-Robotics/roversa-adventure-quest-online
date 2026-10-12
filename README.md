@@ -1,8 +1,8 @@
 # Roversa Adventure Quest (online)
 
 A browser game for all ages, based on the Roversa Adventure Quest classroom game
-from [Roversa Robotics](https://roversa.com). Line up Roversa puzzle pieces to build a
-program, press **GO**, and watch the robot drive to every destination.
+from [Roversa Robotics](https://roversa.com). Line up Roversa puzzle pieces to build an
+algorithm, press **GO**, and watch the robot drive to every destination.
 
 **[▶ Play it now](https://roversa-robotics.github.io/roversa-adventure-quest-online/)** at https://roversa-robotics.github.io/roversa-adventure-quest-online/
 
@@ -22,14 +22,15 @@ Once installed (or after one visit), it also works offline.
 
 ## Ways to play
 
-- **Adventures**: eight short levels that introduce one idea at a time
-  (Forward, Turn Left and Turn Right, obstacles, Backward, repeat). Earn up to three stars by using the
-  fewest pieces.
+- **Adventures**: starts with **Meet Roversa**, a guided tutorial where a pointing
+  hand shows which end is Roversa's front and how puzzle pieces line up into an
+  algorithm. It opens on its own the first time. Then eight short levels introduce
+  one idea at a time (Forward, Turn Left and Turn Right, obstacles, Backward,
+  repeat); a level with a new puzzle piece shows what it does first. Earn up to
+  three stars by using the fewest pieces.
 - **Dice Quest**: the classroom game. Roll the Roversa die five times, arrange all
   five pieces, and run them. Roversa stays where it stops. First robot to visit
   all three treasures wins. One or two players, each picking a robot costume.
-
-Tap the map before pressing GO to guess where Roversa will stop.
 
 ## Puzzle pieces
 
