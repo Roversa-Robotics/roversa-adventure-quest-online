@@ -97,7 +97,7 @@
     const map = parseMap(level.map);
     const start = map.starts['1'];
     const limits = level.pieces;
-    const types = Object.keys(limits).filter((t) => t !== 'W');
+    const types = Object.keys(limits);
     const full = (1 << map.goals.length) - 1;
     const goalBit = (x, y) => {
       let m = 0;
@@ -118,21 +118,25 @@
       for (const s of frontier) {
         types.forEach((t, ti) => {
           if (s.used[ti] >= limits[t]) return;
-          const eff = t === 'P' ? s.prev : t;
-          const r = step(map.grid, s, eff);
-          if (r.result === 'bump' || r.result === 'off') return;
-          const used = s.used.slice();
-          used[ti]++;
-          const ns = {
-            x: r.x, y: r.y, dir: r.dir,
-            mask: s.mask | goalBit(r.x, r.y),
-            prev: eff || s.prev, used, cmds: s.cmds.concat(t),
-          };
-          if (ns.mask === full) { next.found = ns.cmds; return; }
-          const k = key(ns);
-          if (seen.has(k)) return;
-          seen.add(k);
-          next.push(ns);
+          // A Wild piece can stand for any arrow piece.
+          const choices = t === 'W' ? ['F', 'B', 'L', 'R'] : [t === 'P' ? s.prev : t];
+          choices.forEach((eff) => {
+            if (next.found) return;
+            const r = step(map.grid, s, eff);
+            if (r.result === 'bump' || r.result === 'off') return;
+            const used = s.used.slice();
+            used[ti]++;
+            const ns = {
+              x: r.x, y: r.y, dir: r.dir,
+              mask: s.mask | goalBit(r.x, r.y),
+              prev: eff || s.prev, used, cmds: s.cmds.concat(t === 'W' ? 'W:' + eff : t),
+            };
+            if (ns.mask === full) { next.found = ns.cmds; return; }
+            const k = key(ns);
+            if (seen.has(k)) return;
+            seen.add(k);
+            next.push(ns);
+          });
         });
         if (next.found) return next.found;
       }

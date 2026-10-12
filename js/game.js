@@ -1104,6 +1104,10 @@
     if (game.mode === 'level') {
       if (game.limits[key] - usedCount(key) <= 0) { SND.bump(); return; }
       piece = { id: uid(), t: key };
+      if (key === 'W') {
+        piece.chosen = await pickWild();
+        if (!piece.chosen || game.limits[key] - usedCount(key) <= 0 || game.program.length >= game.slots) return;
+      }
     } else {
       const idx = game.tray.findIndex((p) => p.id === key);
       if (idx < 0) return;
@@ -2001,6 +2005,28 @@
       SND.tap();
       closeModal();
       if (b.dataset.act === 'yes') startQuest(game.robots.length);
+    }));
+  });
+
+  // ---------- Start fresh ----------
+  // For demos: forget everything this game saved on the device and reload, so
+  // it opens just like a first visit.
+
+  $('#btn-fresh').addEventListener('click', () => {
+    SND.tap();
+    openModal(
+      '<h3>' + tr('fresh.title') + '</h3><p>' + tr('fresh.text') + '</p>' +
+      '<div class="choices"><button class="btn gray" data-act="no">' + tr('fresh.keep') + '</button>' +
+      '<button class="btn big red" data-act="yes">' + tr('fresh.button') + '</button></div>'
+    );
+    modal.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
+      SND.tap();
+      closeModal();
+      if (b.dataset.act !== 'yes') return;
+      try {
+        Object.keys(localStorage).filter((k) => k.startsWith('roversa-')).forEach((k) => localStorage.removeItem(k));
+      } catch (e) { /* storage blocked: nothing was saved */ }
+      location.reload();
     }));
   });
 
