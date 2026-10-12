@@ -24,9 +24,9 @@ Once installed (or after one visit), it also works offline.
 
 - **Adventures**: starts with **Meet Roversa**, a guided tutorial where a pointing
   hand shows which end is Roversa's front and how puzzle pieces line up into an
-  algorithm. It opens on its own the first time. Then eight short levels introduce
+  algorithm. It opens on its own the first time. Then nine short levels introduce
   one idea at a time (Forward, Turn Left and Turn Right, obstacles, Backward,
-  repeat); a level with a new puzzle piece shows what it does first. Earn up to
+  repeat, Wild); a level with a new puzzle piece shows what it does first. Earn up to
   three stars by using the fewest pieces.
 - **Dice Quest**: the classroom game. Roll the Roversa die five times, arrange all
   five pieces, and run them. Roversa stays where it stops. First robot to visit
@@ -44,7 +44,7 @@ Quest die has the same six faces.
 | Down arrow | Backward | yellow | Drive one square backward (no turning) |
 | Curved arrows | Turn Left, Turn Right | orange (left), blue (right) | Turn 90 degrees in place |
 | Roversa word | Repeat | red | Repeat the piece before it |
-| Roversa logo | Wild | green | Becomes any arrow you choose (Dice Quest) |
+| Roversa logo | Wild | green | Becomes any arrow you choose |
 
 The game always calls the directions **Forward**, **Backward**, **Turn Left** and
 **Turn Right**.

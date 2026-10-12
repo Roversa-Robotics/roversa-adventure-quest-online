@@ -82,6 +82,7 @@
       'new.R': 'Turn Right spins Roversa to the right. It stays on its square.',
       'new.B': 'Backward drives Roversa back one square without turning around.',
       'new.P': 'Repeat does the piece before it one more time.',
+      'new.W': 'Wild becomes any arrow piece you choose: Forward, Backward, Turn Left or Turn Right.',
       'new.ok': 'Got it!',
       'new.again': 'Show the new puzzle piece again',
 
@@ -252,6 +253,7 @@
       'new.R': 'Girar a la derecha hace girar a Roversa hacia la derecha. Se queda en su cuadro.',
       'new.B': 'Atrás lleva a Roversa un cuadro hacia atrás sin darse la vuelta.',
       'new.P': 'Repetir hace la pieza anterior una vez más.',
+      'new.W': 'El Comodín se convierte en la pieza de flecha que elijas: Adelante, Atrás, Girar a la izquierda o Girar a la derecha.',
       'new.ok': '¡Entendido!',
       'new.again': 'Ver otra vez la pieza nueva',
 
@@ -358,6 +360,7 @@
       { name: 'Laberinto de nenúfares', hint: 'Hay nenúfares en el camino. Busca cómo rodearlos.' },
       { name: 'Marcha atrás', hint: '¡Llegaste a la Isla Roversa! La pieza Atrás hace que Roversa vaya hacia atrás sin darse la vuelta.' },
       { name: 'El poder de repetir', hint: '¡Solo una pieza de Adelante! La pieza roja de Roversa repite la pieza anterior.' },
+      { name: 'Comodín', hint: '¡Aquí no hay piezas de girar! Usa la pieza Comodín verde como el giro que necesitas.' },
       { name: 'Vuelta a la bahía', hint: 'Roversa no sabe nadar, y el Capitán y Byteclaw no se mueven. Rodéalos.' },
       { name: 'Camino de coral', hint: '¡Ya estás Bajo el Mar! Sigue el agua abierta entre los corales.' },
       { name: 'La gran búsqueda', hint: '¡Visita el cofre, el pulpo y a Toothie en un solo algoritmo!' },

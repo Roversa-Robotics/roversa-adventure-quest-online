@@ -1055,6 +1055,10 @@
     if (game.mode === 'level') {
       if (game.limits[key] - usedCount(key) <= 0) { SND.bump(); return; }
       piece = { id: uid(), t: key };
+      if (key === 'W') {
+        piece.chosen = await pickWild();
+        if (!piece.chosen || game.limits[key] - usedCount(key) <= 0 || game.program.length >= game.slots) return;
+      }
     } else {
       const idx = game.tray.findIndex((p) => p.id === key);
       if (idx < 0) return;

@@ -23,7 +23,7 @@
 //
 // startDir: which way Roversa faces at the start: 'N' up, 'E' right, 'S' down, 'W' left.
 // pieces:   how many of each puzzle piece the player gets.
-//           F Forward, B Backward, L Turn Left, R Turn Right, P repeat.
+//           F Forward, B Backward, L Turn Left, R Turn Right, P repeat, W wild.
 // slots:    how many pieces fit in the algorithm row.
 // newPiece: a puzzle piece this level uses for the first time. The first time the
 //           level opens, a pop-up shows the piece and says what it does.
@@ -175,6 +175,20 @@ globalThis.ROVERSA_LEVELS = [
       'Of..MP',
       'S====A',
       'OO..f.',
+    ],
+  },
+  {
+    name: 'Wild Card',
+    hint: 'No Turn pieces here! Use the green Wild piece as the turn you need.',
+    world: 'island',
+    newPiece: 'W',
+    startDir: 'E',
+    pieces: { F: 3, W: 1 },
+    slots: 4,
+    map: [
+      'M..P..M',
+      'f..A..P',
+      'PS....f',
     ],
   },
   {
