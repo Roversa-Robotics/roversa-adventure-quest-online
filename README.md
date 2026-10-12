@@ -24,7 +24,7 @@ Once installed (or after one visit), it also works offline.
 
 - **Adventures**: starts with **Meet Roversa**, a guided tutorial where a pointing
   hand shows which end is Roversa's front and how puzzle pieces line up into an
-  algorithm. It opens on its own the first time. Then nine short levels introduce
+  algorithm. It opens on its own the first time. Then ten short levels introduce
   one idea at a time (Forward, Turn Left and Turn Right, obstacles, Backward,
   repeat, Wild); a level with a new puzzle piece shows what it does first. Earn up to
   three stars by using the fewest pieces.

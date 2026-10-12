@@ -363,7 +363,8 @@
       { name: 'Comodín', hint: '¡Aquí no hay piezas de girar! Usa la pieza Comodín verde como el giro que necesitas.' },
       { name: 'Vuelta a la bahía', hint: 'Roversa no sabe nadar, y el Capitán y Byteclaw no se mueven. Rodéalos.' },
       { name: 'Camino de coral', hint: '¡Ya estás Bajo el Mar! Sigue el agua abierta entre los corales.' },
-      { name: 'La gran búsqueda', hint: '¡Visita el cofre, el pulpo y a Toothie en un solo algoritmo!' },
+      { name: 'Aguas salvajes', hint: 'Dos giros, pero solo una pieza de girar. ¡Usa el Comodín para el otro!' },
+      { name: 'La gran búsqueda', hint: '¡Visita el cofre, el pulpo y a Toothie en un solo algoritmo! Cada pieza cuenta.' },
     ],
   };
 
