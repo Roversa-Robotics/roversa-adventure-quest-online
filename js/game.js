@@ -638,6 +638,7 @@
 
   function enterGame() {
     show('game');
+    $('#screen-game').classList.toggle('quest-mode', game.mode === 'quest');
     sizeBoard();
     game.trail = [];
     game.predict = null;
@@ -995,7 +996,8 @@
     $('#btn-step').disabled = busy || !goReady;
     $('#btn-reset').disabled = game.running || game.rolling;
     $('#btn-clear').disabled = busy || !game.program.length || (quest && (quest.phase !== 'arrange' || !!game.stepping));
-    $('#btn-roll').hidden = !quest || quest.phase !== 'roll' || isAiTurn();
+    // While the die rolls, the rolled pieces take the button's place.
+    $('#btn-roll').hidden = !quest || quest.phase !== 'roll' || game.rolling || isAiTurn();
     $('#btn-roll').disabled = busy;
   }
 
