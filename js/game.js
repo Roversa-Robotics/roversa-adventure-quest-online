@@ -2784,8 +2784,7 @@
     const copy = $('#btn-net-copy');
     if (!copy) return;
     const done = $('#net-body .invite-done');
-    copy.addEventListener('click', async () => {
-      SND.tap();
+    const copyInvite = async () => {
       const text = inviteText(net.code);
       if (await copyText(text)) {
         done.textContent = tr('net.copied');
@@ -2799,11 +2798,13 @@
         area.select();
         done.textContent = tr('net.copyFailed');
       }
-    });
+    };
+    copy.addEventListener('click', () => { SND.tap(); copyInvite(); });
     const share = $('#btn-net-share');
     if (share) share.addEventListener('click', () => {
       SND.tap();
-      navigator.share({ text: inviteText(net.code) }).catch(() => { /* closed the share sheet */ });
+      // Closing the share sheet is fine; a browser that refuses to share copies instead.
+      navigator.share({ text: inviteText(net.code) }).catch((e) => { if (!e || e.name !== 'AbortError') copyInvite(); });
     });
   }
 
