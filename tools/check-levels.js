@@ -15,6 +15,11 @@ globalThis.ROVERSA_LEVELS.forEach((level, i) => {
   if (widths.size !== 1) problems.push('map rows are different lengths');
   if (!map.starts['1']) problems.push('no S start square');
   if (!map.goals.length) problems.push('no destinations (A, B or C)');
+  // Reef rock is drawn as the shore, so it only belongs on the edge of the map.
+  map.grid.forEach((row, y) => row.forEach((ch, x) => {
+    const edge = x === 0 || y === 0 || x === map.cols - 1 || y === map.rows - 1;
+    if (ch === '#' && !edge) problems.push(`reef rock (#) at column ${x + 1}, row ${y + 1} is not on the edge`);
+  }));
   let solution = null;
   if (!problems.length) {
     solution = Engine.solve(level, level.slots);

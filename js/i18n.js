@@ -74,6 +74,8 @@
       'goalTo.island.A': 'the X', 'goalTo.island.B': 'the treasure chest', 'goalTo.island.C': 'the bags of gold',
       'goal.sea.A': 'the sunken chest', 'goal.sea.B': 'the octopus', 'goal.sea.C': 'Toothie',
       'goalTo.sea.A': 'the sunken chest', 'goalTo.sea.B': 'the octopus', 'goalTo.sea.C': 'Toothie',
+      'world.pond': 'Duck Pond', 'world.island': 'Roversa Island', 'world.sea': 'Under the Sea',
+      'tile.V': 'the cattails', 'tileShort.V': 'cattails',
       'tile.L': 'a lily pad', 'tile.O': 'the ocean', 'tile.M': 'a mountain', 'tile.P': 'a pine tree',
       'tile.K': 'Captain Clean Code', 'tile.Y': 'Byteclaw', 'tile.*': 'a sea star', 'tile.%': 'the coral', 'tile.#': 'a reef rock',
       'tileShort.L': 'lily pad', 'tileShort.O': 'ocean', 'tileShort.M': 'mountain', 'tileShort.P': 'pine tree',
@@ -224,6 +226,8 @@
       'goalTo.island.A': 'a la X', 'goalTo.island.B': 'al cofre del tesoro', 'goalTo.island.C': 'a las bolsas de oro',
       'goal.sea.A': 'el cofre hundido', 'goal.sea.B': 'el pulpo', 'goal.sea.C': 'Toothie',
       'goalTo.sea.A': 'al cofre hundido', 'goalTo.sea.B': 'al pulpo', 'goalTo.sea.C': 'a Toothie',
+      'world.pond': 'Estanque de los Patos', 'world.island': 'Isla Roversa', 'world.sea': 'Bajo el Mar',
+      'tile.V': 'las espadañas', 'tileShort.V': 'espadañas',
       'tile.L': 'un nenúfar', 'tile.O': 'el océano', 'tile.M': 'una montaña', 'tile.P': 'un pino',
       'tile.K': 'el Capitán Clean Code', 'tile.Y': 'Byteclaw', 'tile.*': 'una estrella de mar', 'tile.%': 'el coral', 'tile.#': 'una roca del arrecife',
       'tileShort.L': 'nenúfar', 'tileShort.O': 'océano', 'tileShort.M': 'montaña', 'tileShort.P': 'pino',
@@ -310,13 +314,13 @@
   // Level names and hints, in the same order as js/levels.js. English comes from levels.js.
   const LEVEL_TEXT = {
     es: [
-      { name: 'Primeros pasos', hint: 'Pon piezas de Adelante en fila y pulsa VAMOS.' },
+      { name: 'Primeros pasos', hint: '¡Llegaste al Estanque de los Patos! Pon piezas de Adelante en fila y pulsa VAMOS.' },
       { name: 'Dobla la esquina', hint: 'Girar a la izquierda y Girar a la derecha hacen que Roversa gire en su sitio. No la mueven.' },
       { name: 'Laberinto de nenúfares', hint: 'Hay nenúfares en el camino. Busca cómo rodearlos.' },
-      { name: 'Marcha atrás', hint: 'La pieza Atrás hace que Roversa vaya hacia atrás sin darse la vuelta.' },
+      { name: 'Marcha atrás', hint: '¡Llegaste a la Isla Roversa! La pieza Atrás hace que Roversa vaya hacia atrás sin darse la vuelta.' },
       { name: 'El poder de repetir', hint: '¡Solo una pieza de Adelante! La pieza roja de Roversa repite la pieza anterior.' },
       { name: 'Vuelta a la bahía', hint: 'Roversa no sabe nadar, y el Capitán y Byteclaw no se mueven. Rodéalos.' },
-      { name: 'Camino de coral', hint: 'Sigue el agua abierta entre los corales.' },
+      { name: 'Camino de coral', hint: '¡Ya estás Bajo el Mar! Sigue el agua abierta entre los corales.' },
       { name: 'La gran búsqueda', hint: '¡Visita el cofre, el pulpo y a Toothie en un solo programa!' },
     ],
   };

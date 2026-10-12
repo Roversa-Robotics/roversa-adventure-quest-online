@@ -199,6 +199,24 @@
     return c;
   }
 
+  // A clump of cattails growing out of the pond, like the ones on the mat.
+  function cattails(seed) {
+    const c = pondWater(seed);
+    const g = c.getContext('2d');
+    const rand = rng(seed * 7 + 2);
+    px(g, '#5e9e86', 2, 13, 12, 2);
+    for (let i = 0; i < 4; i++) {
+      const x = 3 + i * 3 + (rand() < 0.5 ? 0 : 1);
+      const top = 1 + Math.floor(rand() * 3);
+      px(g, '#2f6d26', x, top + 5, 1, 14 - top - 5);
+      px(g, '#4f9a34', x - 1, 9 + (i % 2), 1, 4);
+      px(g, '#3b1d0c', x - 1, top, 3, 6);
+      px(g, '#7a3e1e', x, top + 1, 1, 4);
+      px(g, '#2f6d26', x, top - 1);
+    }
+    return c;
+  }
+
   function dock(seed) {
     const c = pondWater(seed);
     const g = c.getContext('2d');
@@ -363,12 +381,34 @@
   }
 
   // A rocky outcrop with the red-brown rim of the mat's reef walls.
-  function reefRock(seed) {
-    const c = seaWater(seed);
+  // A block of the mat's reef wall: sandy rock with a red-brown rim on each
+  // side that faces the open sea (`sea` says which sides: { N, E, S, W }).
+  // Levels only put reef on the edge of the map, so it reads as the shore.
+  function reefRock(seed, sea) {
+    const c = canvas();
     const g = c.getContext('2d');
     const rand = rng(seed * 5 + 1);
-    blob(g, rand, 8, 8.5, 6.8, { edge: '#a8452c', dark: '#a97a4c', mid: '#c99a6a', light: '#dcb388' });
-    for (let i = 0; i < 4; i++) px(g, '#6e4524', 4 + Math.floor(rand() * 8), 4 + Math.floor(rand() * 8));
+    px(g, '#c99a6a', 0, 0, SIZE, SIZE);
+    speckle(g, rand, ['#a97a4c', '#dcb388', '#b8885a'], 26);
+    for (let i = 0; i < 3; i++) {
+      const x = 3 + Math.floor(rand() * 9);
+      const y = 3 + Math.floor(rand() * 9);
+      px(g, '#6e4524', x, y, 2, 1);
+      px(g, '#8a5a32', x, y + 1, 2, 1);
+    }
+    const RIM = '#a8452c';
+    const DARK = '#5a2010';
+    if (sea.N) { px(g, SEA, 0, 0, SIZE, 2); px(g, RIM, 0, 2, SIZE, 2); px(g, DARK, 0, 4, SIZE, 1); }
+    if (sea.S) { px(g, SEA, 0, 14, SIZE, 2); px(g, RIM, 0, 12, SIZE, 2); px(g, DARK, 0, 11, SIZE, 1); }
+    if (sea.W) { px(g, SEA, 0, 0, 2, SIZE); px(g, RIM, 2, 0, 2, SIZE); px(g, DARK, 4, 0, 1, SIZE); }
+    if (sea.E) { px(g, SEA, 14, 0, 2, SIZE); px(g, RIM, 12, 0, 2, SIZE); px(g, DARK, 11, 0, 1, SIZE); }
+    // Dots along the rim, like the pebbles drawn on the mat's reef edge.
+    for (let i = 1; i < SIZE; i += 3) {
+      if (sea.N) px(g, DARK, i, 3);
+      if (sea.S) px(g, DARK, i, 12);
+      if (sea.W) px(g, DARK, 3, i);
+      if (sea.E) px(g, DARK, 12, i);
+    }
     return c;
   }
 
@@ -388,6 +428,7 @@
     const sides = (test) => ({ N: test(near(0, -1)), E: test(near(1, 0)), S: test(near(0, 1)), W: test(near(-1, 0)) });
     if (world === 'pond') {
       if (ch === 'L') return lilyPad(seed);
+      if (ch === 'V') return cattails(seed);
       if (ch === 'S') return dock(seed);
       return pondWater(seed);
     }
@@ -402,7 +443,7 @@
     }
     if (ch === '*') return seaStar(seed);
     if (ch === '%') return coral(seed);
-    if (ch === '#') return reefRock(seed);
+    if (ch === '#') return reefRock(seed, sides((c) => c !== undefined && c !== '#'));
     if (ch === 'S') return seaStart(seed);
     return seaWater(seed);
   }

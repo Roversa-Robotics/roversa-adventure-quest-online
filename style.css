@@ -160,6 +160,7 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .level-card canvas { width: 100%; image-rendering: pixelated; border-radius: 4px; display: block; }
 .level-card .num { font-family: var(--mono); font-weight: 700; font-size: 14px; margin: 10px 0 6px; color: var(--yellow); }
 .level-card .name { font-weight: 700; font-size: 15px; }
+.level-world { grid-column: 1 / -1; margin: 6px 0 -4px; font-family: var(--heading); font-weight: 400; font-size: 20px; color: var(--yellow); }
 .stars { font-size: 20px; letter-spacing: 2px; color: #555a80; margin-top: 4px; }
 .stars .on { color: var(--yellow); }
 

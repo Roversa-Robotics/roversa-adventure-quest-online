@@ -606,6 +606,13 @@
     const costume = loadCostume();
     const thumbRobot = SP.robot(costume ? costume.flag : undefined);
     LEVELS.forEach((level, i) => {
+      // A heading with the world's name before its first level.
+      if (level.world && (i === 0 || LEVELS[i - 1].world !== level.world)) {
+        const head = document.createElement('h3');
+        head.className = 'level-world';
+        head.textContent = tr('world.' + level.world);
+        grid.appendChild(head);
+      }
       const card = document.createElement('button');
       card.className = 'level-card';
       const map = E.parseMap(level.map);
