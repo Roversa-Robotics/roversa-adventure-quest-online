@@ -671,7 +671,7 @@
     }
     setUpMap(level, i + 1);
     setMessage(levelHint());
-    if (level.newPiece && !seen(DEMO_KEY + level.newPiece)) showDemo();
+    if (level.newPiece && !seen(NEW_PIECE_KEY + level.newPiece)) showNewPiece();
   }
 
   // Puts a level's map (or one stage of the tutorial) on the board, with Roversa on its start.
@@ -936,7 +936,6 @@
         const left = game.limits[t] - usedCount(t);
         const el = pieceEl(t);
         el.insertAdjacentHTML('beforeend', '<span class="count">' + left + '</span>');
-        if (game.level.newPiece === t) el.insertAdjacentHTML('beforeend', '<span class="new-badge" aria-hidden="true">' + tr('new.badge') + '</span>');
         el.setAttribute('aria-label', tr('sr.poolPiece', { name: PIECE_NAMES[t], n: left }));
         if (left <= 0) el.classList.add('empty');
         el.addEventListener('pointerdown', (e) => startDrag(e, 'pool', t, el));
@@ -1252,17 +1251,16 @@
     }
   }
 
-  // ---------- Guided tutorial and NEW puzzle piece demos ----------
+  // ---------- Guided tutorial and new puzzle pieces ----------
 
-  // game.guide is null, or one of:
-  //   { stage, step, need, bad, wait }  the Meet Roversa tutorial (see js/levels.js):
-  //       need: how many of the step's piece the program must hold to move on,
-  //       bad: the program piece that bumped, wait: between steps, nothing works
-  //   { demo: t }  a level showing its NEW puzzle piece t
+  // game.guide is null, or, in the Meet Roversa tutorial (see js/levels.js),
+  //   { stage, step, need, bad, wait }
+  //       need: how many of the step's piece the algorithm must hold to move on,
+  //       bad: the piece that bumped, wait: between steps, nothing works
   // While the hand guides, only the thing it points at works, and the rest dims.
 
   const TUTORIAL_KEY = 'roversa-tutorial-seen';
-  const DEMO_KEY = 'roversa-new-seen-';
+  const NEW_PIECE_KEY = 'roversa-new-seen-';
   function seen(key) {
     try { return localStorage.getItem(key) === '1'; } catch (e) { return false; }
   }
@@ -1287,10 +1285,9 @@
 
   function guideStep() {
     const gd = game.guide;
-    if (!gd || gd.demo || !game.level || !game.level.stages) return null;
+    if (!gd || !game.level || !game.level.stages) return null;
     return game.level.stages[gd.stage].guide[gd.step] || null;
   }
-  const guideText = () => (game.guide.demo ? tr('new.' + game.guide.demo) : tr(guideStep().say));
 
   function loadStage(k) {
     setUpMap(game.level.stages[k], game.levelIndex + 1 + k);
@@ -1310,19 +1307,25 @@
     renderAll();
   }
 
-  function showDemo() {
+  // A level's new puzzle piece gets a pop-up the first time the level opens.
+  // The ? button next to the hint shows it again.
+  function showNewPiece() {
     const t = game.level.newPiece;
-    markSeen(DEMO_KEY + t);
-    game.guide = { demo: t };
-    setMessage(tr('new.' + t), 'guide');
-    renderAll();
+    markSeen(NEW_PIECE_KEY + t);
+    openModal(
+      '<h3>' + tr('new.title') + '</h3>' +
+      '<div class="new-piece" role="img" aria-label="' + PIECE_NAMES[t] + '">' + pieceSvg(t) + '</div>' +
+      '<p>' + tr('new.' + t) + '</p>' +
+      '<div class="choices"><button class="btn big green" data-act="ok">' + tr('new.ok') + '</button></div>'
+    );
+    say(tr('new.title') + ' ' + tr('new.' + t));
+    modal.querySelector('[data-act="ok"]').addEventListener('click', () => { SND.tap(); closeModal(); });
   }
 
   // True when the hand is guiding and this action isn't the one it points at.
   function guideBlocks(action, key) {
     const gd = game.guide;
     if (!gd) return false;
-    if (gd.demo) return !(action === 'add' && key === gd.demo);
     const spec = guideStep();
     if (gd.wait || !spec) return true;
     if (spec.do === 'free') return false;
@@ -1334,11 +1337,6 @@
   function guideAfterAdd() {
     const gd = game.guide;
     if (!gd) return;
-    if (gd.demo) {
-      game.guide = null;
-      setMessage(levelHint());
-      return;
-    }
     const spec = guideStep();
     if (spec && spec.do === 'add' && usedCount(spec.t) >= gd.need) nextGuideStep();
   }
@@ -1421,11 +1419,11 @@
     });
     const gd = game.guide;
     const level = game.mode === 'level' ? game.level : null;
-    $('#btn-demo').hidden = !(level && level.newPiece && !gd);
+    $('#btn-new-piece').hidden = !(level && level.newPiece && !gd);
     handAt = null;
     hand.hidden = true;
     if (!gd || !level) return;
-    const spec = gd.demo ? { do: 'add', t: gd.demo } : guideStep();
+    const spec = guideStep();
     const dim = (els) => els.forEach((el) => el && el.classList.add('guide-dim'));
     const poolPanel = poolEl.closest('.panel');
     const others = ['#btn-step', '#btn-reset', '#btn-clear'].map($);
@@ -1520,12 +1518,12 @@
   }
 
   // What the map draws to help: arrows off Roversa's front, the square it will end
-  // up on, numbered squares ahead, or a preview of a puzzle piece's move.
+  // up on, numbered squares ahead, or an arc for a turn.
   function drawGuide(g, S, now) {
     const gd = game.guide;
     if (gd.wait) return;
     const spec = guideStep();
-    const show = gd.demo || (spec && spec.show);
+    const show = spec && spec.show;
     if (!show) return;
     const r = game.robots[0];
     const pulse = 0.6 + 0.4 * Math.sin(now / 200);
@@ -1541,10 +1539,10 @@
       g.fillStyle = yellow(pulse);
       g.fillRect(-S * 0.42, -S * 0.5, S * 0.84, SCALE * 2);
       drawChevrons(g, S, 0.68, 3, pulse);
-    } else if (show === 'target' || show === 'F') {
+    } else if (show === 'target') {
       const cmds = E.resolve(game.program);
       if (spec && spec.do === 'add') cmds.push(spec.t);
-      const end = endOf(show === 'F' ? ['F'] : cmds);
+      const end = endOf(cmds);
       drawGhost(g, S, end.x, end.y, (end.dir * Math.PI) / 2, 0.3 + 0.15 * pulse);
       g.setLineDash([SCALE * 3, SCALE * 2]);
       g.strokeStyle = yellow(pulse);
@@ -1565,8 +1563,8 @@
         g.fillStyle = '#1b1f3b';
         g.fillText(String(k), (x + 0.5) * S, (y + 0.79) * S);
       }
-    } else if (show === 'turn' || show === 'L' || show === 'R') {
-      const sign = (show === 'turn' ? spec.t : show) === 'L' ? -1 : 1;
+    } else if (show === 'turn') {
+      const sign = spec.t === 'L' ? -1 : 1;
       drawGhost(g, S, r.rx, r.ry, r.ang + sign * (Math.PI / 2) * ease, 0.45);
       g.translate(cx, cy);
       g.rotate(r.ang);
@@ -1586,35 +1584,14 @@
       g.lineTo(ex - ty * h * 0.7, ey + tx * h * 0.7);
       g.lineTo(ex + ty * h * 0.7, ey - tx * h * 0.7);
       g.fill();
-    } else if (show === 'B') {
-      drawGhost(g, S, r.rx - dx * ease, r.ry - dy * ease, r.ang, 0.45);
-      g.translate(cx, cy);
-      g.rotate(r.ang + Math.PI);
-      drawChevrons(g, S, 0.68, 2, pulse);
-    } else if (show === 'P') {
-      // Forward, then Repeat: two squares ahead, one after the other.
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.font = S * 0.2 + 'px "Press Start 2P", monospace';
-      for (let k = 1; k <= 2; k++) {
-        const x = r.x + dx * k, y = r.y + dy * k;
-        if (!E.inBounds(game.map.grid, x, y)) break;
-        drawGhost(g, S, x, y, r.ang, ease * 2 >= k ? 0.45 : 0.12);
-        g.fillStyle = yellow(1);
-        g.beginPath();
-        g.arc((x + 0.5) * S, (y + 0.82) * S, S * 0.15, 0, Math.PI * 2);
-        g.fill();
-        g.fillStyle = '#1b1f3b';
-        g.fillText(k === 1 ? '1' : '2', (x + 0.5) * S, (y + 0.83) * S);
-      }
     }
     g.restore();
   }
 
-  $('#btn-demo').addEventListener('click', () => {
+  $('#btn-new-piece').addEventListener('click', () => {
     if (!editable() || game.guide || !game.level || !game.level.newPiece) return;
     SND.tap();
-    showDemo();
+    showNewPiece();
   });
 
   // ---------- Running the program ----------
@@ -1948,7 +1925,7 @@
     syncGameText();
     if ($('#screen-levels').classList.contains('active')) { renderCostumeBar(); renderLevelGrid(); }
     if (game.map) { renderAll(); describeBoard(); }
-    if (game.guide && !game.guide.wait && !game.running) setMessage(guideText(), 'guide');
+    if (guideStep() && !game.guide.wait && !game.running) setMessage(tr(guideStep().say), 'guide');
   });
   I18N.applyStatic();
 

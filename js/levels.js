@@ -24,9 +24,9 @@
 // startDir: which way Roversa faces at the start: 'N' up, 'E' right, 'S' down, 'W' left.
 // pieces:   how many of each puzzle piece the player gets.
 //           F Forward, B Backward, L Turn Left, R Turn Right, P repeat.
-// slots:    how many pieces fit in the program row.
+// slots:    how many pieces fit in the algorithm row.
 // newPiece: a puzzle piece this level uses for the first time. The first time the
-//           level opens, a hand points at it and the map shows what it does.
+//           level opens, a pop-up shows the piece and says what it does.
 //
 // The first level, Meet Roversa, is the guided tutorial. Instead of one map it
 // has stages, each with its own map, pieces and guide: the steps a pointing hand
@@ -95,12 +95,12 @@ globalThis.ROVERSA_LEVELS = [
       },
       {
         startDir: 'E',
-        pieces: { F: 4, L: 1, R: 1 },
-        slots: 6,
+        pieces: { F: 3, L: 1 },
+        slots: 4,
         map: [
-          '...A.',
-          'S.L..',
-          'L...V',
+          '..V..',
+          'L.A..',
+          'S...L',
         ],
         guide: [
           { do: 'free', say: 'tut.free' },
@@ -207,7 +207,7 @@ globalThis.ROVERSA_LEVELS = [
   },
   {
     name: 'Grand Quest',
-    hint: 'Visit the chest, the octopus and Toothie in one program!',
+    hint: 'Visit the chest, the octopus and Toothie in one algorithm!',
     world: 'sea',
     startDir: 'E',
     pieces: { F: 5, B: 3, L: 3, R: 3, P: 8 },

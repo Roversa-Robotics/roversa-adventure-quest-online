@@ -235,11 +235,11 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 }
 .message.good { background: #1f6b3a; }
 .message.bad { background: #7a2a2a; }
-/* The hand's line in the tutorial and NEW puzzle piece demos. */
+/* The hand's line in the tutorial. */
 .message.guide { border-color: var(--yellow); }
 .message-row { display: flex; gap: 8px; align-items: flex-start; }
 .message-row .message { flex: 1; }
-.demo-btn { flex: none; margin-top: 12px; font-family: var(--pixel); }
+.new-piece-btn { flex: none; margin-top: 12px; font-family: var(--pixel); }
 
 /* ---------- Guided tutorial ---------- */
 .guide-dim { opacity: 0.3; filter: saturate(0.5); pointer-events: none; }
@@ -258,15 +258,9 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
   color: var(--yellow); font-family: var(--pixel); font-size: 14px;
 }
 .slot.guide-num::after { content: attr(data-n); }
-.piece .new-badge {
-  position: absolute; left: -6px; top: -9px;
-  padding: 3px 4px;
-  border-radius: 4px;
-  background: #e8352c; color: #fff;
-  font-family: var(--pixel); font-size: 8px;
-  transform: rotate(-10deg);
-  pointer-events: none;
-}
+/* The new puzzle piece pop-up. */
+.new-piece { width: 120px; margin: 4px auto 0; filter: drop-shadow(0 4px 0 rgba(0,0,0,0.45)); }
+.new-piece svg { width: 100%; height: auto; display: block; }
 .guide-hand {
   position: absolute; z-index: 40;
   width: 48px; height: 56px;
