@@ -15,7 +15,7 @@
 // world 'island' (Grid Challenges mat): A is the red X, B the treasure chest, C the bags of gold.
 //   f  grass tuft    =  dashed trail   (Roversa can drive here)
 //   O  ocean   M  mountain   P  pine tree
-//   K  Captain Clean Code   Y  Byteclaw the parrot   (Roversa bumps into these)
+//   K  the Pirate   Y  Byteclaw the parrot   (Roversa bumps into these)
 //
 // world 'sea' (Underwater Adventure mat): A is the sunken chest, B the octopus, C Toothie.
 //   *  sea star   %  coral   #  reef rock   (Roversa bumps into these)
@@ -193,16 +193,16 @@ globalThis.ROVERSA_LEVELS = [
   },
   {
     name: 'Around the Bay',
-    hint: 'Roversa cannot swim, and the Captain and Byteclaw will not move. Drive around them.',
+    hint: 'The Pirate and Byteclaw are in the way and will not move. Drive around them.',
     world: 'island',
     startDir: 'N',
     pieces: { F: 5, B: 2, L: 3, R: 3, P: 3 },
     slots: 12,
     map: [
-      '.A.OOY',
-      '...OO.',
-      '.S...B',
-      'K.....',
+      '.A....',
+      '...Y..',
+      '.S.K.B',
+      '......',
     ],
   },
   // ---------- Under the Sea ----------

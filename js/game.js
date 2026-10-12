@@ -285,7 +285,7 @@
     for (let c = 1; c < v.cols; c++) g.fillRect(c * S - 1, 0, 2, board.height);
     for (let r = 1; r < v.rows; r++) g.fillRect(0, r * S - 1, board.width, 2);
 
-    // Characters that stand in the way, like Captain Clean Code.
+    // Characters that stand in the way, like the Pirate.
     v.props.forEach((p) => g.drawImage(p.img, p.x * S, p.y * S, S, S));
 
     // Path the robot drove on this run.
