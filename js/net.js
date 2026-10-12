@@ -17,6 +17,7 @@
   const RECONNECT_FOR_MS = 2 * 60 * 1000; // then the game says the connection is lost
   const HELLO_MS = 8000;
   const PING_MS = 25000;
+  const WAKE_CHECK_MS = 4000; // a connection that doesn't answer a ping by then is dead
   const SAVED = 'roversa-net-game';
 
   // The relay picked with ?relay= for this visit, if any (invites carry it along).
@@ -167,6 +168,7 @@
     let retryTimer = null;
     let pingTimer = null;
     let tries = 0;
+    let heard = 0; // messages received, to tell a live connection from a dead one
 
     function setStatus(s) {
       if (conn.status === s) return;
@@ -189,7 +191,9 @@
         ws.send(JSON.stringify({ t: 'hello', v: VERSION, create: !!(opts.create && !welcomed), token: conn.token }));
       };
       ws.onmessage = (e) => {
-        if (conn.ws !== ws || e.data === 'pong') return;
+        if (conn.ws !== ws) return;
+        heard++;
+        if (e.data === 'pong') return;
         let m;
         try { m = JSON.parse(e.data); } catch (err) { return; }
         if (m.t === 'error') {
@@ -242,8 +246,26 @@
       retryTimer = setTimeout(connect, Math.min(8000, 500 * Math.pow(2, tries)));
     }
 
+    // A phone that slept can come back with a connection that looks open but
+    // is dead. When the page is shown again, check it, and reconnect if it
+    // doesn't answer.
+    function woke() {
+      const ws = conn.ws;
+      if (document.visibilityState !== 'visible' || conn.ended || !welcomed || !ws || ws.noAnswerMeans || ws.readyState !== 1) return;
+      const before = heard;
+      try { ws.send('ping'); } catch (e) { /* closing */ }
+      setTimeout(() => {
+        if (conn.ws !== ws || heard !== before || conn.ended) return;
+        conn.ws = null;
+        try { ws.close(); } catch (e) { /* already closed */ }
+        dropped();
+      }, WAKE_CHECK_MS);
+    }
+    if (root.document) document.addEventListener('visibilitychange', woke);
+
     function end() {
       conn.ended = true;
+      if (root.document) document.removeEventListener('visibilitychange', woke);
       clearTimeout(retryTimer);
       clearInterval(pingTimer);
       const ws = conn.ws;
