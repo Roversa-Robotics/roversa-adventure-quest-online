@@ -26,8 +26,9 @@ Once installed (or after one visit), it also works offline.
   hand shows which end is Roversa's front and how puzzle pieces line up into an
   algorithm. It opens on its own the first time. Then eight short levels introduce
   one idea at a time (Forward, Turn Left and Turn Right, obstacles, Backward,
-  repeat); a level with a new puzzle piece shows what it does first. Earn up to
-  three stars by using the fewest pieces.
+  repeat); a level with a new puzzle piece shows what it does first. If an
+  algorithm misses, Roversa shows where it stopped, then goes back to the start,
+  where every GO begins. Earn up to three stars by using the fewest pieces.
 - **Dice Quest**: the classroom game. Roll the Roversa die five times, arrange all
   five pieces, and run them. Roversa stays where it stops. First robot to visit
   all three treasures wins. One or two players, each picking a robot costume.
