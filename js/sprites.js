@@ -599,16 +599,16 @@
   const duck = imageCanvas('goal-duck.png', 32);
   const toothie = imageCanvas('char-toothie.png', 32);
   const byteclaw = imageCanvas('char-byteclaw.png', 32);
-  const captain = imageCanvas('char-captain.png', 32);
+  const pirate = imageCanvas('char-captain.png', 32);
   const octopus = CHARACTERS.find((ch) => ch.id === 'octopus').sprite;
   const WORLDS = {
     pond: { goals: { A: duck, B: duck, C: duck }, props: {} },
-    island: { goals: { A: xMark(), B: goals.A, C: goals.B }, props: { K: captain, Y: byteclaw } },
+    island: { goals: { A: xMark(), B: goals.A, C: goals.B }, props: { K: pirate, Y: byteclaw } },
     sea: { goals: { A: goals.A, B: octopus, C: toothie }, props: {} },
   };
 
   const ready = Promise.all([robotBase.loaded, ...Object.values(goals).map((g) => g.loaded), ...CHARACTERS.map((ch) => ch.sprite.loaded),
-    duck.loaded, toothie.loaded, byteclaw.loaded, captain.loaded]);
+    duck.loaded, toothie.loaded, byteclaw.loaded, pirate.loaded]);
 
   root.RoversaSprites = {
     SIZE, rng, grass, flowers, sand, tree, rock, water, startPad, robot, smileyRobot, flag, FLAG_COLORS, goals, TEAM_COLORS, CHARACTERS,
