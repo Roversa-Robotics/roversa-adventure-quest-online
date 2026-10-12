@@ -451,6 +451,9 @@
   // ---------- Sprites made from the Roversa brand art (see tools/pixelate.py) ----------
 
   const ASSETS = 'assets/sprites/';
+  // Same build stamp as the page (see index.html), so new art is never mixed with old.
+  const buildMeta = typeof document !== 'undefined' && document.querySelector('meta[name="roversa-build"]');
+  const VERSION = buildMeta ? '?v=' + buildMeta.content : '';
 
   // Blank canvases are handed out right away and painted once the images load,
   // so drawing code never has to wait for them.
@@ -462,7 +465,7 @@
       const img = new Image();
       img.onload = () => { c.getContext('2d').drawImage(img, 0, 0, size, size); resolve(c); };
       img.onerror = () => resolve(c);
-      img.src = ASSETS + file;
+      img.src = ASSETS + file + VERSION;
     });
     return c;
   }
