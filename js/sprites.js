@@ -311,17 +311,19 @@
     return c;
   }
 
-  // Roversa's charging station, where it starts on the island (like square B1 on the mat).
+  // Roversa's charging pad, where it starts on the island (like square B1 on the mat).
+  // It lies flat on the ground like the start squares in the other worlds, so it
+  // never looks like something Roversa would bump into.
   function chargingStation(seed) {
     const c = land(seed);
     const g = c.getContext('2d');
-    px(g, INK, 3, 1, 9, 14);
-    px(g, '#2f9a73', 4, 2, 7, 12);
-    px(g, '#bfe6d6', 5, 3, 5, 3);
-    px(g, '#ffd84d', 7, 7, 2, 1); px(g, '#ffd84d', 6, 8, 2, 1); px(g, '#ffd84d', 7, 9, 2, 1); px(g, '#ffd84d', 8, 10);
-    px(g, INK, 12, 4, 1, 6);
-    px(g, INK, 13, 3, 2, 2);
-    px(g, '#7a4a20', 2, 14, 11, 1);
+    px(g, INK, 1, 1, 14, 14);
+    px(g, '#2f9a73', 2, 2, 12, 12);
+    px(g, '#56c497', 2, 2, 12, 1);
+    px(g, '#56c497', 2, 2, 1, 12);
+    [[3, 3], [12, 3], [3, 12], [12, 12]].forEach(([x, y]) => px(g, '#bfe6d6', x, y));
+    // Lightning bolt.
+    [[8, 4, 3], [7, 5, 3], [6, 6, 3], [5, 7, 6], [7, 8, 3], [6, 9, 3], [5, 10, 2]].forEach(([x, y, w]) => px(g, '#ffd84d', x, y, w, 1));
     return c;
   }
 
