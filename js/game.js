@@ -22,6 +22,13 @@
   const GOAL_NAMES = named('goal.');
   const TILE_NAMES = named('tile.');
 
+  // The Adventure world being played ('pond', 'island' or 'sea'), or null in Dice Quest.
+  const world = () => (game.mode === 'level' && game.level && game.level.world) || null;
+  // Destination pictures and names depend on the world: ducks in the pond, the X on the island...
+  const goalArt = (id, w = world()) => (w ? SP.WORLDS[w].goals[id] : SP.goals[id]);
+  const goalName = (id) => (world() ? tr('goal.' + world() + '.' + id) : GOAL_NAMES[id]);
+  const goalTo = (id) => tr((world() ? 'goalTo.' + world() + '.' : 'goalTo.') + id);
+
   const $ = (sel) => document.querySelector(sel);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let uidCounter = 0;
@@ -210,18 +217,31 @@
   const board = $('#board');
   const bctx = board.getContext('2d');
 
-  function buildView(map, seedBase) {
+  // `w` is the Adventure world the map belongs to; Dice Quest maps have none.
+  function buildView(map, seedBase, w) {
     const bg = document.createElement('canvas');
     bg.width = map.cols * T;
     bg.height = map.rows * T;
     const g = bg.getContext('2d');
     const water = [];
+    const props = [];
+    const start = map.starts['1'];
     for (let y = 0; y < map.rows; y++) {
       for (let x = 0; x < map.cols; x++) {
         const seed = seedBase * 1000 + y * 37 + x * 11 + 1;
         const ch = map.grid[y][x];
         let tile;
-        if (ch === 'T') tile = SP.tree(seed);
+        if (w) {
+          // parseMap turns S and A-C into '.', so put them back for the tile's neighbours.
+          const charAt = (xx, yy) => {
+            if (!E.inBounds(map.grid, xx, yy)) return undefined;
+            if (start && start.x === xx && start.y === yy) return 'S';
+            const goal = map.goals.find((gl) => gl.x === xx && gl.y === yy);
+            return goal ? goal.id : map.grid[yy][xx];
+          };
+          tile = SP.worldTile(w, charAt(x, y), seed, (dx, dy) => charAt(x + dx, y + dy));
+          if (SP.WORLDS[w].props[ch]) props.push({ x, y, img: SP.WORLDS[w].props[ch] });
+        } else if (ch === 'T') tile = SP.tree(seed);
         else if (ch === 'R') tile = SP.rock(seed);
         else if (ch === 'f') tile = SP.flowers(seed);
         else if (ch === '=') tile = SP.sand(seed);
@@ -232,8 +252,8 @@
         g.drawImage(tile, x * T, y * T);
       }
     }
-    Object.values(map.starts).forEach((s) => g.drawImage(SP.startPad(seedBase + s.x), s.x * T, s.y * T));
-    return { bg, water, cols: map.cols, rows: map.rows };
+    if (!w) Object.values(map.starts).forEach((s) => g.drawImage(SP.startPad(seedBase + s.x), s.x * T, s.y * T));
+    return { bg, water, props, cols: map.cols, rows: map.rows };
   }
 
   function sizeBoard() {
@@ -260,6 +280,9 @@
     for (let c = 1; c < v.cols; c++) g.fillRect(c * S - 1, 0, 2, board.height);
     for (let r = 1; r < v.rows; r++) g.fillRect(0, r * S - 1, board.width, 2);
 
+    // Characters that stand in the way, like Captain Clean Code.
+    v.props.forEach((p) => g.drawImage(p.img, p.x * S, p.y * S, S, S));
+
     // Path the robot drove on this run.
     g.fillStyle = 'rgba(255,255,255,0.55)';
     game.trail.forEach((p) => g.fillRect((p.x + 0.5) * S - SCALE * 1.5, (p.y + 0.5) * S - SCALE * 1.5, SCALE * 3, SCALE * 3));
@@ -284,7 +307,7 @@
       const bob = Math.round(Math.sin(now / 300 + i) * 1.5) * SCALE;
       const who = game.robots.filter((r) => r.visited.has(goal.id));
       g.globalAlpha = game.mode === 'level' && who.length ? 0.6 : 1;
-      g.drawImage(SP.goals[goal.id], goal.x * S, goal.y * S + bob, S, S);
+      g.drawImage(goalArt(goal.id), goal.x * S, goal.y * S + bob, S, S);
       g.globalAlpha = 1;
       if (game.mode === 'level' && who.length) drawCheck(g, goal.x * S + S * 0.62, goal.y * S + S * 0.05, S * 0.36);
       // In Dice Quest each player who found this treasure plants a small flag on it.
@@ -518,7 +541,7 @@
     });
     game.map.goals.forEach((g) => {
       const done = game.robots.filter((r) => r.visited.has(g.id)).map((r) => r.name);
-      const name = GOAL_NAMES[g.id];
+      const name = goalName(g.id);
       parts.push(tr('sr.goal', { goal: name.charAt(0).toUpperCase() + name.slice(1), where: where(g.x, g.y) }) +
         (done.length ? (game.robots.length > 1 ? tr('sr.visitedBy', { who: done.join(tr('and')) }) : tr('sr.visited')) : '') + '.');
     });
@@ -586,13 +609,14 @@
       const card = document.createElement('button');
       card.className = 'level-card';
       const map = E.parseMap(level.map);
-      const v = buildView(map, i + 1);
+      const v = buildView(map, i + 1, level.world);
       const c = document.createElement('canvas');
       c.width = v.bg.width;
       c.height = v.bg.height;
       const g = c.getContext('2d');
       g.drawImage(v.bg, 0, 0);
-      map.goals.forEach((goal) => g.drawImage(SP.goals[goal.id], goal.x * T, goal.y * T, T, T));
+      v.props.forEach((p) => g.drawImage(p.img, p.x * T, p.y * T, T, T));
+      map.goals.forEach((goal) => g.drawImage(goalArt(goal.id, level.world), goal.x * T, goal.y * T, T, T));
       const st = map.starts['1'];
       g.save();
       g.translate(st.x * T + T / 2, st.y * T + T / 2);
@@ -631,7 +655,7 @@
     game.levelIndex = i;
     game.level = level;
     game.map = E.parseMap(level.map);
-    game.view = buildView(game.map, i + 1);
+    game.view = buildView(game.map, i + 1, level.world);
     game.robots = [makeRobot(game.map.starts['1'], E.DIR_NAMES[level.startDir || 'N'], 0)];
     const costume = loadCostume();
     if (costume) wearCostume(game.robots[0], costume);
@@ -1269,7 +1293,7 @@
         r.visited.add(goal.id);
         SND.goal();
         sparkle(r.x, r.y);
-        setMessage(tr('msg.reached', { goal: tr('goalTo.' + goal.id) }), 'good');
+        setMessage(tr('msg.reached', { goal: goalTo(goal.id) }), 'good');
         renderScoreboard();
       }
     } else if (res.result === 'bump' || (res.result === 'off' && game.mode === 'level')) {
@@ -1415,7 +1439,7 @@
     } else if (outcome.result === 'bump') {
       setMessage(tr('msg.bumpLevel', { what: outcome.what }) + note, 'bad');
     } else {
-      const left = game.map.goals.filter((g) => !r.visited.has(g.id)).map((g) => GOAL_NAMES[g.id]);
+      const left = game.map.goals.filter((g) => !r.visited.has(g.id)).map((g) => goalName(g.id));
       setMessage(tr('msg.almost', { list: left.join(tr('and')) }) + note, 'bad');
     }
     renderButtons();
