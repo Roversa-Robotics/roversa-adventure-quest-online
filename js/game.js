@@ -2139,6 +2139,7 @@
   const IDLE_ASK_MS = 2 * 60 * 1000; // then "Are you still there?"
   const IDLE_GRACE_S = 30; // and their turn is skipped after this
   const NOBODY_MS = 5 * 60 * 1000; // "Nobody joined yet"
+  const RESTART_RETRY_MS = 5000; // "Play again" is sent again if no new game starts
   const netId = () => Math.random().toString(36).slice(2, 10);
   const clock = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   const costumeOf = (id) => SP.CHARACTERS.find((ch) => ch.id === id) || null;
@@ -2455,6 +2456,7 @@
 
   async function netApply(net, ev) {
     if (ev.t === 'start') {
+      net.restart = null;
       net.started = true;
       net.startKey = JSON.stringify(ev.map);
       net.turn = 0;
@@ -2589,6 +2591,8 @@
   function netTick(net) {
     if (game.net !== net) { clearInterval(net.timer); return; }
     const now = Date.now();
+    // "Play again" didn't get through: send it again once connected.
+    if (net.restart && net.status === 'online' && now - net.restart.at > RESTART_RETRY_MS) netSendRestart(net);
     if (!net.started) {
       const alone = net.seat === 0 && net.seats.filter((p) => !p.left).length <= 1;
       if (!alone) net.lobbySince = now;
@@ -2677,8 +2681,24 @@
       note: !canRestart && host && net.seat !== 0 ? tr('net.waitRematch', { robot: charName(host.costume) }) : '',
       buttons: (canRestart ? [{ act: 'again', color: 'green', label: tr('modal.playAgain') }] : [])
         .concat([{ act: 'home', color: 'gray', icon: '&#8962;', label: tr('home') }]),
-    }, { again: () => net.conn.send({ t: 'start', map: questMap(players) }), home: () => { netLeave(); show('title'); } });
+    }, { again: () => netRestart(net), home: () => { netLeave(); show('title'); } });
     modal.querySelector('.winner').getContext('2d').drawImage(r.character || r.sprite, 0, 0);
+  }
+
+  // "Play again" on the host's device. If the connection is down for a
+  // moment (say the phone slept), it keeps trying until the new game starts.
+  function netRestart(net) {
+    net.restart = { at: 0 };
+    openModal('<h3>' + tr('net.newGame') + '</h3>');
+    netSendRestart(net);
+  }
+
+  function netSendRestart(net) {
+    if (!net.restart || game.net !== net) return;
+    const players = net.seats.filter((p) => !p.left && p.costume).length;
+    if (players < 2) { net.restart = null; closeModal(); netAlone(); return; }
+    net.restart.at = Date.now();
+    net.conn.send({ t: 'start', map: questMap(players) });
   }
 
   function netConfirmLeave() {
