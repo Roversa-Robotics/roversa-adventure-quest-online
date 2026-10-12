@@ -33,7 +33,7 @@ jobs:
           BUILD="${GITHUB_SHA::7}"
           grep -rl --include='*.html' --include='*.js' '__BUILD__' _site | xargs sed -i "s/__BUILD__/$BUILD/g"
           echo "Stamped build $BUILD"
-          if grep -rq '__BUILD__' _site; then echo "A __BUILD__ was not stamped"; exit 1; fi
+          if grep -rq --include='*.html' --include='*.js' '__BUILD__' _site; then echo "A __BUILD__ was not stamped"; exit 1; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
