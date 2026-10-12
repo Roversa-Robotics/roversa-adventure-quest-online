@@ -149,6 +149,264 @@
     return c;
   }
 
+  // ---------- Adventure worlds, themed after the printed Roversa mats ----------
+
+  function px(g, col, x, y, w = 1, h = 1) {
+    g.fillStyle = col;
+    g.fillRect(x, y, w, h);
+  }
+
+  // Duck Pond (Duck Duck Robot mat): mint water with white ripples.
+  function pondWater(seed) {
+    const c = canvas();
+    const g = c.getContext('2d');
+    const rand = rng(seed);
+    px(g, '#8fd8c6', 0, 0, SIZE, SIZE);
+    speckle(g, rand, ['#7ecbb8', '#a3e3d3'], 10);
+    if (rand() < 0.55) {
+      const y0 = 4 + Math.floor(rand() * 8);
+      const phase = rand() * 6;
+      for (let x = 0; x < SIZE; x++) {
+        const y = y0 + Math.round(Math.sin((x + phase) / 2.6) * 1.4);
+        px(g, '#f7f1e3', x, y);
+        if (x % 3) px(g, '#f7f1e3', x, y + 1);
+      }
+    }
+    return c;
+  }
+
+  // A wide flat lily pad seen from above, notch toward the middle, with a pink flower.
+  function lilyPad(seed) {
+    const c = pondWater(seed);
+    const g = c.getContext('2d');
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const dx = (x + 0.5 - 8) / 7.2;
+        const dy = (y + 0.5 - 8.5) / 5.6;
+        const d = Math.hypot(dx, dy);
+        if (d > 1) continue;
+        if (Math.abs(Math.atan2(dy, dx) + 1.2) < 0.22 && d > 0.12) continue;
+        px(g, d > 0.84 ? '#2c7a2e' : dx + dy < -0.6 ? '#7fd06a' : '#4fae45', x, y);
+      }
+    }
+    for (let i = 1; i < 6; i++) {
+      px(g, '#3f9a3a', 8 + i, 8 + (i >> 1));
+      px(g, '#3f9a3a', 8 - i, 8 + (i >> 1));
+    }
+    px(g, '#ff9fcf', 10, 10, 3, 2);
+    px(g, '#ffd6ea', 11, 9);
+    px(g, '#ffd84d', 11, 10);
+    return c;
+  }
+
+  function dock(seed) {
+    const c = pondWater(seed);
+    const g = c.getContext('2d');
+    px(g, '#5a3a1e', 1, 1, 14, 14);
+    for (let i = 0; i < 4; i++) {
+      px(g, i % 2 ? '#b98a57' : '#c99a64', 2, 2 + i * 3, 12, 2);
+      px(g, '#8d6438', 2, 4 + i * 3, 12, 1);
+    }
+    [[3, 3], [12, 3], [3, 12], [12, 12]].forEach(([x, y]) => px(g, '#3b2510', x, y));
+    return c;
+  }
+
+  // Roversa Island (Grid Challenges mat): a hand-drawn treasure map in ink.
+  const INK = '#2b241c';
+  const LAND = '#a9c6a1';
+
+  function land(seed) {
+    const c = canvas();
+    const g = c.getContext('2d');
+    px(g, LAND, 0, 0, SIZE, SIZE);
+    speckle(g, rng(seed), ['#98b78f', '#bcd4b3'], 14);
+    return c;
+  }
+
+  function tuft(seed) {
+    const c = land(seed);
+    const g = c.getContext('2d');
+    const rand = rng(seed * 3 + 1);
+    for (let i = 0; i < 3; i++) {
+      const x = 2 + Math.floor(rand() * 11);
+      const y = 3 + Math.floor(rand() * 10);
+      px(g, INK, x, y);
+      px(g, INK, x + 2, y);
+      px(g, INK, x + 1, y - 1);
+    }
+    return c;
+  }
+
+  // Dashed trail; `open` says which sides it continues to ({ N, E, S, W }).
+  function trail(seed, open) {
+    const c = land(seed);
+    const g = c.getContext('2d');
+    px(g, INK, 7, 7, 2, 2);
+    if (open.E) px(g, INK, 11, 7, 3, 2);
+    if (open.W) px(g, INK, 2, 7, 3, 2);
+    if (open.N) px(g, INK, 7, 2, 2, 3);
+    if (open.S) px(g, INK, 7, 11, 2, 3);
+    return c;
+  }
+
+  // Parchment-colored sea; `shore` says which sides touch the island.
+  function ocean(seed, shore) {
+    const c = canvas();
+    const g = c.getContext('2d');
+    const rand = rng(seed);
+    px(g, '#efe3c4', 0, 0, SIZE, SIZE);
+    speckle(g, rand, ['#e2d3ae', '#f6edd6'], 12);
+    const x = 2 + Math.floor(rand() * 7);
+    const y = 4 + Math.floor(rand() * 7);
+    px(g, INK, x, y + 1); px(g, INK, x + 1, y); px(g, INK, x + 2, y + 1); px(g, INK, x + 3, y);
+    if (shore.S) { px(g, LAND, 0, 13, SIZE, 3); px(g, INK, 0, 12, SIZE, 1); }
+    if (shore.N) { px(g, LAND, 0, 0, SIZE, 3); px(g, INK, 0, 3, SIZE, 1); }
+    if (shore.E) { px(g, LAND, 13, 0, 3, SIZE); px(g, INK, 12, 0, 1, SIZE); }
+    if (shore.W) { px(g, LAND, 0, 0, 3, SIZE); px(g, INK, 3, 0, 1, SIZE); }
+    return c;
+  }
+
+  function mountain(seed) {
+    const c = land(seed);
+    const g = c.getContext('2d');
+    for (let y = 2; y < 14; y++) {
+      const half = Math.floor((y - 2) * 0.62);
+      px(g, '#9aa0a8', 8 - half, y, half * 2 + 1, 1);
+      px(g, '#c3c8cf', 8 - half, y, Math.max(1, half - 1), 1);
+      px(g, INK, 7 - half, y);
+      px(g, INK, 9 + half, y);
+    }
+    px(g, INK, 1, 14, 15, 1);
+    px(g, '#ffffff', 7, 3, 3, 2);
+    px(g, '#ffffff', 6, 5, 2, 1);
+    return c;
+  }
+
+  function pine(seed) {
+    const c = land(seed);
+    const g = c.getContext('2d');
+    for (let y = 1; y < 13; y++) {
+      const half = Math.floor((y % 4) + y / 4);
+      px(g, '#7a3f2a', 8 - half, y, half * 2 + 1, 1);
+    }
+    px(g, INK, 7, 12, 2, 3);
+    return c;
+  }
+
+  // Roversa's charging station, where it starts on the island (like square B1 on the mat).
+  function chargingStation(seed) {
+    const c = land(seed);
+    const g = c.getContext('2d');
+    px(g, INK, 3, 1, 9, 14);
+    px(g, '#2f9a73', 4, 2, 7, 12);
+    px(g, '#bfe6d6', 5, 3, 5, 3);
+    px(g, '#ffd84d', 7, 7, 2, 1); px(g, '#ffd84d', 6, 8, 2, 1); px(g, '#ffd84d', 7, 9, 2, 1); px(g, '#ffd84d', 8, 10);
+    px(g, INK, 12, 4, 1, 6);
+    px(g, INK, 13, 3, 2, 2);
+    px(g, '#7a4a20', 2, 14, 11, 1);
+    return c;
+  }
+
+  // The red X that marks the spot: a goal picture, so 32x32 like the other goals.
+  function xMark() {
+    const c = document.createElement('canvas');
+    c.width = 32;
+    c.height = 32;
+    const g = c.getContext('2d');
+    for (const [col, w, off] of [['#5a1210', 6, -1], ['#d8312b', 4, 0]]) {
+      for (let i = 0; i < 22; i++) {
+        px(g, col, 4 + i + off, 4 + i + off, w, w);
+        px(g, col, 26 - i + off, 4 + i + off, w, w);
+      }
+    }
+    return c;
+  }
+
+  // Under the Sea (Underwater Adventure mat): open water with bubbles.
+  const SEA = '#3aa6b4';
+
+  function seaWater(seed) {
+    const c = canvas();
+    const g = c.getContext('2d');
+    const rand = rng(seed);
+    px(g, SEA, 0, 0, SIZE, SIZE);
+    speckle(g, rand, ['#3197a5', '#49b6c2'], 14);
+    if (rand() < 0.45) {
+      const x = 3 + Math.floor(rand() * 9);
+      const y = 2 + Math.floor(rand() * 10);
+      px(g, '#c9f3f2', x, y, 2, 1); px(g, '#c9f3f2', x - 1, y + 1, 1, 2);
+      px(g, '#c9f3f2', x + 2, y + 1, 1, 2); px(g, '#c9f3f2', x, y + 3, 2, 1);
+    }
+    return c;
+  }
+
+  function seaStar(seed) {
+    const c = seaWater(seed);
+    const g = c.getContext('2d');
+    const o = '#f2789a';
+    px(g, '#8a2a48', 6, 2, 4, 6); px(g, '#8a2a48', 2, 6, 12, 4); px(g, '#8a2a48', 4, 8, 4, 5); px(g, '#8a2a48', 8, 8, 4, 5);
+    px(g, o, 7, 3, 2, 4); px(g, o, 3, 7, 10, 2); px(g, o, 5, 9, 2, 3); px(g, o, 9, 9, 2, 3); px(g, o, 6, 6, 4, 4);
+    px(g, '#ffd2df', 7, 7, 2, 2);
+    return c;
+  }
+
+  function coral(seed) {
+    const c = seaWater(seed);
+    const g = c.getContext('2d');
+    const o = '#ff6f61';
+    const l = '#ffb199';
+    px(g, '#b8342c', 7, 9, 2, 6);
+    px(g, o, 7, 4, 2, 6); px(g, o, 3, 6, 2, 6); px(g, o, 11, 5, 2, 6);
+    px(g, o, 4, 11, 4, 2); px(g, o, 9, 10, 3, 2);
+    px(g, l, 7, 3, 2, 1); px(g, l, 3, 5, 2, 1); px(g, l, 11, 4, 2, 1);
+    return c;
+  }
+
+  // A rocky outcrop with the red-brown rim of the mat's reef walls.
+  function reefRock(seed) {
+    const c = seaWater(seed);
+    const g = c.getContext('2d');
+    const rand = rng(seed * 5 + 1);
+    blob(g, rand, 8, 8.5, 6.8, { edge: '#a8452c', dark: '#a97a4c', mid: '#c99a6a', light: '#dcb388' });
+    for (let i = 0; i < 4; i++) px(g, '#6e4524', 4 + Math.floor(rand() * 8), 4 + Math.floor(rand() * 8));
+    return c;
+  }
+
+  function seaStart(seed) {
+    const c = seaWater(seed);
+    const g = c.getContext('2d');
+    px(g, '#8a6a43', 2, 2, 12, 12);
+    px(g, '#e6d2a8', 3, 3, 10, 10);
+    px(g, '#c9b384', 3, 12, 10, 1);
+    px(g, '#c9b384', 12, 3, 1, 10);
+    return c;
+  }
+
+  // Background tile for one square of a world map. `near(dx, dy)` returns the
+  // map character next to this square (undefined off the map).
+  function worldTile(world, ch, seed, near) {
+    const sides = (test) => ({ N: test(near(0, -1)), E: test(near(1, 0)), S: test(near(0, 1)), W: test(near(-1, 0)) });
+    if (world === 'pond') {
+      if (ch === 'L') return lilyPad(seed);
+      if (ch === 'S') return dock(seed);
+      return pondWater(seed);
+    }
+    if (world === 'island') {
+      if (ch === 'O') return ocean(seed, sides((c) => c !== undefined && c !== 'O'));
+      if (ch === 'M') return mountain(seed);
+      if (ch === 'P') return pine(seed);
+      if (ch === 'f') return tuft(seed);
+      if (ch === '=') return trail(seed, sides((c) => c === '=' || c === 'S' || c === 'A' || c === 'B' || c === 'C'));
+      if (ch === 'S') return chargingStation(seed);
+      return land(seed);
+    }
+    if (ch === '*') return seaStar(seed);
+    if (ch === '%') return coral(seed);
+    if (ch === '#') return reefRock(seed);
+    if (ch === 'S') return seaStart(seed);
+    return seaWater(seed);
+  }
+
   // ---------- Sprites made from the Roversa brand art (see tools/pixelate.py) ----------
 
   const ASSETS = 'assets/sprites/';
@@ -292,9 +550,24 @@
     { id: 'manatee', name: 'Manatee', flag: 'blue' },
   ].map((ch) => Object.assign(ch, { sprite: imageCanvas('char-' + ch.id + '.png', 32) }));
 
-  const ready = Promise.all([robotBase.loaded, ...Object.values(goals).map((g) => g.loaded), ...CHARACTERS.map((ch) => ch.sprite.loaded)]);
+  // Adventure worlds: what the destinations A, B, C look like in each world,
+  // and the characters that stand on a square and block it (drawn full size on top).
+  const duck = imageCanvas('goal-duck.png', 32);
+  const toothie = imageCanvas('char-toothie.png', 32);
+  const byteclaw = imageCanvas('char-byteclaw.png', 32);
+  const captain = imageCanvas('char-captain.png', 32);
+  const octopus = CHARACTERS.find((ch) => ch.id === 'octopus').sprite;
+  const WORLDS = {
+    pond: { goals: { A: duck, B: duck, C: duck }, props: {} },
+    island: { goals: { A: xMark(), B: goals.A, C: goals.B }, props: { K: captain, Y: byteclaw } },
+    sea: { goals: { A: goals.A, B: octopus, C: toothie }, props: {} },
+  };
+
+  const ready = Promise.all([robotBase.loaded, ...Object.values(goals).map((g) => g.loaded), ...CHARACTERS.map((ch) => ch.sprite.loaded),
+    duck.loaded, toothie.loaded, byteclaw.loaded, captain.loaded]);
 
   root.RoversaSprites = {
-    SIZE, rng, grass, flowers, sand, tree, rock, water, startPad, robot, smileyRobot, flag, FLAG_COLORS, goals, TEAM_COLORS, CHARACTERS, ready,
+    SIZE, rng, grass, flowers, sand, tree, rock, water, startPad, robot, smileyRobot, flag, FLAG_COLORS, goals, TEAM_COLORS, CHARACTERS,
+    WORLDS, worldTile, ready,
   };
 })(globalThis);

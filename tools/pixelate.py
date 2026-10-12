@@ -26,6 +26,8 @@ BADGES = {
     'char-tiger.png': (245, 422, 352, 456),
     'char-elephant.png': (170, 372, 285, 410),
     'char-manatee.png': (357, 310, 440, 333),
+    'goal-duck.png': (1930, 1790, 2275, 2390),
+    'char-toothie.png': (935, 1180, 1085, 1240),
 }
 
 # Optional crops (in the assets/source/ copies) applied before shrinking, so a
@@ -47,7 +49,56 @@ SPRITES = {
     'char-tiger.png': ('char-tiger.png', 32, 16, 1.3),
     'char-elephant.png': ('char-elephant.png', 32, 16, 1.3),
     'char-manatee.png': ('char-manatee.png', 32, 16, 1.3),
+    # Adventure world characters (issue #17).
+    'goal-duck.png': ('goal-duck.png', 32, 24, 1.3),
+    'char-byteclaw.png': ('char-byteclaw.png', 32, 16, 1.3),
+    'char-captain.png': ('char-captain.png', 32, 16, 1.3),
+    'char-toothie.png': ('char-toothie.png', 32, 32),
 }
+
+# Toothie's eye and teeth turn to mush at 32 pixels, so after shrinking its
+# colors are snapped to the drawing's flat palette and those parts are redrawn
+# by hand. Key: # black, g green, m magenta, w cream, . gray, d dark gray.
+TOOTHIE_PALETTE = [(0, 0, 0), (126, 196, 56), (160, 0, 96), (214, 0, 138), (255, 247, 232), (150, 150, 150)]
+TOOTHIE_PATCHES = [
+    (18, 0, [
+        '  ####  ',
+        ' #mmmm# ',
+        '#wwwwww#',
+        '#ww##ww#',
+        '#ww##ww#',
+        ' #wwww# ',
+        '  ####  ',
+    ]),
+    (9, 9, [
+        'ggg#######ggg',
+        'g##wwwwwww##g',
+        '#wwwwwwwwwww#',
+        '#w.w.w.w.w.w#',
+        '#.d.d.d.d.d.#',
+        '#..d..d..d..#',
+        '#d.w.d.w.d.w#',
+        '#ww.ww.ww.ww#',
+        'g###########g',
+    ]),
+]
+PATCH_COLORS = {'#': (0, 0, 0, 255), 'g': (126, 196, 56, 255), 'm': (160, 0, 96, 255), 'w': (255, 247, 232, 255),
+                '.': (150, 150, 150, 255), 'd': (90, 90, 90, 255)}
+
+
+def touch_up_toothie(im):
+    px = im.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            r, g, b, a = px[x, y]
+            if a:
+                near = min(TOOTHIE_PALETTE, key=lambda p: (p[0] - r) ** 2 + (p[1] - g) ** 2 + (p[2] - b) ** 2)
+                px[x, y] = near + (255,)
+    for x0, y0, rows in TOOTHIE_PATCHES:
+        for j, row in enumerate(rows):
+            for i, ch in enumerate(row):
+                px[x0 + i, y0 + j] = PATCH_COLORS[ch] if ch != ' ' else (0, 0, 0, 0)
+    return im
 
 
 def remove_badge(im, box):
@@ -167,6 +218,10 @@ def main():
         sprite = pixelate(im, size, colors)
         if name.startswith('treasure'):
             sprite = add_outline(sprite, (42, 26, 14, 255))
+        if name == 'goal-duck.png':
+            sprite = add_outline(sprite, (20, 20, 20, 255))
+        if name == 'char-toothie.png':
+            sprite = touch_up_toothie(sprite)
         sprite.save(OUT / name)
         print('wrote', (OUT / name).relative_to(ROOT))
 
