@@ -29,8 +29,6 @@ Once installed (or after one visit), it also works offline.
   five pieces, and run them. Roversa stays where it stops. First robot to visit
   all three treasures wins. One or two players, each picking a robot costume.
 
-Tap the map before pressing GO to guess where Roversa will stop.
-
 ## Puzzle pieces
 
 The pieces match the 3D-printed ones in

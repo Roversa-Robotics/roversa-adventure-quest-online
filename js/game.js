@@ -177,7 +177,6 @@
     slots: 5,
     running: false,
     rolling: false,
-    predict: null,
     trail: [],
     particles: [],
     runIndex: -1,
@@ -286,21 +285,6 @@
     // Path the robot drove on this run.
     g.fillStyle = 'rgba(255,255,255,0.55)';
     game.trail.forEach((p) => g.fillRect((p.x + 0.5) * S - SCALE * 1.5, (p.y + 0.5) * S - SCALE * 1.5, SCALE * 3, SCALE * 3));
-
-    // The player's guess of where Roversa will stop.
-    if (game.predict) {
-      const pulse = 0.55 + 0.45 * Math.sin(now / 200);
-      g.strokeStyle = 'rgba(255, 230, 80,' + pulse + ')';
-      g.lineWidth = SCALE * 1.5;
-      g.setLineDash([SCALE * 3, SCALE * 2]);
-      g.strokeRect(game.predict.x * S + SCALE * 1.5, game.predict.y * S + SCALE * 1.5, S - SCALE * 3, S - SCALE * 3);
-      g.setLineDash([]);
-      g.fillStyle = 'rgba(255, 230, 80,' + pulse + ')';
-      g.font = 'bold ' + S * 0.45 + 'px system-ui, sans-serif';
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.fillText('?', (game.predict.x + 0.5) * S, (game.predict.y + 0.5) * S);
-    }
 
     // Destinations.
     game.map.goals.forEach((goal, i) => {
@@ -553,8 +537,6 @@
       if (E.isBlocked(game.map.grid, x, y) && !(edge && ch === 'T')) blocked.push(tr('sr.goal', { goal: tr('tileShort.' + ch), where: where(x, y) }));
     }));
     if (blocked.length) parts.push(tr('sr.blocked', { list: blocked.join('; ') }));
-    if (game.predict) parts.push(tr('sr.guess', { where: where(game.predict.x, game.predict.y) }));
-    parts.push(tr('sr.keys'));
     board.setAttribute('aria-label', parts.join(' '));
   }
 
@@ -649,7 +631,6 @@
     $('#screen-game').classList.toggle('quest-mode', game.mode === 'quest');
     sizeBoard();
     game.trail = [];
-    game.predict = null;
     game.particles = [];
     game.runIndex = -1;
     game.doneUpTo = -1;
@@ -1237,50 +1218,6 @@
     }
   }
 
-  // ---------- Prediction: tap the map to guess where Roversa stops ----------
-
-  board.addEventListener('click', (e) => {
-    if (game.running || !game.view) return;
-    const r = board.getBoundingClientRect();
-    const x = Math.floor(((e.clientX - r.left) / r.width) * game.view.cols);
-    const y = Math.floor(((e.clientY - r.top) / r.height) * game.view.rows);
-    if (!E.inBounds(game.map.grid, x, y)) return;
-    if (game.predict && game.predict.x === x && game.predict.y === y) clearGuess();
-    else setGuess(x, y);
-  });
-
-  function setGuess(x, y) {
-    game.predict = { x, y };
-    setMessage(tr('msg.guess'));
-    announce(tr('sr.guessAt', { where: where(x, y) }));
-    describeBoard();
-    SND.tap();
-  }
-
-  function clearGuess() {
-    game.predict = null;
-    setMessage(tr('msg.guessRemoved'));
-    describeBoard();
-    SND.tap();
-  }
-
-  // Keyboard: arrow keys move the guess square, Delete or Escape removes it.
-  board.addEventListener('keydown', (e) => {
-    if (game.running || !game.view) return;
-    const moves = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
-    if (moves[e.key]) {
-      e.preventDefault();
-      const r = game.robots[game.active];
-      const from = game.predict || { x: r.x, y: r.y };
-      const nx = Math.max(0, Math.min(game.map.cols - 1, from.x + (game.predict ? moves[e.key][0] : 0)));
-      const ny = Math.max(0, Math.min(game.map.rows - 1, from.y + (game.predict ? moves[e.key][1] : 0)));
-      setGuess(nx, ny);
-    } else if ((e.key === 'Delete' || e.key === 'Backspace') && game.predict) {
-      e.preventDefault();
-      clearGuess();
-    }
-  });
-
   // ---------- Running the program ----------
 
   async function doStep(r, cmd) {
@@ -1407,23 +1344,14 @@
     }
   }
 
-  function predictionNote(r) {
-    if (!game.predict) return '';
-    const right = game.predict.x === r.x && game.predict.y === r.y;
-    game.predict = null;
-    if (right) { setTimeout(SND.predict, 400); return tr('msg.guessRight'); }
-    return tr('msg.guessWrong');
-  }
-
   function finishLevelRun(r, outcome) {
-    const note = predictionNote(r);
     const allDone = game.map.goals.every((g) => r.visited.has(g.id));
     if (allDone) {
       const used = game.program.length;
       const best = par(game.levelIndex);
       const stars = used <= best ? 3 : used <= best + 2 ? 2 : 1;
       saveStars(game.level.name, stars);
-      setMessage(tr('msg.didIt') + note, 'good');
+      setMessage(tr('msg.didIt'), 'good');
       setTimeout(() => {
         SND.win();
         confetti();
@@ -1432,7 +1360,7 @@
           '<h3>' + tr('modal.levelDone') + '</h3>' +
           '<div class="big-stars">' + [0, 1, 2].map((k) => '<span class="' + (k < stars ? 'on' : '') + '">&#9733;</span>').join('') + '</div>' +
           '<p>' + tr('modal.used', { n: used }) +
-          (stars < 3 ? tr('modal.canYou', { n: best }) : tr('modal.fewest')) + note + '</p>' +
+          (stars < 3 ? tr('modal.canYou', { n: best }) : tr('modal.fewest')) + '</p>' +
           '<div class="choices">' +
           '<button class="btn gray" data-act="again">' + tr('modal.tryAgain') + '</button>' +
           (next ? '<button class="btn big green" data-act="next">' + tr('modal.next') + ' &#9654;</button>' : '<button class="btn big green" data-act="levels">' + tr('modal.allLevels') + '</button>') +
@@ -1449,16 +1377,15 @@
         if (nextBtn) nextBtn.focus();
       }, 600);
     } else if (outcome.result === 'bump') {
-      setMessage(tr('msg.bumpLevel', { what: outcome.what }) + note, 'bad');
+      setMessage(tr('msg.bumpLevel', { what: outcome.what }), 'bad');
     } else {
       const left = game.map.goals.filter((g) => !r.visited.has(g.id)).map((g) => goalName(g.id));
-      setMessage(tr('msg.almost', { list: left.join(tr('and')) }) + note, 'bad');
+      setMessage(tr('msg.almost', { list: left.join(tr('and')) }), 'bad');
     }
     renderButtons();
   }
 
   function finishQuestTurn(r, outcome) {
-    const note = predictionNote(r);
     r.turns++;
     const q = game.quest;
     if (r.visited.size === 3) {
@@ -1490,7 +1417,6 @@
     if (outcome.result === 'bump') text = tr('msg.bumpQuest', { robot: r.name, what: outcome.what });
     else if (outcome.result === 'off') text = tr('msg.offQuest', { robot: r.name });
     else text = tr('msg.stopped', { robot: r.name });
-    text += note;
     q.phase = 'roll';
     if (game.robots.length > 1) {
       game.active = (game.active + 1) % game.robots.length;
@@ -1592,7 +1518,6 @@
       resetRobot(r);
       game.program = [];
       game.trail = [];
-      game.predict = null;
       clearRunMarks();
       renderAll();
       sparkle(r.x, r.y);
