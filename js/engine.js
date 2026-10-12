@@ -11,14 +11,14 @@
   // Map characters.
   //   .  open ground  f  flowers / grass tuft   =  sand path / trail   (all drivable)
   //   T  tree         R  rock         W  water       (Dice Quest; all block the robot)
-  //   L  lily pad (Duck Pond)
+  //   L  lily pad  V  cattails (Duck Pond)
   //   O  ocean  M  mountain  P  pine tree  K  Captain Clean Code  Y  Byteclaw (Roversa Island)
-  //   *  sea star  %  coral  #  reef rock (Under the Sea)
+  //   *  sea star  %  coral  #  reef rock, only on the map's edge (Under the Sea)
   //   S  start square (level mode)
   //   1, 2  player start squares (quest mode)
   //   A, B, C  destinations (their pictures depend on the world)
   const BLOCKING = {};
-  'TRWLOMPKY*%#'.split('').forEach((ch) => { BLOCKING[ch] = true; });
+  'TRWLVOMPKY*%#'.split('').forEach((ch) => { BLOCKING[ch] = true; });
 
   // Puzzle piece commands.
   //   F Forward, B Backward, L Turn Left, R Turn Right,

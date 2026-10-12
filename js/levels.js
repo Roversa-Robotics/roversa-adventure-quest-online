@@ -10,7 +10,7 @@
 //   .  open ground (Roversa can drive here)
 //
 // world 'pond' (Duck Duck Robot mat): A, B, C are rubber ducks.
-//   L  lily pad (Roversa bumps into it)
+//   L  lily pad   V  cattails   (Roversa bumps into these)
 //
 // world 'island' (Grid Challenges mat): A is the red X, B the treasure chest, C the bags of gold.
 //   f  grass tuft    =  dashed trail   (Roversa can drive here)
@@ -19,6 +19,7 @@
 //
 // world 'sea' (Underwater Adventure mat): A is the sunken chest, B the octopus, C Toothie.
 //   *  sea star   %  coral   #  reef rock   (Roversa bumps into these)
+//   Reef rock only goes on the edge of the map, where it reads as the shore.
 //
 // startDir: which way Roversa faces at the start: 'N' up, 'E' right, 'S' down, 'W' left.
 // pieces:   how many of each puzzle piece the player gets.
@@ -31,15 +32,15 @@ globalThis.ROVERSA_LEVELS = [
   // ---------- Duck Pond ----------
   {
     name: 'First Steps',
-    hint: 'Line up Forward pieces, then press GO!',
+    hint: 'Welcome to Duck Pond! Line up Forward pieces, then press GO!',
     world: 'pond',
     startDir: 'E',
     pieces: { F: 5 },
     slots: 5,
     map: [
-      '.....L',
+      '.V...L',
       'S...A.',
-      'L.....',
+      'L...V.',
     ],
   },
   {
@@ -50,9 +51,9 @@ globalThis.ROVERSA_LEVELS = [
     pieces: { F: 5, L: 2, R: 2 },
     slots: 7,
     map: [
-      '...A..',
+      '...A.V',
       '.L...L',
-      'S.....',
+      'S..V..',
     ],
   },
   {
@@ -63,15 +64,15 @@ globalThis.ROVERSA_LEVELS = [
     pieces: { F: 6, L: 3, R: 3 },
     slots: 11,
     map: [
-      '..L...',
+      '..L..V',
       'S.L.A.',
-      '......',
+      'V.....',
     ],
   },
   // ---------- Roversa Island ----------
   {
     name: 'Back It Up',
-    hint: 'The Backward piece drives backward without turning around.',
+    hint: 'Welcome to Roversa Island! The Backward piece drives backward without turning around.',
     world: 'island',
     startDir: 'E',
     pieces: { F: 5, B: 3, L: 2, R: 2 },
@@ -112,15 +113,15 @@ globalThis.ROVERSA_LEVELS = [
   // ---------- Under the Sea ----------
   {
     name: 'Coral Path',
-    hint: 'Follow the open water between the coral.',
+    hint: 'Welcome Under the Sea! Follow the open water between the coral.',
     world: 'sea',
     startDir: 'E',
     pieces: { F: 4, L: 2, R: 2, P: 5 },
     slots: 12,
     map: [
       'S..%%*.',
-      '%#.%%..',
-      '*%....A',
+      '#%.%%..',
+      '#%....A',
     ],
   },
   {
@@ -132,8 +133,8 @@ globalThis.ROVERSA_LEVELS = [
     slots: 15,
     map: [
       'A...C.',
-      '.*%#..',
-      'S....B',
+      '.*%%..',
+      'S.##.B',
     ],
   },
 ];
