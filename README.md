@@ -68,7 +68,9 @@ How it works:
 All on Cloudflare's free plan, with no credit card:
 
 1. Create a free Cloudflare account (a shared Roversa email is best, with
-   two-factor sign-in) and pick a `workers.dev` name when asked.
+   two-factor sign-in). A new account gets its `workers.dev` name only after
+   its first Worker, so in Workers & Pages click **Create application** >
+   **Start with Hello World!** > **Deploy** once (that Worker can be deleted).
 2. Create an API token from the **Edit Cloudflare Workers** template.
 3. In this repository, Settings > Secrets and variables > Actions:
    - Secrets: `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID`
@@ -78,6 +80,10 @@ All on Cloudflare's free plan, with no credit card:
 4. Run Actions > **Dice Quest relay** > Run workflow (it also runs on every merge
    that changes `relay/`), then Actions > **Deploy to GitHub Pages** > Run
    workflow, so the game picks up `RELAY_URL`.
+
+While players wait for a game to start, **Copy invite** (and **Share** on
+phones) gives a message with the game's pictures and a link,
+`index.html#join-0123`, that opens the game and joins that game.
 
 [`relay/wrangler.toml`](relay/wrangler.toml) lists the pages allowed to open
 games (`ALLOWED_ORIGINS`); add a new address there if the game moves.
@@ -118,8 +124,9 @@ python3 -m http.server 8000
 ```
 
 Shortcuts for testing: `index.html#level=3` opens level 3, `index.html#quest=2`
-starts a two-player Dice Quest, and `index.html?relay=local` turns on
-**Play on 2-4 devices** between tabs of one browser.
+starts a two-player Dice Quest, `index.html?relay=local` turns on
+**Play on 2-4 devices** between tabs of one browser, and `index.html#join-0123`
+joins the game with pictures 0, 1, 2, 3.
 
 ## Adding or changing levels
 

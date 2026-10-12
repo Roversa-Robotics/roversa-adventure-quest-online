@@ -506,6 +506,12 @@ button.pic:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px
 }
 .net-setup .btn.big { width: 100%; }
 .net-setup .note { font-size: 14px; color: var(--muted); }
+.invite { margin-top: 18px; padding-top: 12px; border-top: 2px dashed var(--edge); }
+.invite .menu.row { gap: 8px; }
+.invite-text {
+  width: 100%; margin-top: 8px; padding: 8px; font-family: var(--mono); font-size: 12px;
+  background: var(--panel); color: inherit; border: 3px solid var(--edge); border-radius: 8px; resize: none;
+}
 .message.wait { border-color: var(--brand-yellow); }
 .modal-box .choices.col { flex-direction: column; align-items: stretch; }
 .modal-box .big-icon { font-size: 54px; line-height: 1; margin-bottom: 6px; }

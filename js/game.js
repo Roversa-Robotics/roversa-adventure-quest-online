@@ -2257,6 +2257,12 @@
     const again = () => (opts.create ? netConnect({ create: true, costume: opts.costume }) : netConnect({ code: opts.code }));
     const home = () => show('quest-setup');
     if (why === 'taken' && (opts.tries || 0) < 5) { netConnect(Object.assign({}, opts, { code: null, tries: (opts.tries || 0) + 1 })); return; }
+    if ((why === 'nogame' || why === 'closed') && opts.fromLink) {
+      netModal({ icon: '&#9203;', title: tr('net.expiredTitle'), text: tr('net.expiredText'),
+        buttons: [{ act: 'start', color: 'green', icon: '&#9733;', label: tr('net.start') }, { act: 'back', color: 'gray', label: tr('net.back') }] },
+      { start: netCreate, back: home });
+      return;
+    }
     if (why === 'nogame' || why === 'closed') { netJoinScreen([], opts.code); return; }
     if (why === 'full' || why === 'started') {
       netModal({ icon: '&#128101;', title: tr('net.fullTitle'), text: tr('net.fullText'),
@@ -2715,8 +2721,10 @@
     } else {
       foot = '<p class="message wait">' + tr('net.waitStart', { robot: charName(host && host.costume) }) + '</p>';
     }
+    if (present.length < 4) foot += inviteHtml();
     netScreen(net.host ? tr('net.yourGame') : tr('net.inTitle'),
       (net.host ? '<p>' + tr('net.tapThese') + '</p>' : '') + codeHtml(net.code) + '<ul class="lobby">' + rows.join('') + '</ul>' + foot);
+    netInviteButtons(net);
     $('#net-body').querySelectorAll('li[data-seat]').forEach((li) => {
       const p = present.find((s) => String(s.seat) === li.dataset.seat);
       li.querySelector('.face').appendChild(faceCanvas(p && p.costume));
@@ -2728,6 +2736,87 @@
       if (n >= 2) net.conn.send({ t: 'start', map: questMap(n) });
     });
     if (me && !me.costume && !net.opts.costume && modal.hidden) netPickCostume(net);
+  }
+
+  // ---------- Invites ----------
+  // A link that opens the game and joins this game (index.html#join-0123),
+  // plus the pictures for anyone who already has the game open.
+
+  function inviteLink(code) {
+    const relay = NET.override();
+    return location.origin + location.pathname + (relay ? '?relay=' + encodeURIComponent(relay) : '') + '#join-' + code;
+  }
+
+  function inviteText(code) {
+    return tr('net.inviteText', {
+      game: tr('menu.quest'),
+      url: inviteLink(code),
+      path: [tr('menu.quest'), tr('net.button'), tr('net.join')].join(' > '),
+      list: String(code).split('').map((n) => tr('pic.' + n)).join(', '),
+    });
+  }
+
+  function inviteHtml() {
+    return '<div class="invite"><p class="note">' + tr('net.inviteHint') + '</p>' +
+      '<div class="menu row"><button class="btn blue" id="btn-net-copy" type="button">' +
+      '<span class="btn-icon" aria-hidden="true">&#128203;</span> <span>' + tr('net.copyInvite') + '</span></button>' +
+      (navigator.share ? '<button class="btn purple" id="btn-net-share" type="button">' +
+        '<span class="btn-icon" aria-hidden="true">&#128228;</span> <span>' + tr('net.shareInvite') + '</span></button>' : '') +
+      '</div><p class="note invite-done" role="status" aria-live="polite"></p>' +
+      '<textarea class="invite-text" readonly hidden rows="5" aria-label="' + tr('net.copyInvite') + '"></textarea></div>';
+  }
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* fall back below */ }
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed'; area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    area.remove();
+    return ok;
+  }
+
+  function netInviteButtons(net) {
+    const copy = $('#btn-net-copy');
+    if (!copy) return;
+    const done = $('#net-body .invite-done');
+    copy.addEventListener('click', async () => {
+      SND.tap();
+      const text = inviteText(net.code);
+      if (await copyText(text)) {
+        done.textContent = tr('net.copied');
+        say(tr('net.copied'));
+      } else {
+        // No clipboard here: show the invite so it can be copied by hand.
+        const area = $('#net-body .invite-text');
+        area.value = text;
+        area.hidden = false;
+        area.focus();
+        area.select();
+        done.textContent = tr('net.copyFailed');
+      }
+    });
+    const share = $('#btn-net-share');
+    if (share) share.addEventListener('click', () => {
+      SND.tap();
+      navigator.share({ text: inviteText(net.code) }).catch(() => { /* closed the share sheet */ });
+    });
+  }
+
+  // Opened from an invite link: join that game.
+  function netJoinFromLink(code) {
+    if (game.net) return; // already in a game on this device
+    if (!NET.available()) {
+      netModal({ icon: '&#128225;', title: tr('net.cantTitle'), text: tr('net.cantText'),
+        buttons: [{ act: 'ok', color: 'blue', label: tr('net.ok') }] }, { ok: () => show('quest-setup') });
+      return;
+    }
+    netJoinScreen(code.split(''));
+    netConnect({ code, fromLink: true });
   }
 
   // The picture keypad. `wrong` is a code that matched no game.
@@ -2767,9 +2856,19 @@
   requestAnimationFrame(drawFrame);
 
   // Handy for testing: index.html#level=3 or #quest=2 jumps straight in (#level=0 is the tutorial).
+  // An invite link (#join-0123) joins that game. Returns true for one.
   function openFromHash() {
+    const join = /^#join-([0-7]{4})$/.exec(location.hash);
+    if (join) {
+      // Drop it from the address, so a refresh rejoins the same seat instead.
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* sandboxed */ }
+      if (game.running || game.rolling) return true;
+      closeModal();
+      netJoinFromLink(join[1]);
+      return true;
+    }
     const hash = new URLSearchParams(location.hash.slice(1));
-    if (game.running || game.rolling) return;
+    if (game.running || game.rolling) return false;
     closeModal();
     if (hash.has('level')) startLevel(Math.max(0, Math.min(LEVELS.length - 1, Number(hash.get('level')) - FIRST_NUM)));
     else if (hash.has('quest')) startQuest(hash.get('quest') === '2' ? 2 : 1);
@@ -2777,9 +2876,9 @@
   window.addEventListener('hashchange', openFromHash);
   SP.ready.then(() => {
     titleRobot.getContext('2d').drawImage(SP.smileyRobot(), 0, 0);
-    openFromHash();
+    const linked = openFromHash();
     // A page refreshed during a game on several devices rejoins it.
-    const saved = NET.available() && !location.hash && NET.saved();
+    const saved = !linked && NET.available() && !location.hash && NET.saved();
     if (saved) netConnect({ code: saved.code, token: saved.token, quiet: true });
   });
 })();

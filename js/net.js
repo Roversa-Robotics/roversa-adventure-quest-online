@@ -19,6 +19,11 @@
   const PING_MS = 25000;
   const SAVED = 'roversa-net-game';
 
+  // The relay picked with ?relay= for this visit, if any (invites carry it along).
+  function override() {
+    try { return sessionStorage.getItem('roversa-relay'); } catch (e) { return null; }
+  }
+
   function relayUrl() {
     let pick = null;
     try {
@@ -272,5 +277,5 @@
     } catch (e) { return null; }
   }
 
-  root.RoversaNet = { VERSION, available: () => !!relayUrl(), check, join, saved, forget };
+  root.RoversaNet = { VERSION, available: () => !!relayUrl(), override, check, join, saved, forget };
 })(globalThis);
