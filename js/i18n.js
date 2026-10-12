@@ -4,6 +4,9 @@
 (function (root) {
   'use strict';
 
+  // The iOS Share icon (a box with an arrow), drawn in the text colour.
+  const SHARE_ICON = '<svg class="share-icon" viewBox="0 0 16 20" width="14" height="18" aria-hidden="true"><path d="M8 1v11M4 5l4-4 4 4M5 8H2v11h12V8h-3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
+
   const STRINGS = {
     en: {
       'page.title': 'Roversa Adventure Quest',
@@ -52,6 +55,10 @@
       'startOver': 'Start over',
       'clear': 'Clear',
       'clearProgram': 'Clear program',
+      'close': 'Close',
+      'install.button': 'Install app',
+      'install.ios': 'Play it like an app! Tap <b>Share</b> ' + SHARE_ICON + ' and then <b>Add to Home Screen</b>.',
+      'update.banner': 'New version! Tap to refresh',
       'newGame': 'New game',
       'resetShort': 'Reset',
       'resetPieces': 'Reset: put the pieces back in your roll',
@@ -205,6 +212,10 @@
       'startOver': 'Reiniciar',
       'clear': 'Borrar',
       'clearProgram': 'Borrar el programa',
+      'close': 'Cerrar',
+      'install.button': 'Instalar app',
+      'install.ios': '¡Juega como una app! Toca <b>Compartir</b> ' + SHARE_ICON + ' y luego <b>Agregar a pantalla de inicio</b>.',
+      'update.banner': '¡Nueva versión! Toca para actualizar',
       'newGame': 'Juego nuevo',
       'resetShort': 'Reiniciar',
       'resetPieces': 'Reiniciar: devolver las piezas a tu tirada',

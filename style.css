@@ -131,6 +131,30 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .menu.row { flex-direction: row; flex-wrap: wrap; justify-content: center; max-width: none; }
 .credit { font-size: 13px; color: var(--muted); }
 
+/* Installing the app and updates (js/pwa.js) */
+.update-banner, .install-btn, .ios-install { margin-left: auto; margin-right: auto; }
+.update-banner[hidden], .install-btn[hidden], .ios-install[hidden] { display: none; }
+.update-banner {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: min(420px, 100%); min-height: 48px; padding: 10px 14px; margin-bottom: 12px;
+  border: 3px solid var(--edge); border-radius: 6px;
+  background: var(--yellow); color: var(--edge);
+  font-family: var(--pixel); font-size: 12px; line-height: 1.5;
+  box-shadow: 0 4px 0 var(--edge);
+  cursor: pointer; touch-action: manipulation;
+}
+.install-btn { display: block; background: var(--brand-purple); margin-bottom: 8px; font-size: 12px; }
+.ios-install {
+  display: flex; align-items: center; gap: 10px;
+  max-width: 420px; padding: 8px 8px 8px 14px; margin-top: 4px;
+  background: var(--bg2); border: 3px solid var(--edge); border-radius: 6px;
+  text-align: left; font-size: 14px; line-height: 1.5;
+}
+.ios-install p { margin: 0; flex: 1; }
+.ios-install .icon-btn { flex: none; width: 40px; height: 40px; font-size: 16px; }
+.update-banner > span:first-child { font-family: system-ui, sans-serif; font-size: 18px; }
+.share-icon { vertical-align: -3px; margin: 0 2px; color: var(--yellow); }
+
 /* Top bar */
 .bar {
   display: flex; align-items: center; gap: 12px;

@@ -6,8 +6,19 @@ program, press **GO**, and watch the robot drive to every destination.
 
 **[▶ Play it now](https://roversa-robotics.github.io/roversa-adventure-quest-online/)** at https://roversa-robotics.github.io/roversa-adventure-quest-online/
 
-Works on computers, tablets and phones. No install, no build step: it is plain
-HTML, CSS and JavaScript, so GitHub Pages serves it as is.
+Works on computers, tablets and phones. No build step: it is plain HTML, CSS
+and JavaScript.
+
+## Installing it like an app
+
+The game can be installed with its own Roversa icon and opens full screen:
+
+- **Android and Chromebooks (Chrome)**: tap **Install app** on the title screen,
+  or use the browser menu's *Install app* / *Add to Home screen*.
+- **iPhone and iPad (Safari)**: tap **Share**, then **Add to Home Screen**. The
+  title screen shows this hint until it is closed.
+
+Once installed (or after one visit), it also works offline.
 
 ## Ways to play
 
@@ -62,8 +73,31 @@ number is what earns three stars).
 
 ## Publishing on GitHub Pages
 
-Settings > Pages > Build and deployment > Source: **Deploy from a branch**,
-Branch: `main`, folder `/ (root)`.
+Settings > Pages > Build and deployment > Source: **GitHub Actions**.
+
+Every merge to `main` runs [`.github/workflows/pages.yml`](.github/workflows/pages.yml),
+which publishes the game and replaces each `__BUILD__` in the HTML and
+JavaScript with the commit id. To publish again by hand: Actions > Deploy to
+GitHub Pages > Run workflow.
+
+## Updates and the offline copy
+
+[`sw.js`](sw.js) is a small offline helper (service worker). It loads every
+file **from the network first**, so a player who is online always gets the
+newest release, and keeps a saved copy only for when there is no connection.
+
+- The build stamp is added to every script, style and image link
+  (`?v=<commit>`), so a browser never mixes old and new files, even without
+  the helper. This replaces the old "hard refresh to see new text" problem.
+- Each release has its own saved copy, and the old one is deleted.
+- If an update lands while the game is open, the title screen shows
+  **New version! Tap to refresh**. It never interrupts a puzzle.
+- **Off switch**: set `OFFLINE = false` in `sw.js` and merge. Each device
+  deletes its saved copy and removes the helper the next time it opens the
+  game online.
+
+The app icons in `icons/` are built from the robot sprite by
+`python3 tools/make-icons.py` (needs Pillow).
 
 ## Art
 

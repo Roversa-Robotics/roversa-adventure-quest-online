@@ -6,10 +6,20 @@
   <title>Roversa Adventure Quest</title>
   <meta name="description" content="Program the Roversa robot with puzzle pieces and drive it to every destination. A coding game for all ages.">
   <meta name="theme-color" content="#1b1f3b">
+  <!-- Replaced with the commit id on deploy (.github/workflows/pages.yml), so
+       every release loads matching files. -->
+  <meta name="roversa-build" content="__BUILD__">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Roversa Quest">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bevan&family=Open+Sans:wght@400;600;700&family=Press+Start+2P&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=__BUILD__">
 </head>
 <body>
   <!-- Title screen -->
@@ -19,7 +29,10 @@
       <button class="icon-btn btn-sound" type="button" aria-label="Sound on or off" data-i18n-attr="aria-label:sound">&#9835;</button>
     </div>
     <div class="title-wrap">
-      <h1><img class="logo" src="assets/source/logo-white.png" alt="Roversa" width="512" height="138"><span>ADVENTURE QUEST</span></h1>
+      <button id="update-banner" class="update-banner" type="button" hidden>
+        <span aria-hidden="true">&#9733;</span> <span data-i18n="update.banner">New version! Tap to refresh</span>
+      </button>
+      <h1><img class="logo" src="assets/source/logo-white.png?v=__BUILD__" alt="Roversa" width="512" height="138"><span>ADVENTURE QUEST</span></h1>
       <canvas id="title-robot" width="32" height="32" aria-hidden="true"></canvas>
       <p class="tagline" data-i18n="title.tagline">Choose a game. Create algorithms. Guide Roversa on a treasure-filled adventure!</p>
       <div class="menu">
@@ -29,6 +42,13 @@
         <button class="btn big blue" data-go="quest-setup">
           <span class="btn-icon" aria-hidden="true">&#9856;</span> <span data-i18n="menu.quest">Dice Quest</span>
         </button>
+      </div>
+      <button id="btn-install" class="btn install-btn" type="button" hidden>
+        <span class="btn-icon" aria-hidden="true">&#11015;</span> <span data-i18n="install.button">Install app</span>
+      </button>
+      <div id="ios-install" class="ios-install" hidden>
+        <p data-i18n-html="install.ios">Play it like an app! Tap <b>Share</b> and then <b>Add to Home Screen</b>.</p>
+        <button id="ios-install-close" class="icon-btn" type="button" aria-label="Close" data-i18n-attr="aria-label:close">&#10006;</button>
       </div>
       <div class="lang-picker" role="group" data-i18n-attr="aria-label:lang.label" aria-label="Language">
         <span class="lang-icon" aria-hidden="true">&#127760;</span>
@@ -131,12 +151,13 @@
 
   <div id="confetti" aria-hidden="true"></div>
 
-  <script src="js/engine.js"></script>
-  <script src="js/levels.js"></script>
-  <script src="js/sprites.js"></script>
-  <script src="js/audio.js"></script>
-  <script src="js/i18n.js"></script>
-  <script src="js/ai.js"></script>
-  <script src="js/game.js"></script>
+  <script src="js/engine.js?v=__BUILD__"></script>
+  <script src="js/levels.js?v=__BUILD__"></script>
+  <script src="js/sprites.js?v=__BUILD__"></script>
+  <script src="js/audio.js?v=__BUILD__"></script>
+  <script src="js/i18n.js?v=__BUILD__"></script>
+  <script src="js/ai.js?v=__BUILD__"></script>
+  <script src="js/game.js?v=__BUILD__"></script>
+  <script src="js/pwa.js?v=__BUILD__"></script>
 </body>
 </html>

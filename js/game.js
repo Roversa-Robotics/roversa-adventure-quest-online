@@ -439,6 +439,7 @@
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === 'screen-' + id));
     window.scrollTo(0, 0);
     if (id === 'levels') { renderCostumeBar(); renderLevelGrid(); }
+    document.dispatchEvent(new CustomEvent('roversa:screen', { detail: id }));
   }
 
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => { SND.tap(); show(b.dataset.go); }));

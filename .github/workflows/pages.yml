@@ -1,0 +1,42 @@
+# Publishes the game to GitHub Pages on every merge to main.
+# It stamps the commit id into the files (replacing __BUILD__), so each release
+# loads matching files and installed apps notice the update. See README.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Copy the game and stamp the build
+        run: |
+          mkdir _site
+          git archive HEAD | tar -x -C _site
+          rm -rf _site/.github _site/tools
+          BUILD="${GITHUB_SHA::7}"
+          grep -rl --include='*.html' --include='*.js' '__BUILD__' _site | xargs sed -i "s/__BUILD__/$BUILD/g"
+          echo "Stamped build $BUILD"
+          if grep -rq '__BUILD__' _site; then echo "A __BUILD__ was not stamped"; exit 1; fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
