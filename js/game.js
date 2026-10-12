@@ -784,6 +784,8 @@
         players > 1 ? tr('modal.pickRobotBang') : '', picks);
       const left = SP.CHARACTERS.filter((ch) => !picks.includes(ch));
       picks.push(pick || left[Math.floor(Math.random() * left.length)]);
+      // Player 1's costume carries over to Adventures if none was picked there yet.
+      if (i === 0 && pick && !loadCostume()) saveCostume(pick);
     }
     if (aiLevel) {
       const left = SP.CHARACTERS.filter((ch) => !picks.includes(ch));
