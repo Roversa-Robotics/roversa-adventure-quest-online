@@ -1919,6 +1919,28 @@
     }));
   });
 
+  // ---------- Start fresh ----------
+  // For demos: forget everything this game saved on the device and reload, so
+  // it opens just like a first visit.
+
+  $('#btn-fresh').addEventListener('click', () => {
+    SND.tap();
+    openModal(
+      '<h3>' + tr('fresh.title') + '</h3><p>' + tr('fresh.text') + '</p>' +
+      '<div class="choices"><button class="btn gray" data-act="no">' + tr('fresh.keep') + '</button>' +
+      '<button class="btn big red" data-act="yes">' + tr('fresh.button') + '</button></div>'
+    );
+    modal.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
+      SND.tap();
+      closeModal();
+      if (b.dataset.act !== 'yes') return;
+      try {
+        Object.keys(localStorage).filter((k) => k.startsWith('roversa-')).forEach((k) => localStorage.removeItem(k));
+      } catch (e) { /* storage blocked: nothing was saved */ }
+      location.reload();
+    }));
+  });
+
   // ---------- Language ----------
 
   document.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => {
