@@ -22,9 +22,12 @@ Once installed (or after one visit), it also works offline.
 
 ## Ways to play
 
-- **Adventures**: eight short levels that introduce one idea at a time
-  (Forward, Turn Left and Turn Right, obstacles, Backward, repeat). Earn up to three stars by using the
-  fewest pieces.
+- **Adventures**: starts with **Meet Roversa**, a guided tutorial where a pointing
+  hand shows which end is Roversa's front and how puzzle pieces line up into an
+  algorithm. It opens on its own the first time. Then eight short levels introduce
+  one idea at a time (Forward, Turn Left and Turn Right, obstacles, Backward,
+  repeat); a level with a new puzzle piece shows what it does first. Earn up to
+  three stars by using the fewest pieces.
 - **Dice Quest**: the classroom game. Roll the Roversa die five times, arrange all
   five pieces, and run them. Roversa stays where it stops. First robot to visit
   all three treasures wins. One or two players, each picking a robot costume.
