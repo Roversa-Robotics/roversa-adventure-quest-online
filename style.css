@@ -200,7 +200,8 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
   cursor: crosshair;
 }
 .message {
-  min-height: 3em;
+  /* Room for two lines, so a longer message doesn't push the buttons down. */
+  min-height: calc(2.8em + 26px);
   margin: 12px 0 0;
   padding: 10px 14px;
   background: var(--bg2);
@@ -262,14 +263,17 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .piece.running { animation: pulse 0.4s ease-in-out infinite alternate; z-index: 2; }
 @keyframes pulse { to { transform: translateY(-6px) scale(1.12); filter: drop-shadow(0 0 8px #fff7a8); } }
 .piece.done { opacity: 0.55; }
+/* An empty slot takes up exactly the room a puzzle piece will, so the program
+   row doesn't change size as pieces go in. */
 .slot {
-  width: calc(var(--piece) * 0.82);
+  width: calc(var(--piece) * 0.83 - 6px);
   height: calc(var(--piece) * 0.7);
-  margin: 0 calc(var(--piece) * 0.08);
+  margin: 0 3px;
   border: 3px dashed rgba(255,255,255,0.18);
   border-radius: 8px;
   flex: 0 0 auto;
 }
+.program .slot:first-child { width: calc(var(--piece) - 6px); }
 .caret {
   width: 6px; height: calc(var(--piece) * 0.8);
   background: var(--yellow);
@@ -299,6 +303,15 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .btn-label { font-size: 9px; line-height: 1.2; white-space: nowrap; }
 .actions .red, .actions .gray { flex: 1 1 40%; }
 .roll { width: 100%; margin-top: 10px; }
+
+/* Dice Quest: roll first, then arrange, so "Your roll" sits above the program.
+   The Roll button and the rolled pieces share one row of the same height, so
+   nothing below moves when one replaces the other. */
+.controls-col { display: flex; flex-direction: column; }
+.quest-mode .pool-panel { order: -1; }
+.quest-mode .pool { min-height: 64px; }
+.quest-mode .pool:empty { display: none; }
+.quest-mode .pool:empty + .roll { margin-top: 0; }
 .tip { color: var(--muted); font-size: 14px; line-height: 1.5; }
 
 /* Quest scoreboard */
