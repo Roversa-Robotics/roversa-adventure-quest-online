@@ -26,13 +26,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Copy the game and stamp the build
+        env:
+          # The Dice Quest relay's address (Settings > Secrets and variables >
+          # Actions > Variables). Empty hides "Play on 2-4 devices".
+          RELAY_URL: ${{ vars.RELAY_URL }}
         run: |
           mkdir _site
           git archive HEAD | tar -x -C _site
-          rm -rf _site/.github _site/tools
+          rm -rf _site/.github _site/tools _site/relay/worker.js _site/relay/wrangler.toml
           BUILD="${GITHUB_SHA::7}"
           grep -rl --include='*.html' --include='*.js' '__BUILD__' _site | xargs sed -i "s/__BUILD__/$BUILD/g"
           echo "Stamped build $BUILD"
+          grep -rl --include='*.js' '__RELAY_URL__' _site | xargs -r sed -i "s#__RELAY_URL__#${RELAY_URL}#g"
+          echo "Relay: ${RELAY_URL:-(none yet)}"
           if grep -rq --include='*.html' --include='*.js' '__BUILD__' _site; then echo "A __BUILD__ was not stamped"; exit 1; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

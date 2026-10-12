@@ -1,0 +1,22 @@
+# The Dice Quest relay (see README.md, "Playing on several devices").
+# Nothing here is secret. The deploy token lives in GitHub Actions secrets.
+name = "roversa-quest-relay"
+main = "worker.js"
+compatibility_date = "2025-09-01"
+
+# Only the game's own pages may open games (anyone else gets 403).
+[vars]
+ALLOWED_ORIGINS = "https://roversa-robotics.github.io,http://localhost:8000,http://127.0.0.1:8000"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "GameRoom"
+
+# SQLite-backed Durable Objects are included in the Workers free plan.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameRoom"]
+
+# No request logs are kept.
+[observability]
+enabled = false

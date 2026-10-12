@@ -15,7 +15,7 @@
   //   O  ocean  M  mountain  P  pine tree  K  the Pirate  Y  Byteclaw (Roversa Island)
   //   *  sea star  %  coral  #  reef rock, only on the map's edge (Under the Sea)
   //   S  start square (level mode)
-  //   1, 2  player start squares (quest mode)
+  //   1-4  player start squares (quest mode)
   //   A, B, C  destinations (their pictures depend on the world)
   const BLOCKING = {};
   'TRWLVOMPKY*%#'.split('').forEach((ch) => { BLOCKING[ch] = true; });
@@ -36,7 +36,7 @@
         if (ch === 'A' || ch === 'B' || ch === 'C') {
           goals.push({ id: ch, x, y });
           line.push('.');
-        } else if (ch === 'S' || ch === '1' || ch === '2') {
+        } else if (ch === 'S' || (ch >= '1' && ch <= '4')) {
           starts[ch === 'S' ? '1' : ch] = { x, y };
           line.push('.');
         } else {

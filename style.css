@@ -469,3 +469,66 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .character:hover:not(:disabled), .character:focus-visible { border-color: var(--team); box-shadow: 0 0 0 3px var(--team); outline: none; }
 .character:disabled { opacity: 0.3; }
 .modal-box canvas.winner { width: 96px; height: 96px; image-rendering: pixelated; }
+
+/* ---------- Dice Quest on several devices ---------- */
+.net-btn { margin: 0 auto; }
+#net-menu[hidden] { display: none; }
+.pic-code { display: flex; justify-content: center; gap: 10px; margin: 10px 0 6px; }
+.pic {
+  width: 68px; height: 76px; padding: 0;
+  background: var(--bg2);
+  border: 3px solid var(--edge); border-radius: 8px;
+  box-shadow: 0 3px 0 var(--edge);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  touch-action: manipulation;
+}
+.pic img { width: 44px; height: 44px; image-rendering: pixelated; }
+.pic small { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.pic.empty { border-style: dashed; border-color: #59609a; box-shadow: none; background: transparent; }
+.pic-code.bad .pic { border-color: #ff4b4b; box-shadow: 0 0 0 3px #ff4b4b; }
+.keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0 8px; }
+.keypad .pic { width: auto; height: 80px; }
+button.pic:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.lobby { list-style: none; padding: 0; margin: 14px 0; display: grid; gap: 8px; }
+.lobby li {
+  display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 6px 10px;
+  background: var(--panel); border: 3px solid var(--edge); border-radius: 8px;
+  font-weight: 700; text-align: left;
+}
+.lobby li canvas { width: 40px; height: 40px; image-rendering: pixelated; }
+.lobby li .st { margin-left: auto; font-family: var(--mono); font-size: 12px; font-weight: 400; color: var(--muted); text-align: right; }
+.lobby li .st.ok { color: var(--brand-green); }
+.lobby li .st.warn { color: var(--brand-yellow); }
+.lobby li.waiting { border-style: dashed; color: var(--muted); font-weight: 400; }
+.you-tag {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  background: var(--brand-yellow); color: #1b1f3b; border-radius: 4px; padding: 1px 5px;
+}
+.net-setup .btn.big { width: 100%; }
+.net-setup .note { font-size: 14px; color: var(--muted); }
+.message.wait { border-color: var(--brand-yellow); }
+.modal-box .choices.col { flex-direction: column; align-items: stretch; }
+.modal-box .big-icon { font-size: 54px; line-height: 1; margin-bottom: 6px; }
+.modal-box .timer { font-family: var(--pixel); color: var(--yellow); font-size: 18px; margin: 8px 0; }
+.modal-box .note { font-size: 14px; color: var(--muted); }
+.net-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 30;
+  background: #b8860b; color: #1b1f3b; border-bottom: 3px solid var(--edge);
+  font-weight: 700; text-align: center; padding: 10px 12px; font-size: 16px;
+}
+.net-banner[hidden] { display: none; }
+/* Someone else's turn: their pieces show, but this player's buttons rest. */
+.controls-col.watching .actions .btn { opacity: 0.35; }
+/* Three or four players: a compact 2x2 scoreboard. */
+.score { position: relative; }
+.score .you-tag { position: absolute; top: -7px; left: -5px; font-size: 8px; padding: 0 3px; z-index: 1; }
+.score.away { opacity: 0.55; }
+.score .net-note { font-family: var(--mono); font-size: 11px; color: var(--brand-yellow); white-space: nowrap; }
+.scoreboard.many { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.scoreboard.many .score { padding: 4px 6px; gap: 4px; font-size: 13px; min-width: 0; }
+.scoreboard.many .score canvas { width: 28px; height: 28px; }
+.scoreboard.many .score canvas.flag { display: none; }
+.scoreboard.many .score > span:not(.you-tag):not(.net-note) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.scoreboard.many .score .goal-icons canvas { width: 18px; height: 18px; }
+.scoreboard.many .score.away .goal-icons { display: none; }
+.actions .labeled[hidden] { display: none; }

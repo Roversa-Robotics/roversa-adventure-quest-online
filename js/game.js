@@ -6,7 +6,8 @@
   const SP = globalThis.RoversaSprites;
   const AI = globalThis.RoversaAI;
   const AUDIO = globalThis.RoversaAudio;
-  const SND = AUDIO.sfx;
+  // Silent while a device catches up on moves it missed (see "Playing on several devices").
+  const SND = new Proxy(AUDIO.sfx, { get: (o, k) => (game.fast ? () => {} : o[k]) });
   const LEVELS = globalThis.ROVERSA_LEVELS;
   const I18N = globalThis.RoversaI18n;
   const tr = I18N.tr;
@@ -32,7 +33,7 @@
   const goalTo = (id) => tr((world() ? 'goalTo.' + world() + '.' : 'goalTo.') + id);
 
   const $ = (sel) => document.querySelector(sel);
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, game.fast ? 0 : ms));
   let uidCounter = 0;
   const uid = () => ++uidCounter;
 
@@ -190,10 +191,12 @@
     hideGoals: false, // the tutorial's first duck pops up after Roversa is tapped
     stopMark: null, // Adventures: where Roversa stopped on a run that missed { x, y, ang, left }
     homing: null, // changes when Roversa going back to the start should stop
+    net: null, // a Dice Quest played on several devices, see "Playing on several devices"
+    fast: false, // true while catching up on missed moves: no animation or sound
   };
 
   function makeRobot(start, dir, team, teamWheels) {
-    const flagColor = SP.TEAM_COLORS[team].flag;
+    const flagColor = SP.TEAM_COLORS[team % SP.TEAM_COLORS.length].flag;
     return {
       team, flagColor, css: SP.FLAG_COLORS[flagColor].css,
       flag: SP.flag(flagColor),
@@ -314,6 +317,7 @@
 
     // Robots.
     game.robots.forEach((r, i) => {
+      if (r.gone) return;
       g.save();
       g.translate((r.rx + 0.5) * S + r.bump, (r.ry + 0.5) * S);
       g.rotate(r.ang);
@@ -460,7 +464,7 @@
       const t0 = performance.now();
       function tick(now) {
         if (alive && !alive()) { resolve(); return; }
-        const p = Math.min(1, (now - t0) / ms);
+        const p = game.fast ? 1 : Math.min(1, (now - t0) / ms);
         const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
         Object.keys(to).forEach((k) => { obj[k] = from[k] + (to[k] - from[k]) * e; });
         if (p < 1) requestAnimationFrame(tick); else resolve();
@@ -490,6 +494,7 @@
   $('#btn-back').addEventListener('click', () => {
     if (game.running) return;
     SND.tap();
+    if (game.net) { netConfirmLeave(); return; }
     closeModal();
     game.guide = null;
     hand.hidden = true;
@@ -565,7 +570,7 @@
     const m = $('#message');
     m.textContent = text;
     m.className = 'message' + (kind ? ' ' + kind : '');
-    say(text);
+    if (!game.fast) say(text);
   }
 
   // Screen reader updates for things that only show on the map.
@@ -583,6 +588,7 @@
     if (!game.map) return;
     const parts = [tr('sr.map', { cols: game.map.cols, rows: game.map.rows })];
     game.robots.forEach((r) => {
+      if (r.gone) return;
       parts.push(tr('sr.robot', { who: game.robots.length > 1 ? r.name : 'Roversa', where: where(r.x, r.y), dir: DIR_WORDS[r.dir] }));
     });
     game.map.goals.forEach((g) => {
@@ -737,13 +743,17 @@
     enterGame();
   }
 
-  // Builds a random 8x8 quest map with the three treasures.
+  // Where each player starts in Dice Quest: corners, facing into the map.
+  const QUEST_STARTS = [{ x: 0, y: 7, dir: 0 }, { x: 7, y: 0, dir: 2 }, { x: 7, y: 7, dir: 0 }, { x: 0, y: 0, dir: 2 }];
+
+  // Builds a random 8x8 quest map with the three treasures, as rows of text
+  // (the same text goes to every device in a game on several devices).
   function questMap(players) {
     const N = 8;
     for (let attempt = 0; attempt < 200; attempt++) {
       const rows = [];
       for (let y = 0; y < N; y++) rows.push(new Array(N).fill('.'));
-      const starts = [{ x: 0, y: N - 1 }, { x: N - 1, y: 0 }].slice(0, players);
+      const starts = QUEST_STARTS.slice(0, players);
       const near = (x, y, pts, d) => pts.some((p) => Math.abs(p.x - x) + Math.abs(p.y - y) < d);
       const free = (x, y) => rows[y][x] === '.' && !near(x, y, starts, 2);
       const rand = (n) => Math.floor(Math.random() * n);
@@ -786,9 +796,10 @@
         }
         return map.goals.every((g) => seen.has(g.x + ',' + g.y));
       });
-      if (ok) return map;
+      if (ok) return strs;
     }
-    return E.parseMap(['.......2', 'A.......', '........', '...B....', '........', '......C.', '........', '1.......']);
+    return ['4......2', 'A.......', '........', '...B....', '........', '......C.', '........', '1......3']
+      .map((row) => row.replace(/[1-4]/g, (n) => (Number(n) <= players ? n : '.')));
   }
 
   // The costume picker: a pop-up with every costume. Costumes in taken can't be
@@ -843,6 +854,7 @@
   // Each player picks a robot costume before a new Dice Quest. Against the AI
   // Opponent only the player picks; the AI Opponent takes another costume.
   async function chooseCharacters(players, aiLevel) {
+    netEnd();
     game.aiLevel = aiLevel || null;
     const picks = [];
     for (let i = 0; i < players; i++) {
@@ -870,13 +882,16 @@
     });
   }
 
-  function startQuest(players) {
+  // `rows` is the map when it comes from another device; otherwise a new one is made.
+  function startQuest(players, rows) {
     game.mode = 'quest';
     game.level = null;
-    game.map = questMap(players);
-    game.view = buildView(game.map, Math.floor(Math.random() * 1000));
-    game.robots = [makeRobot(game.map.starts['1'], 0, 0, true)];
-    if (players > 1) game.robots.push(makeRobot(game.map.starts['2'], 2, 1, true));
+    game.map = E.parseMap(rows || questMap(players));
+    // Every device draws the same grass and flowers for a shared map.
+    const seed = rows ? rows.join('').split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) : Math.floor(Math.random() * 1000);
+    game.view = buildView(game.map, seed);
+    game.robots = [];
+    for (let i = 0; i < players; i++) game.robots.push(makeRobot(game.map.starts[String(i + 1)], QUEST_STARTS[i].dir, i, true));
     (game.characters || []).forEach((ch, i) => { if (game.robots[i]) wearCostume(game.robots[i], ch); });
     if (game.aiLevel && game.robots[1]) game.robots[1].ai = game.aiLevel;
     game.aiToken++;
@@ -893,6 +908,10 @@
 
   function promptRoll() {
     const r = game.robots[game.active];
+    if (game.net) {
+      setMessage(myTurn() ? tr('net.yourTurn', { robot: r.name }) : tr('net.waitRoll', { robot: r.name }), myTurn() ? '' : 'wait');
+      return;
+    }
     const who = game.robots.length > 1 ? tr('msg.whoPrefix', { robot: r.name }) : '';
     setMessage(tr('msg.pressRoll', { who }));
   }
@@ -998,7 +1017,7 @@
         onActivate(el, () => { pendingFocus = { area: 'pool', t: p.t }; addPiece(p.id); });
         poolEl.appendChild(el);
       });
-      if (!game.tray.length && game.quest.phase === 'arrange') {
+      if (!game.tray.length && game.quest.phase === 'arrange' && !othersTurn()) {
         poolEl.innerHTML = '<span class="tip"></span>';
         poolEl.firstChild.textContent = tr('msg.allPlaced');
       }
@@ -1010,6 +1029,8 @@
     const sb = $('#scoreboard');
     if (game.mode !== 'quest' && !(game.robots[0] && game.robots[0].charId)) return;
     sb.innerHTML = '';
+    // Three or four players share a compact 2x2 board.
+    sb.classList.toggle('many', game.robots.length > 2);
     game.robots.forEach((r, i) => {
       const box = document.createElement('div');
       box.className = 'score' + (i === game.active && game.robots.length > 1 ? ' turn' : '');
@@ -1027,6 +1048,24 @@
       label.textContent = r.ai ? r.baseName : r.name;
       if (game.robots.length > 1 && i === game.active) box.setAttribute('aria-label', tr('sr.turn', { team: r.name }));
       box.appendChild(label);
+      // On several devices: this device's robot, and players who dropped or left.
+      if (game.net) {
+        if (r.seat === game.net.seat) {
+          const you = document.createElement('span');
+          you.className = 'you-tag';
+          you.textContent = tr('net.you');
+          box.appendChild(you);
+        }
+        const away = r.gone ? tr('net.left') : netAway(r.seat) ? tr('net.offline') : '';
+        if (away) {
+          box.classList.add('away');
+          const note = document.createElement('span');
+          note.className = 'net-note';
+          note.textContent = away;
+          box.appendChild(note);
+          label.setAttribute('aria-label', r.name + ', ' + away);
+        }
+      }
       // In Adventures the costume is shown on its own; the treasures are on the map.
       if (game.mode !== 'quest') { sb.appendChild(box); return; }
       const goals = document.createElement('div');
@@ -1056,8 +1095,18 @@
     return game.mode === 'quest' && !!game.robots[game.active] && !!game.robots[game.active].ai;
   }
 
+  // In a game on several devices: is it this device's turn?
+  function myTurn() {
+    return !!game.net && !!game.robots[game.active] && game.robots[game.active].seat === game.net.seat;
+  }
+
+  // Someone else is playing this turn (the AI Opponent, or another device), so this player's controls are locked.
+  function othersTurn() {
+    return isAiTurn() || (game.mode === 'quest' && !!game.net && !myTurn());
+  }
+
   function renderButtons() {
-    const busy = game.running || game.rolling || isAiTurn();
+    const busy = game.running || game.rolling || othersTurn();
     const quest = game.quest;
     const goReady = game.program.length > 0 && (!quest || (quest.phase === 'arrange' && game.tray.length === 0));
     $('#btn-go').disabled = busy || !goReady;
@@ -1065,7 +1114,10 @@
     $('#btn-reset').disabled = game.running || game.rolling;
     $('#btn-clear').disabled = busy || !game.program.length || (quest && (quest.phase !== 'arrange' || !!game.stepping));
     // While the die rolls, the rolled pieces take the button's place.
-    $('#btn-roll').hidden = !quest || quest.phase !== 'roll' || game.rolling || isAiTurn();
+    $('#btn-roll').hidden = !quest || quest.phase !== 'roll' || game.rolling || othersTurn();
+    // On a game with several devices, "New game" is the host's, at the end; leaving is the back button.
+    $('#btn-reset').hidden = !!game.net;
+    $('#screen-game .controls-col').classList.toggle('watching', !!game.net && othersTurn());
     $('#btn-roll').disabled = busy;
   }
 
@@ -1076,10 +1128,11 @@
     renderScoreboard();
     renderButtons();
     syncGuide();
+    netShowArranging();
   }
 
   function editable() {
-    if (game.running || game.rolling || isAiTurn()) return false;
+    if (game.running || game.rolling || othersTurn()) return false;
     // Once a Dice Quest program starts stepping, the robot has moved, so the turn is locked in.
     return game.mode === 'level' || (game.quest.phase === 'arrange' && !game.stepping);
   }
@@ -1740,13 +1793,14 @@
 
   // GO runs the whole program, or the rest of it after some Steps.
   async function run(byAi) {
-    if (game.running || !game.program.length || (isAiTurn() && byAi !== true) || guideBlocks('go')) return;
+    if (game.running || !game.program.length || (othersTurn() && byAi !== true) || guideBlocks('go')) return;
+    if (byAi !== true && !game.stepping && !netSendGo()) return;
     closeModal();
     const st = game.stepping || beginRun();
     game.running = true;
     game.stepping = null;
     renderAll();
-    setMessage(isAiTurn() ? tr('msg.drivingNamed', { robot: st.r.name }) : tr('msg.driving'));
+    setMessage(othersTurn() ? tr('msg.drivingNamed', { robot: st.r.name }) : tr('msg.driving'));
     let outcome = { result: 'done' };
     while (st.i < st.steps.length) {
       const res = await runOne(st);
@@ -1758,7 +1812,8 @@
 
   // Step runs just the next piece, so players can watch where the program goes wrong.
   async function step() {
-    if (game.running || !game.program.length || isAiTurn() || guideBlocks('step')) return;
+    if (game.running || !game.program.length || othersTurn() || guideBlocks('step')) return;
+    if (!game.stepping && !netSendGo()) return;
     closeModal();
     const st = game.stepping || beginRun();
     game.running = true;
@@ -1857,11 +1912,13 @@
   function finishQuestTurn(r, outcome) {
     r.turns++;
     const q = game.quest;
+    if (game.net) game.net.turn++;
     if (r.visited.size === 3) {
       q.phase = 'over';
       q.winner = r;
       renderAll();
       setMessage(tr('msg.visitedAll', { robot: r.name }), 'good');
+      if (game.net) { setTimeout(() => netGameOver(r), game.fast ? 0 : 600); return; }
       setTimeout(() => {
         SND.win();
         confetti();
@@ -1886,16 +1943,28 @@
     if (outcome.result === 'bump') text = tr('msg.bumpQuest', { robot: r.name, what: outcome.what });
     else if (outcome.result === 'off') text = tr('msg.offQuest', { robot: r.name });
     else text = tr('msg.stopped', { robot: r.name });
-    q.phase = 'roll';
-    if (game.robots.length > 1) {
-      game.active = (game.active + 1) % game.robots.length;
+    nextTurn(text, outcome.result === 'done' ? '' : 'bad');
+  }
+
+  // Passes the dice to the next robot still in the game.
+  function nextTurn(text, kind) {
+    game.quest.phase = 'roll';
+    game.tray = [];
+    game.program = [];
+    const playing = game.robots.filter((o) => !o.gone);
+    if (playing.length > 1) {
+      do { game.active = (game.active + 1) % game.robots.length; } while (game.robots[game.active].gone);
       const next = game.robots[game.active];
-      text += next.ai ? tr('ai.nextTurn', { robot: next.name }) : tr('msg.nextTurn', { team: next.name });
+      if (next.ai || (game.net && !myTurn())) text += tr('ai.nextTurn', { robot: next.name });
+      else if (game.net) text += tr('net.yourTurnNext', { robot: next.name });
+      else text += tr('msg.nextTurn', { team: next.name });
     } else {
+      if (game.robots[game.active].gone) game.active = game.robots.indexOf(playing[0]);
       text += tr('msg.rollAgain');
     }
-    setMessage(text, outcome.result === 'done' ? '' : 'bad');
+    setMessage(text, kind);
     renderAll();
+    netTurnActivity();
     if (isAiTurn()) aiTurn();
   }
 
@@ -1941,15 +2010,17 @@
     run(true);
   }
 
-  async function roll(byAi) {
+  // `faces` are the dice another device rolled, in a game on several devices.
+  async function roll(byAi, faces) {
     const q = game.quest;
-    if (!q || q.phase !== 'roll' || game.rolling || (isAiTurn() && byAi !== true)) return;
+    if (!q || q.phase !== 'roll' || game.rolling || (othersTurn() && byAi !== true)) return;
+    const final = faces || [0, 1, 2, 3, 4].map(() => DICE_FACES[Math.floor(Math.random() * DICE_FACES.length)]);
+    if (byAi !== true && !netSend('roll', { faces: final })) return;
     game.rolling = true;
     game.program = [];
     game.trail = [];
     clearRunMarks();
     renderAll();
-    const final = [0, 1, 2, 3, 4].map(() => DICE_FACES[Math.floor(Math.random() * DICE_FACES.length)]);
     for (let k = 0; k < 10; k++) {
       game.tray = final.map((t, i) => ({ id: uid(), t: k < 9 - (4 - i) ? DICE_FACES[Math.floor(Math.random() * 6)] : t }));
       renderPool();
@@ -1960,7 +2031,9 @@
     q.phase = 'arrange';
     game.rolling = false;
     renderAll();
-    if (!isAiTurn()) setMessage(tr('msg.arrange'));
+    if (game.net && !myTurn()) setMessage(tr('net.arranging', { robot: game.robots[game.active].name }), 'wait');
+    else if (!isAiTurn()) setMessage(tr('msg.arrange'));
+    netTurnActivity();
   }
 
   $('#btn-go').addEventListener('click', run);
@@ -2044,6 +2117,650 @@
   });
   I18N.applyStatic();
 
+  // ---------- Playing on several devices ----------
+  //
+  // Dice Quest for 2-4 players, each on their own device. js/net.js talks to
+  // the relay; relay/room.js is what the relay keeps. Every device plays the
+  // same game: the moves arrive in order (the start with its map, each roll,
+  // each algorithm that runs, skipped turns, players who leave) and each
+  // device plays them out with the same rules, so all the maps match. Players
+  // act only on their own turn; everyone else watches.
+  //
+  // game.net, while in such a game:
+  //   conn       the connection (js/net.js), code (the 4 pictures), seat (this device's)
+  //   seats      who is in the game, from the relay
+  //   started    false in the lobby; turn: turns finished so far (the relay checks it)
+  //   applied    moves played out so far; pending: this device's moves not yet confirmed
+  //   queue      moves waiting to be played out (one at a time, after any animation)
+
+  const NET = globalThis.RoversaNet;
+  const PIC_FILES = ['treasure-chest', 'treasure-bags', 'treasure-coins', 'goal-duck', 'char-toothie', 'char-byteclaw', 'char-captain', 'robot'];
+  const AWAY_SKIP_MS = 60 * 1000; // a player who dropped is skipped after this
+  const IDLE_ASK_MS = 2 * 60 * 1000; // then "Are you still there?"
+  const IDLE_GRACE_S = 30; // and their turn is skipped after this
+  const NOBODY_MS = 5 * 60 * 1000; // "Nobody joined yet"
+  const netId = () => Math.random().toString(36).slice(2, 10);
+  const clock = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  const costumeOf = (id) => SP.CHARACTERS.find((ch) => ch.id === id) || null;
+  const charName = (id) => (id ? tr('char.' + id) : tr('net.newPlayer'));
+
+  function picHtml(n, tag) {
+    const el = tag || 'div';
+    return '<' + el + ' class="pic"' + (el === 'button' ? ' type="button" data-pic="' + n + '" aria-label="' + tr('pic.' + n) + '"' : '') + '>' +
+      '<img src="assets/sprites/' + PIC_FILES[n] + '.png?v=__BUILD__" alt="">' +
+      '<small>' + tr('pic.' + n) + '</small></' + el + '>';
+  }
+  function codeHtml(code, bad) {
+    const pics = [0, 1, 2, 3].map((i) => (code[i] != null ? picHtml(Number(code[i])) : '<div class="pic empty"></div>')).join('');
+    const list = String(code).split('').map((n) => tr('pic.' + n)).join(', ');
+    return '<div class="pic-code' + (bad ? ' bad' : '') + '" role="img" aria-label="' + tr('net.code', { list }) + '">' + pics + '</div>';
+  }
+
+  function faceCanvas(id) {
+    const c = document.createElement('canvas');
+    c.width = 32; c.height = 32;
+    const ch = costumeOf(id);
+    if (ch) c.getContext('2d').drawImage(ch.sprite, 0, 0);
+    return c;
+  }
+
+  function modalButtons(buttons) {
+    return '<div class="choices col">' + buttons.map((b) => '<button class="btn big ' + b.color + '" data-act="' + b.act + '">' +
+      (b.icon ? '<span class="btn-icon" aria-hidden="true">' + b.icon + '</span> ' : '') + b.label + '</button>').join('') + '</div>';
+  }
+
+  // A pop-up with a title, some text and buttons; `acts` maps each button to what it does.
+  function netModal(o, acts) {
+    openModal((o.icon ? '<div class="big-icon" aria-hidden="true">' + o.icon + '</div>' : '') +
+      '<h3>' + o.title + '</h3>' + (o.html || '') + (o.text ? '<p>' + o.text + '</p>' : '') +
+      (o.buttons ? modalButtons(o.buttons) : '') + (o.note ? '<p class="note">' + o.note + '</p>' : ''), o.onClose);
+    say(o.title + '. ' + (o.text || '').replace(/<[^>]+>/g, ''));
+    modal.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
+      SND.tap();
+      const fn = acts && acts[b.dataset.act];
+      closeModal();
+      if (fn) fn();
+    }));
+  }
+
+  // ---------- Getting into a game ----------
+
+  function netChoice() {
+    netModal({
+      title: tr('net.button'), text: tr('net.each'), note: tr('net.needsNet'),
+      buttons: [
+        { act: 'start', color: 'green', icon: '&#9733;', label: tr('net.start') },
+        { act: 'join', color: 'blue', icon: '&#10148;', label: tr('net.join') },
+      ],
+    }, { start: netCreate, join: () => netJoinScreen([]) });
+  }
+
+  async function netCreate() {
+    const pick = await pickCostume(tr('modal.pickRobot'), '', []);
+    if (!pick) return;
+    saveCostume(pick);
+    netConnect({ create: true, costume: pick.id });
+  }
+
+  function randomCode() {
+    return [0, 1, 2, 3].map(() => Math.floor(Math.random() * 8)).join('');
+  }
+
+  // opts: { create, code, token, costume, quiet (rejoining after a refresh), tries }
+  function netConnect(opts) {
+    netEnd();
+    const code = opts.code || randomCode();
+    const net = game.net = {
+      code, opts, seat: null, seats: [], started: false, host: !!opts.create, status: 'connecting',
+      turn: 0, applied: 0, pending: [], queue: [], working: false, startKey: null,
+      awaySince: {}, skipSent: -1, lastAct: Date.now(), asked: false, liveSent: '', pendingLive: null,
+      lobbySince: Date.now(), nobodyAsked: false, droppedShown: null,
+    };
+    if (!opts.quiet) openModal('<h3>' + tr('net.connecting') + '</h3>');
+    net.conn = NET.join({
+      code, create: opts.create, token: opts.token,
+      on: {
+        welcome: (w) => { if (game.net === net) netWelcome(net, w); },
+        msg: (m) => { if (game.net === net) netMessage(net, m); },
+        status: (s) => { if (game.net === net) netStatus(net, s); },
+        fail: (why, v) => { if (game.net === net) netFail(net, why, v); },
+        closed: (why) => { if (game.net === net) netClosed(net, why); },
+      },
+    });
+    net.timer = setInterval(() => netTick(net), 1000);
+  }
+
+  // Stops this device's game (without telling anyone; see netLeave).
+  function netEnd() {
+    const net = game.net;
+    if (!net) return;
+    clearInterval(net.timer);
+    if (net.conn) net.conn.close();
+    game.net = null;
+    game.fast = false;
+    $('#net-banner').hidden = true;
+  }
+
+  // Leaves the game for good: the others are told and keep playing.
+  function netLeave() {
+    const net = game.net;
+    if (net && net.conn) net.conn.leave();
+    NET.forget();
+    netEnd();
+  }
+
+  async function netFail(net, why, v) {
+    const opts = net.opts;
+    netEnd();
+    if (opts.quiet) { NET.forget(); return; }
+    closeModal();
+    const again = () => (opts.create ? netConnect({ create: true, costume: opts.costume }) : netConnect({ code: opts.code }));
+    const home = () => show('quest-setup');
+    if (why === 'taken' && (opts.tries || 0) < 5) { netConnect(Object.assign({}, opts, { code: null, tries: (opts.tries || 0) + 1 })); return; }
+    if (why === 'nogame' || why === 'closed') { netJoinScreen([], opts.code); return; }
+    if (why === 'full' || why === 'started') {
+      netModal({ icon: '&#128101;', title: tr('net.fullTitle'), text: tr('net.fullText'),
+        buttons: [{ act: 'start', color: 'green', icon: '&#9733;', label: tr('net.start') }, { act: 'back', color: 'gray', label: tr('net.back') }] },
+      { start: netCreate, back: home });
+      return;
+    }
+    if (why === 'version') {
+      if (v > NET.VERSION) {
+        netModal({ icon: '&#9733;', title: tr('net.updateTitle'), text: tr('net.updateText'),
+          buttons: [{ act: 'update', color: 'green', icon: '&#8635;', label: tr('net.update') }] }, { update: () => location.reload() });
+      } else {
+        netModal({ title: tr('net.olderTitle'), text: tr('net.olderText'), buttons: [{ act: 'ok', color: 'blue', label: tr('net.ok') }] }, { ok: home });
+      }
+      return;
+    }
+    // Couldn't connect: is the relay there at all, or just too busy?
+    const state = await NET.check();
+    const busy = state === 'busy';
+    netModal({
+      icon: busy ? '&#9203;' : '&#128225;', title: tr(busy ? 'net.busyTitle' : 'net.cantTitle'), text: tr(busy ? 'net.busyText' : 'net.cantText'),
+      buttons: [{ act: 'again', color: 'blue', icon: '&#8634;', label: tr('net.tryAgain') }, { act: 'one', color: 'gray', label: tr('net.oneDevice') }],
+    }, { again, one: home });
+  }
+
+  // The relay ended the game.
+  function netClosed(net, why) {
+    const host = net.seats.find((p) => p.host);
+    netEnd();
+    NET.forget();
+    closeModal();
+    const toSetup = () => show('quest-setup');
+    if (why === 'hostLeft') {
+      netModal({ title: tr('net.stoppedTitle'), text: tr('net.stoppedText', { robot: charName(host && host.costume) }),
+        buttons: [{ act: 'ok', color: 'blue', label: tr('net.ok') }] }, { ok: toSetup });
+    } else if (why === 'lobby') {
+      netModal({ icon: '&#8987;', title: tr('net.lobbyClosedTitle'), text: tr('net.lobbyClosedText'),
+        buttons: [{ act: 'ok', color: 'blue', label: tr('net.ok') }] }, { ok: toSetup });
+    } else {
+      netModal({ icon: '&#128164;', title: tr('net.endedTitle'), text: tr('net.endedText'),
+        buttons: [{ act: 'new', color: 'green', icon: '&#9733;', label: tr('newGame') }, { act: 'home', color: 'gray', icon: '&#8962;', label: tr('home') }] },
+      { new: () => { show('quest-setup'); netChoice(); }, home: () => show('title') });
+    }
+  }
+
+  function netStatus(net, s) {
+    net.status = s;
+    const banner = $('#net-banner');
+    banner.hidden = s !== 'reconnecting';
+    banner.textContent = '\u{1F4E1} ' + tr('net.reconnecting');
+    if (s === 'online' && net.lostShown) { net.lostShown = false; closeModal(); }
+    if (s === 'lost') {
+      net.lostShown = true;
+      netModal({ icon: '&#128268;', title: tr('net.lostTitle'), text: tr('net.lostText'),
+        buttons: [{ act: 'again', color: 'blue', icon: '&#8634;', label: tr('net.tryAgain') }, { act: 'leave', color: 'gray', label: tr('net.leaveGame') }] },
+      { again: () => { net.lostShown = false; net.conn.retry(); }, leave: () => { netLeave(); show('quest-setup'); } });
+    }
+  }
+
+  // Joined (or rejoined after a dropped connection, or caught up after a refused move).
+  function netWelcome(net, w) {
+    const first = net.seat == null;
+    net.seat = w.seat;
+    net.code = w.code;
+    net.host = w.seat === 0;
+    netSeats(net, w.seats);
+    if (first && !net.opts.quiet) closeModal();
+    if (!w.started) {
+      net.started = false;
+      const me = net.seats.find((p) => p.seat === net.seat);
+      if (me && !me.costume && net.opts.costume) net.conn.send({ t: 'costume', id: net.opts.costume });
+      netLobby(net);
+      return;
+    }
+    netCatchUp(net, w.log);
+  }
+
+  function netPickCostume(net) {
+    const taken = net.seats.filter((p) => p.seat !== net.seat && p.costume).map((p) => costumeOf(p.costume));
+    pickCostume(tr('net.pickRobot'), tr('net.grayTaken'), taken).then((pick) => {
+      if (game.net !== net || net.started) return;
+      const left = SP.CHARACTERS.filter((ch) => !net.seats.some((p) => p.seat !== net.seat && p.costume === ch.id));
+      const ch = pick && !taken.includes(pick) ? pick : left[0];
+      if (pick) saveCostume(pick);
+      net.opts.costume = ch.id;
+      net.conn.send({ t: 'costume', id: ch.id });
+    });
+  }
+
+  function netSeats(net, seats) {
+    net.seats = seats;
+    const now = Date.now();
+    seats.forEach((p) => {
+      if (!p.connected && !p.left) { if (!net.awaySince[p.seat]) net.awaySince[p.seat] = now; } else delete net.awaySince[p.seat];
+    });
+  }
+
+  function netAway(seat) {
+    const net = game.net;
+    const p = net && net.seats.find((s) => s.seat === seat);
+    return !!p && !p.connected && !p.left && seat !== net.seat;
+  }
+
+  function netMessage(net, m) {
+    if (m.t === 'welcome') { netWelcome(net, m); return; }
+    if (m.t === 'seats') {
+      const wasAway = game.robots[game.active] && netAway(game.robots[game.active].seat);
+      netSeats(net, m.seats);
+      if (!net.started) { netLobby(net); return; }
+      renderScoreboard();
+      const r = game.robots[game.active];
+      if (wasAway && r && !netAway(r.seat)) { net.droppedShown = null; netPromptCurrent(); }
+      return;
+    }
+    if (m.t === 'costumeTaken') { net.opts.costume = null; netPickCostume(net); return; }
+    if (m.t === 'live') { net.pendingLive = m; netApplyLive(net); return; }
+    if (m.t !== 'ev') return;
+    const ev = m.ev;
+    if (ev.t === 'start') {
+      // A new game (also "Play again"): start over from this move.
+      net.applied = 0;
+      net.pending = [];
+      net.queue = [];
+    }
+    if (ev.n < net.applied) return;
+    if (ev.n > net.applied) { net.conn.send({ t: 'sync' }); return; }
+    net.applied++;
+    const mine = net.pending.indexOf(ev.id);
+    if (mine >= 0 && ev.seat === net.seat) { net.pending.splice(mine, 1); return; }
+    net.queue.push({ ev });
+    netWork(net);
+  }
+
+  // After a (re)join: play out the moves this device missed, or, if what it
+  // did doesn't match what the relay kept, rebuild the game from the start.
+  function netCatchUp(net, log) {
+    const sameGame = log.length && net.startKey === JSON.stringify(log[0].map) && log.length >= net.applied;
+    if (sameGame) {
+      log.slice(net.applied).forEach((ev) => {
+        net.applied++;
+        const mine = net.pending.indexOf(ev.id);
+        if (mine >= 0 && ev.seat === net.seat) net.pending.splice(mine, 1);
+        else net.queue.push({ ev });
+      });
+      if (!net.pending.length) { netWork(net); return; }
+    }
+    net.pending = [];
+    net.applied = log.length;
+    net.queue = [{ rebuild: log }];
+    game.fast = true; // finishes any animation right away
+    netWork(net);
+  }
+
+  async function netWork(net) {
+    if (net.working) return;
+    net.working = true;
+    while (game.net === net && net.queue.length) {
+      const next = net.queue[0];
+      // Wait for this device's own roll or run (or Step-by-Step) to finish.
+      while (game.net === net && (game.running || game.rolling || (game.stepping && !next.rebuild))) await sleep(100);
+      if (game.net !== net) break;
+      net.queue.shift();
+      try {
+        if (next.rebuild) await netRebuild(net, next.rebuild);
+        else await netApply(net, next.ev);
+      } catch (e) {
+        console.error(e); // eslint-disable-line no-console
+      }
+    }
+    net.working = false;
+    if (game.net === net) netApplyLive(net);
+  }
+
+  async function netRebuild(net, log) {
+    game.fast = true;
+    game.stepping = null;
+    if (!net.lostShown) closeModal();
+    for (const ev of log) {
+      if (game.net !== net) return;
+      await netApply(net, ev);
+    }
+    game.fast = false;
+    renderAll();
+    netPromptCurrent();
+  }
+
+  function robotOfSeat(seat) {
+    return game.robots.find((r) => r.seat === seat) || null;
+  }
+
+  async function netApply(net, ev) {
+    if (ev.t === 'start') {
+      net.started = true;
+      net.startKey = JSON.stringify(ev.map);
+      net.turn = 0;
+      net.skipSent = -1;
+      net.liveSent = '';
+      net.pendingLive = null;
+      game.aiLevel = null;
+      game.characters = ev.players.map((p) => costumeOf(p.costume));
+      closeModal();
+      startQuest(ev.players.length, ev.map);
+      game.robots.forEach((r, i) => { r.seat = ev.players[i].seat; });
+      renderAll();
+      promptRoll();
+      netTurnActivity();
+      return;
+    }
+    if (!game.quest || game.quest.phase === 'over') return;
+    if (ev.t === 'roll') {
+      const i = game.robots.indexOf(robotOfSeat(ev.seat));
+      if (i >= 0) game.active = i;
+      game.quest.phase = 'roll';
+      await roll(true, ev.faces);
+    } else if (ev.t === 'go') {
+      game.tray = [];
+      game.program = ev.program.map((p) => ({ id: uid(), t: p.t, chosen: p.chosen }));
+      game.quest.phase = 'arrange';
+      game.stepping = null;
+      await run(true);
+    } else if (ev.t === 'skip') {
+      net.turn++;
+      const r = robotOfSeat(ev.who);
+      if (r === game.robots[game.active]) {
+        if (net.stillShown) { net.stillShown = false; closeModal(); }
+        game.stepping = null;
+        clearRunMarks();
+        nextTurn(tr('net.skipped', { robot: r.name }), 'wait');
+      }
+    } else if (ev.t === 'leave') {
+      const r = robotOfSeat(ev.seat);
+      if (!r) return;
+      r.gone = true;
+      Object.assign(r, { x: -99, y: -99, rx: -99, ry: -99 });
+      setMessage(tr('net.playerLeft', { robot: r.name }), 'wait');
+      renderAll();
+      const playing = game.robots.filter((o) => !o.gone);
+      if (!game.fast && playing.length === 1 && playing[0].seat === net.seat) netAlone();
+    }
+  }
+
+  // Tells the player what is happening now, after catching up.
+  function netPromptCurrent() {
+    const q = game.quest;
+    const r = game.robots[game.active];
+    if (!q || !r || q.phase === 'over' || game.running || game.rolling) return;
+    if (q.phase === 'roll') promptRoll();
+    else if (myTurn()) setMessage(tr('msg.arrange'));
+    else setMessage(tr('net.arranging', { robot: r.name }), 'wait');
+  }
+
+  // ---------- This device's moves ----------
+
+  // Sends a roll or an algorithm on this device's turn. False if it can't
+  // right now (offline, or still catching up), so the move doesn't happen.
+  // Outside a game on several devices it always says yes.
+  function netSend(type, data) {
+    const net = game.net;
+    if (!net || game.mode !== 'quest') return true;
+    if (!myTurn() || net.queue.length || game.fast) return false;
+    const id = netId();
+    const sent = net.conn.send({ t: 'ev', ev: Object.assign({ t: type, turn: net.turn, id }, data) });
+    if (!sent) {
+      SND.bump();
+      setMessage(tr('net.notOnline'), 'bad');
+      return false;
+    }
+    net.pending.push(id);
+    netTurnActivity();
+    return true;
+  }
+
+  function netSendGo() {
+    return netSend('go', { program: game.program.map((p) => ({ t: p.t, chosen: p.chosen })) });
+  }
+
+  // While a player arranges their pieces, the others see them move.
+  function netShowArranging() {
+    const net = game.net;
+    if (!net || !net.started || game.fast || game.mode !== 'quest') return;
+    $('#pool-label').textContent = othersTurn() ? tr('net.theirRoll', { robot: game.robots[game.active].name }) : tr('yourRoll');
+    if (!myTurn() || !game.quest || game.quest.phase !== 'arrange' || game.running || game.stepping) return;
+    const program = game.program.map((p) => ({ t: p.t, chosen: p.chosen }));
+    const tray = game.tray.map((p) => ({ t: p.t }));
+    const text = JSON.stringify([program, tray]);
+    if (text === net.liveSent) return;
+    net.liveSent = text;
+    netTurnActivity();
+    net.conn.send({ t: 'live', program, tray });
+  }
+
+  function netApplyLive(net) {
+    const m = net.pendingLive;
+    if (!m || game.running || game.rolling || net.queue.length || game.fast) return;
+    const r = game.robots[game.active];
+    if (m.turn !== net.turn || !r || r.seat !== m.seat || r.seat === net.seat || !game.quest || game.quest.phase !== 'arrange') return;
+    net.pendingLive = null;
+    game.program = m.program.map((p) => ({ id: uid(), t: p.t, chosen: p.chosen }));
+    game.tray = m.tray.map((p) => ({ id: uid(), t: p.t }));
+    renderAll();
+  }
+
+  // Something happened on this device's turn (or a new turn started).
+  function netTurnActivity() {
+    const net = game.net;
+    if (!net) return;
+    net.lastAct = Date.now();
+    net.asked = false;
+  }
+
+  // The lowest seat still connected looks after skipping players who dropped or left.
+  function netLeader() {
+    const net = game.net;
+    const playing = game.robots.filter((r) => !r.gone && (r.seat === net.seat || !netAway(r.seat))).map((r) => r.seat);
+    return playing.length && Math.min.apply(null, playing) === net.seat;
+  }
+
+  function netSkip(net, seat) {
+    if (net.skipSent === net.turn) return;
+    if (net.conn.send({ t: 'ev', ev: { t: 'skip', who: seat, turn: net.turn, id: netId() } })) net.skipSent = net.turn;
+  }
+
+  // Every second during a game on several devices.
+  function netTick(net) {
+    if (game.net !== net) { clearInterval(net.timer); return; }
+    const now = Date.now();
+    if (!net.started) {
+      const alone = net.seat === 0 && net.seats.filter((p) => !p.left).length <= 1;
+      if (!alone) net.lobbySince = now;
+      if (alone && !net.nobodyAsked && now - net.lobbySince > NOBODY_MS && $('#screen-net').classList.contains('active')) {
+        net.nobodyAsked = true;
+        netModal({
+          icon: '&#8987;', title: tr('net.nobodyTitle'), text: tr('net.nobodyText'), html: codeHtml(net.code), note: tr('net.closesIn'),
+          buttons: [{ act: 'wait', color: 'green', label: tr('net.keepWaiting') }, { act: 'stop', color: 'gray', label: tr('net.stop') }],
+        }, { wait: () => { net.lobbySince = Date.now(); net.nobodyAsked = false; }, stop: () => { netLeave(); show('quest-setup'); } });
+      }
+      return;
+    }
+    if (game.fast || net.queue.length || !game.quest || game.quest.phase === 'over' || net.status !== 'online') return;
+    const r = game.robots[game.active];
+    if (!r) return;
+    // A player who left, or dropped for a minute, is skipped.
+    if (r.gone) {
+      if (netLeader()) netSkip(net, r.seat);
+    } else if (r.seat !== net.seat && netAway(r.seat) && !game.running && !game.rolling) {
+      const left = Math.ceil((AWAY_SKIP_MS - (now - net.awaySince[r.seat])) / 1000);
+      if (left > 0) {
+        const text = tr('net.dropped', { robot: r.name, time: clock(left) });
+        if (net.droppedShown === r.seat) $('#message').textContent = text;
+        else { net.droppedShown = r.seat; setMessage(text, 'wait'); }
+      } else if (netLeader()) {
+        netSkip(net, r.seat);
+      }
+    }
+    // This player's own turn, with nothing happening for a while.
+    if (myTurn() && !game.running && !game.rolling && !net.asked && now - net.lastAct > IDLE_ASK_MS) {
+      net.asked = true;
+      netStillThere(net);
+    }
+  }
+
+  function netStillThere(net) {
+    const turn = net.turn;
+    let left = IDLE_GRACE_S;
+    net.stillShown = true;
+    netModal({
+      title: tr('net.stillTitle'), text: tr('net.stillText'), html: '', note: tr('net.skipNote'),
+      buttons: [{ act: 'here', color: 'green', label: tr('net.here') }],
+    }, { here: () => { net.stillShown = false; netTurnActivity(); } });
+    modal.querySelector('h3').insertAdjacentHTML('afterend', '<div class="timer">' + clock(left) + '</div>');
+    const timer = setInterval(() => {
+      if (game.net !== net || !net.stillShown || net.turn !== turn) { clearInterval(timer); return; }
+      left--;
+      const el = modal.querySelector('.timer');
+      if (el) el.textContent = clock(Math.max(0, left));
+      if (left <= 0) {
+        clearInterval(timer);
+        net.stillShown = false;
+        closeModal();
+        if (myTurn()) netSkip(net, net.seat);
+      }
+    }, 1000);
+  }
+
+  function netAlone() {
+    const me = robotOfSeat(game.net.seat);
+    netModal({
+      title: tr('net.aloneTitle'), text: tr('net.aloneText', { robot: me.name }),
+      html: '<canvas class="winner" width="32" height="32" aria-hidden="true"></canvas>',
+      buttons: [
+        { act: 'keep', color: 'green', label: tr('net.keepAlone') },
+        { act: 'new', color: 'blue', label: tr('newGame') },
+        { act: 'home', color: 'gray', icon: '&#8962;', label: tr('home') },
+      ],
+    }, { new: () => { netLeave(); show('quest-setup'); netChoice(); }, home: () => { netLeave(); show('title'); } });
+    const c = modal.querySelector('.winner');
+    if (c) c.getContext('2d').drawImage(me.character || me.sprite, 0, 0);
+  }
+
+  function netGameOver(r) {
+    const net = game.net;
+    if (!net || game.fast) return;
+    SND.win();
+    confetti();
+    const host = net.seats.find((p) => p.host && !p.left);
+    const players = net.seats.filter((p) => !p.left && p.costume).length;
+    const canRestart = net.seat === 0 && players >= 2;
+    netModal({
+      title: tr('modal.wins', { team: r.name }),
+      html: '<canvas class="winner" width="32" height="32" aria-hidden="true"></canvas>',
+      text: tr('modal.foundAll', { robot: r.name, n: r.turns }),
+      note: !canRestart && host && net.seat !== 0 ? tr('net.waitRematch', { robot: charName(host.costume) }) : '',
+      buttons: (canRestart ? [{ act: 'again', color: 'green', label: tr('modal.playAgain') }] : [])
+        .concat([{ act: 'home', color: 'gray', icon: '&#8962;', label: tr('home') }]),
+    }, { again: () => net.conn.send({ t: 'start', map: questMap(players) }), home: () => { netLeave(); show('title'); } });
+    modal.querySelector('.winner').getContext('2d').drawImage(r.character || r.sprite, 0, 0);
+  }
+
+  function netConfirmLeave() {
+    netModal({
+      title: tr('net.leaveTitle'), text: tr('net.leaveText'),
+      buttons: [{ act: 'leave', color: 'red', label: tr('net.leave') }, { act: 'stay', color: 'green', label: tr('modal.keepPlaying') }],
+    }, { leave: () => { netLeave(); show('quest-setup'); } });
+  }
+
+  // ---------- Lobby and join screens ----------
+
+  function netScreen(title, html) {
+    $('#net-title').textContent = title;
+    $('#net-body').innerHTML = html;
+    if (!$('#screen-net').classList.contains('active')) show('net');
+  }
+
+  function netLobby(net) {
+    const me = net.seats.find((p) => p.seat === net.seat);
+    const host = net.seats.find((p) => p.host);
+    const present = net.seats.filter((p) => !p.left);
+    const ready = present.filter((p) => p.costume);
+    const rows = present.map((p) => {
+      let st = p.costume ? tr('net.ready') : tr('net.picking');
+      let cls = p.costume ? 'ok' : 'warn';
+      if (!p.connected) { st = tr('net.away'); cls = 'warn'; }
+      else if (p.host && !net.host) st = tr('net.startedIt');
+      else if (net.host && p.seat !== net.seat && p.costume) st = tr('net.joined');
+      return '<li data-seat="' + p.seat + '"><span class="face"></span><span>' + charName(p.costume) + '</span>' +
+        (p.seat === net.seat ? '<span class="you-tag">' + tr('net.you') + '</span>' : '') +
+        '<span class="st ' + cls + '">' + st + '</span></li>';
+    });
+    while (rows.length < 4) rows.push('<li class="waiting">' + tr('net.waitPlayer') + '</li>');
+    let foot;
+    if (net.host) {
+      const canStart = ready.length >= 2 && ready.length === present.length;
+      foot = '<div class="menu"><button class="btn big green" id="btn-net-start"' + (canStart ? '' : ' disabled') + '>' +
+        '<span class="btn-icon" aria-hidden="true">&#9654;</span> ' + tr('net.startWith', { n: Math.max(2, ready.length) }) + '</button></div>' +
+        '<p class="note">' + tr('net.upTo') + '</p>';
+    } else {
+      foot = '<p class="message wait">' + tr('net.waitStart', { robot: charName(host && host.costume) }) + '</p>';
+    }
+    netScreen(net.host ? tr('net.yourGame') : tr('net.inTitle'),
+      (net.host ? '<p>' + tr('net.tapThese') + '</p>' : '') + codeHtml(net.code) + '<ul class="lobby">' + rows.join('') + '</ul>' + foot);
+    $('#net-body').querySelectorAll('li[data-seat]').forEach((li) => {
+      const p = present.find((s) => String(s.seat) === li.dataset.seat);
+      li.querySelector('.face').appendChild(faceCanvas(p && p.costume));
+    });
+    const start = $('#btn-net-start');
+    if (start) start.addEventListener('click', () => {
+      SND.tap();
+      const n = net.seats.filter((p) => !p.left && p.costume).length;
+      if (n >= 2) net.conn.send({ t: 'start', map: questMap(n) });
+    });
+    if (me && !me.costume && !net.opts.costume && modal.hidden) netPickCostume(net);
+  }
+
+  // The picture keypad. `wrong` is a code that matched no game.
+  function netJoinScreen(code, wrong) {
+    netEnd();
+    const bad = wrong != null;
+    netScreen(tr('net.joinTitle'),
+      '<p>' + tr('net.tapPics') + '</p>' + codeHtml(bad ? wrong : code.join(''), bad) +
+      (bad ? '<p class="message bad">' + tr('net.wrongCode') + '</p>' : '') +
+      '<div class="keypad">' + PIC_FILES.map((f, n) => picHtml(n, 'button')).join('') + '</div>' +
+      '<div class="menu row"><button class="btn gray labeled" id="btn-net-undo"' + (code.length ? '' : ' disabled') + '>' +
+      '<span class="btn-sym" aria-hidden="true">&#9003;</span> ' + tr('net.undo') + '</button></div>');
+    if (bad) say(tr('net.wrongCode'));
+    $('#net-body').querySelectorAll('[data-pic]').forEach((b) => b.addEventListener('click', () => {
+      SND.tap();
+      const next = code.concat(b.dataset.pic);
+      if (next.length < 4) { netJoinScreen(next); return; }
+      netJoinScreen(next);
+      netConnect({ code: next.join('') });
+    }));
+    $('#btn-net-undo').addEventListener('click', () => { SND.remove(); netJoinScreen(code.slice(0, -1)); });
+    const first = $('#net-body [data-pic]');
+    if (first && document.activeElement === document.body) first.focus();
+  }
+
+  $('#btn-net').addEventListener('click', () => { SND.tap(); netChoice(); });
+  $('#btn-net-home').addEventListener('click', () => {
+    SND.tap();
+    if (game.net) netLeave();
+    show('quest-setup');
+  });
+  $('#net-menu').hidden = !NET.available();
+
   // ---------- Start ----------
 
   const titleRobot = $('#title-robot');
@@ -2061,5 +2778,8 @@
   SP.ready.then(() => {
     titleRobot.getContext('2d').drawImage(SP.smileyRobot(), 0, 0);
     openFromHash();
+    // A page refreshed during a game on several devices rejoins it.
+    const saved = NET.available() && !location.hash && NET.saved();
+    if (saved) netConnect({ code: saved.code, token: saved.token, quiet: true });
   });
 })();

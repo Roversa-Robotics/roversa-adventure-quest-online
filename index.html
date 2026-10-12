@@ -102,7 +102,24 @@
           <span class="btn-icon" aria-hidden="true">&#129302;</span> <span data-i18n="players.ai">Play an AI Opponent</span>
         </button>
       </div>
+      <!-- Shown only when a relay is set up (js/net.js). -->
+      <div class="menu" id="net-menu" hidden>
+        <button class="btn big green net-btn" id="btn-net" type="button">
+          <span class="btn-icon" aria-hidden="true">&#128241;</span> <span data-i18n="net.button">Play on 2-4 devices</span>
+        </button>
+      </div>
     </div>
+  </section>
+
+  <!-- Dice Quest on several devices: the game's pictures, who is in, joining -->
+  <section id="screen-net" class="screen">
+    <header class="bar">
+      <button class="icon-btn" id="btn-net-home" aria-label="Home" data-i18n-attr="aria-label:home">&#8962;</button>
+      <h2 id="net-title">Dice Quest</h2>
+      <button class="icon-btn btn-voice" type="button" aria-label="Read aloud" title="Read aloud" data-i18n-attr="aria-label:readAloud; title:readAloud">&#128172;</button>
+      <button class="icon-btn btn-sound" type="button" aria-label="Sound on or off" data-i18n-attr="aria-label:sound">&#9835;</button>
+    </header>
+    <div class="setup net-setup" id="net-body"></div>
   </section>
 
   <!-- Game -->
@@ -157,12 +174,16 @@
 
   <div id="confetti" aria-hidden="true"></div>
 
+  <div id="net-banner" class="net-banner" role="status" hidden></div>
+
   <script src="js/engine.js?v=__BUILD__"></script>
   <script src="js/levels.js?v=__BUILD__"></script>
   <script src="js/sprites.js?v=__BUILD__"></script>
   <script src="js/audio.js?v=__BUILD__"></script>
   <script src="js/i18n.js?v=__BUILD__"></script>
   <script src="js/ai.js?v=__BUILD__"></script>
+  <script src="relay/room.js?v=__BUILD__"></script>
+  <script src="js/net.js?v=__BUILD__"></script>
   <script src="js/game.js?v=__BUILD__"></script>
   <script src="js/pwa.js?v=__BUILD__"></script>
 </body>

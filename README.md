@@ -31,7 +31,66 @@ Once installed (or after one visit), it also works offline.
   where every GO begins. Earn up to three stars by using the fewest pieces.
 - **Dice Quest**: the classroom game. Roll the Roversa die five times, arrange all
   five pieces, and run them. Roversa stays where it stops. First robot to visit
-  all three treasures wins. One or two players, each picking a robot costume.
+  all three treasures wins. One or two players on one device (or against the AI
+  Opponent), each picking a robot costume, or 2 to 4 players on their own
+  devices (see below).
+
+## Playing on several devices
+
+**Play on 2-4 devices** (on the Dice Quest screen) lets each player use their own
+tablet, phone or computer. One player starts a game and gets a code made of 4
+pictures; the others tap **Join a game** and tap the same pictures. Everyone picks
+a robot, the first player presses **Start**, and each device shows the other
+players' rolls, algorithms and runs as they happen.
+
+How it works:
+
+- The game itself stays on GitHub Pages. Only tiny moves travel between devices
+  (the map, each roll, each algorithm), through a small relay on Cloudflare
+  ([`relay/`](relay/)): a Worker, plus one Durable Object per game that keeps the
+  game's moves so a device that drops can catch up. Every device plays the moves
+  out with the same rules ([`js/engine.js`](js/engine.js)).
+- Nothing about players is stored: no names, no accounts, no logs. A game is
+  deleted 10 minutes after its last device leaves, after 15 minutes if nobody
+  starts it, after 20 minutes with no moves, and after 3 hours at most.
+- Nothing else in the game uses the relay. If it can't be reached, Adventures,
+  Dice Quest on one device and the AI Opponent work as usual; only the
+  2-4 devices screens say "Can't connect". The button stays hidden until a
+  relay is set up.
+- [`js/net.js`](js/net.js) has `VERSION`. Bump it whenever the messages between
+  devices change: a device on an older version is asked to update before
+  joining, and games already running are not affected.
+- Players who drop are skipped after a minute until they come back. A player
+  idle for 2 minutes on their own turn is asked "Are you still there?".
+
+### Setting up the relay (once)
+
+All on Cloudflare's free plan, with no credit card:
+
+1. Create a free Cloudflare account (a shared Roversa email is best, with
+   two-factor sign-in) and pick a `workers.dev` name when asked.
+2. Create an API token from the **Edit Cloudflare Workers** template.
+3. In this repository, Settings > Secrets and variables > Actions:
+   - Secrets: `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID`
+     (from the Cloudflare dashboard).
+   - Variables: `RELAY_URL`, the relay's address, like
+     `https://roversa-quest-relay.<your-name>.workers.dev`.
+4. Run Actions > **Dice Quest relay** > Run workflow (it also runs on every merge
+   that changes `relay/`), then Actions > **Deploy to GitHub Pages** > Run
+   workflow, so the game picks up `RELAY_URL`.
+
+[`relay/wrangler.toml`](relay/wrangler.toml) lists the pages allowed to open
+games (`ALLOWED_ORIGINS`); add a new address there if the game moves.
+
+### Testing it
+
+- `node tools/check-relay.js` checks the relay's rules.
+- `index.html?relay=local` plays with no relay at all: open the game in two or
+  more tabs of one browser, start a game in one tab and join it from the others.
+  The tab that started the game runs it, so closing that tab ends it.
+- To run the real relay on a computer, `npx wrangler dev` in `relay/` (port 8787),
+  serve the game on port 8000 (above), and open
+  `http://localhost:8000/?relay=http://localhost:8787`.
 
 ## Puzzle pieces
 
@@ -59,7 +118,8 @@ python3 -m http.server 8000
 ```
 
 Shortcuts for testing: `index.html#level=3` opens level 3, `index.html#quest=2`
-starts a two-player Dice Quest.
+starts a two-player Dice Quest, and `index.html?relay=local` turns on
+**Play on 2-4 devices** between tabs of one browser.
 
 ## Adding or changing levels
 

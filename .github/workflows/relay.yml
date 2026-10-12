@@ -1,0 +1,44 @@
+# Checks the Dice Quest relay on every pull request that changes it, and
+# deploys it to Cloudflare on every merge to main that changes it.
+# Deploying needs the repository secrets CLOUDFLARE_API_TOKEN and
+# CLOUDFLARE_ACCOUNT_ID (see README, "Playing on several devices"). Until
+# they exist, the deploy step just says so and the workflow still passes.
+name: Dice Quest relay
+
+on:
+  push:
+    branches: [main]
+    paths: ['relay/**', 'tools/check-relay.js', '.github/workflows/relay.yml']
+  pull_request:
+    paths: ['relay/**', 'tools/check-relay.js', '.github/workflows/relay.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: relay-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check the relay's rules
+        run: node tools/check-relay.js
+      - name: Deploy to Cloudflare
+        if: github.event_name != 'pull_request'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::notice::The Cloudflare secrets aren't set yet, so the relay was not deployed. See README, 'Playing on several devices'."
+            exit 0
+          fi
+          cd relay
+          npx --yes wrangler@4.149.0 deploy
