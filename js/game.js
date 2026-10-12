@@ -18,6 +18,8 @@
   const MOVE_MS = 380;
   const TURN_MS = 300;
   const PAUSE_MS = 140;
+  const STOP_SHOW_MS = 2000; // how long Roversa waits where it stopped before going back
+  const HOME_MS = 110; // per square when Roversa slides back to the start
   const DICE_FACES = ['F', 'B', 'L', 'R', 'W', 'P'];
   const GOAL_NAMES = named('goal.');
   const TILE_NAMES = named('tile.');
@@ -186,6 +188,8 @@
     quest: null,
     guide: null, // the hand guiding the player, see "Guided tutorial" below
     hideGoals: false, // the tutorial's first duck pops up after Roversa is tapped
+    stopMark: null, // Adventures: where Roversa stopped on a run that missed { x, y, ang, left }
+    homing: null, // changes when Roversa going back to the start should stop
   };
 
   function makeRobot(start, dir, team, teamWheels) {
@@ -306,6 +310,8 @@
       }
     });
 
+    if (game.stopMark) drawStopMark(g, S, false);
+
     // Robots.
     game.robots.forEach((r, i) => {
       g.save();
@@ -327,6 +333,7 @@
       }
     });
 
+    if (game.stopMark) drawStopMark(g, S, true);
     if (game.guide && !game.running) drawGuide(g, S, now);
     if (game.shownPiece) drawShownPiece(g, now, S);
     placeHand();
@@ -338,6 +345,45 @@
       g.fillStyle = p.color;
       g.fillRect(p.x, p.y, SCALE * 2, SCALE * 2);
     });
+  }
+
+  // Where Roversa stopped on a run that missed: a dashed yellow square with a
+  // "Stopped here" tag, and a faint Roversa there once the real one has gone back.
+  function drawStopMark(g, S, tagOnly) {
+    const m = game.stopMark;
+    const r = game.robots[0];
+    if (!tagOnly) {
+      if (m.left && (m.x !== r.sx || m.y !== r.sy)) {
+        g.save();
+        g.translate((m.x + 0.5) * S, (m.y + 0.5) * S);
+        g.rotate(m.ang);
+        g.globalAlpha = 0.38;
+        g.drawImage(r.sprite, -S / 2, -S / 2, S, S);
+        g.restore();
+      }
+      g.save();
+      g.strokeStyle = '#f2c230';
+      g.lineWidth = SCALE * 1.5;
+      g.setLineDash([SCALE * 3.5, SCALE * 2]);
+      g.strokeRect(m.x * S + SCALE, m.y * S + SCALE, S - SCALE * 2, S - SCALE * 2);
+      g.restore();
+      return;
+    }
+    g.save();
+    g.font = 'bold ' + Math.round(S * 0.24) + 'px ' + getComputedStyle(document.body).getPropertyValue('--body');
+    g.textBaseline = 'middle';
+    const text = tr('stoppedHere');
+    const pad = S * 0.1, h = S * 0.34, w = g.measureText(text).width + pad * 2;
+    const left = Math.max(SCALE, Math.min(board.width - w - SCALE, (m.x + 0.5) * S - w / 2));
+    // Above the square, or below it on the top row.
+    const top = m.y > 0 ? m.y * S - h - SCALE : (m.y + 1) * S + SCALE;
+    g.fillStyle = '#0e1024';
+    g.fillRect(left - SCALE, top - SCALE, w + SCALE * 2, h + SCALE * 2);
+    g.fillStyle = '#f2c230';
+    g.fillRect(left, top, w, h);
+    g.fillStyle = '#0e1024';
+    g.fillText(text, left + pad, top + h / 2 + 1);
+    g.restore();
   }
 
   // Roversa's flag stands up from its back right corner, like on the real robot.
@@ -406,12 +452,14 @@
     }
   }
 
-  function tween(obj, to, ms) {
+  // `alive` (optional) is checked every frame; once it says no, the tween stops where it is.
+  function tween(obj, to, ms, alive) {
     return new Promise((resolve) => {
       const from = {};
       Object.keys(to).forEach((k) => { from[k] = obj[k]; });
       const t0 = performance.now();
       function tick(now) {
+        if (alive && !alive()) { resolve(); return; }
         const p = Math.min(1, (now - t0) / ms);
         const e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
         Object.keys(to).forEach((k) => { obj[k] = from[k] + (to[k] - from[k]) * e; });
@@ -647,6 +695,7 @@
     show('game');
     $('#screen-game').classList.toggle('quest-mode', game.mode === 'quest');
     sizeBoard();
+    clearStopMark();
     game.trail = [];
     game.particles = [];
     game.runIndex = -1;
@@ -1414,6 +1463,7 @@
       setMessage(tr('tut.notYet'), 'bad');
     }
     renderAll();
+    driveBack(r);
   }
 
   // Dims and locks everything but what the hand points at.
@@ -1653,6 +1703,7 @@
   // Starts a program from the beginning: in Adventures the robot goes back to its start first.
   function beginRun() {
     const r = game.robots[game.active];
+    clearStopMark();
     if (game.mode === 'level') resetRobot(r);
     game.trail = [{ x: r.x, y: r.y }];
     clearRunMarks();
@@ -1759,12 +1810,48 @@
         if (nextBtn) nextBtn.focus();
       }, 600);
     } else if (outcome.result === 'bump') {
-      setMessage(tr('msg.bumpLevel', { what: outcome.what }), 'bad');
+      setMessage(tr('msg.bumpStop', { what: outcome.what }), 'bad');
+      driveBack(r, () => setMessage(tr('msg.bumpBack', { what: outcome.what }), 'bad'));
     } else {
-      const left = game.map.goals.filter((g) => !r.visited.has(g.id)).map((g) => goalName(g.id));
-      setMessage(tr('msg.almost', { list: left.join(tr('and')) }), 'bad');
+      setMessage(tr('msg.missed'), 'bad');
+      driveBack(r, () => setMessage(tr('msg.backStart'), 'bad'));
     }
     renderButtons();
+  }
+
+  // After a run that missed, Roversa waits where it stopped so the player can see
+  // it, then slides back along its trail to the start, where the next GO begins.
+  // A faint Roversa stays on the stop square until the next run.
+  async function driveBack(r, then) {
+    const token = {};
+    game.homing = token;
+    game.stopMark = { x: r.x, y: r.y, ang: r.ang, left: false };
+    const alive = () => game.homing === token && game.robots[0] === r && !game.running;
+    await sleep(STOP_SHOW_MS);
+    if (!alive()) return;
+    game.stopMark.left = true;
+    const path = game.trail.slice(0, -1).reverse();
+    const ms = Math.min(HOME_MS, 1500 / Math.max(1, path.length));
+    for (const p of path) {
+      await tween(r, { rx: p.x, ry: p.y }, ms, alive);
+      if (!alive()) return;
+    }
+    await tween(r, { rx: r.sx, ry: r.sy }, ms, alive);
+    // Turn back to the start direction the short way round.
+    const home = (r.sdir * Math.PI) / 2;
+    const ang = home + Math.round((r.ang - home) / (2 * Math.PI)) * 2 * Math.PI;
+    if (Math.abs(ang - r.ang) > 0.01) await tween(r, { ang }, TURN_MS, alive);
+    if (!alive()) return;
+    resetRobot(r);
+    game.homing = null;
+    sparkle(r.x, r.y);
+    renderAll();
+    if (then) then();
+  }
+
+  function clearStopMark() {
+    game.stopMark = null;
+    game.homing = null;
   }
 
   function finishQuestTurn(r, outcome) {
@@ -1886,6 +1973,7 @@
     if (game.mode === 'quest') game.program.forEach((p) => game.tray.push({ id: p.id, t: p.t }));
     game.program = [];
     clearRunMarks();
+    if (game.mode === 'level') clearStopMark();
     SND.remove();
     renderAll();
   });
@@ -1897,6 +1985,7 @@
       // Start the level fresh: Roversa back on the start, an empty program row
       // and a clean map, with a sparkle so the restart is easy to see.
       const r = game.robots[0];
+      clearStopMark();
       resetRobot(r);
       game.program = [];
       game.trail = [];
