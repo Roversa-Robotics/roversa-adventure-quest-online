@@ -242,7 +242,6 @@
     if (!('speechSynthesis' in window) || (!force && !UI.voiceOn())) return;
     const id = ++speechId;
     try {
-      speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 0.9;
       u.lang = I18N.speechLang;
@@ -253,12 +252,12 @@
         words.forEach((w) => w.classList.toggle('on', Number(w.dataset.at) <= e.charIndex && e.charIndex < Number(w.dataset.end)));
       };
       u.onend = () => { if (id === speechId) words.forEach((w) => w.classList.remove('on')); };
-      speechSynthesis.speak(u);
+      UI.speakUtterance(u);
     } catch (e) { /* speech unavailable */ }
   }
   function hush() {
     speechId++;
-    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    UI.stopSpeech();
   }
 
   // ---------- Where Roversa is in a world ----------
