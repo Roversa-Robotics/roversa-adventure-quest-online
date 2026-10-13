@@ -64,8 +64,9 @@
     return dist;
   }
 
-  // Plays a program out the way the game does: a bump ends the turn, and driving
-  // off the map sends Roversa back to its start square.
+  // Plays a program out the way the game does: a bump ends the turn, driving
+  // off the map sends Roversa back to its start square, and so does ending a
+  // third turn in a row on the same square.
   function simulate(grid, goals, robot, program, occupied) {
     let pos = { x: robot.x, y: robot.y, dir: robot.dir };
     const visited = new Set(robot.visited);
@@ -87,18 +88,12 @@
         break;
       }
     }
-    return { pos, visited, off };
-  }
-
-  // True when the robot at p has no square to drive to: every side is a rock,
-  // tree, water or another robot. Driving off the edge still counts as a way out.
-  function boxedIn(grid, p, isRobot) {
-    for (let d = 0; d < 4; d++) {
-      const nx = p.x + E.DX[d], ny = p.y + E.DY[d];
-      if (nx < 0 || ny < 0 || ny >= grid.length || nx >= grid[0].length) return false;
-      if (!E.isBlocked(grid, nx, ny) && !isRobot(nx, ny)) return false;
+    const home = !(occupied && occupied(robot.sx, robot.sy));
+    if (!off && home && robot.stay != null && E.staysAfter(robot, pos.x, pos.y) >= E.STAY_LIMIT) {
+      pos = { x: robot.sx, y: robot.sy, dir: robot.sdir };
+      off = true;
     }
-    return true;
+    return { pos, visited, off };
   }
 
   function score(grid, goals, dists, robot, sim) {
@@ -130,19 +125,7 @@
     const all = candidates(tray.map((p) => p.t));
     const dists = {};
     map.goals.forEach((g) => { dists[g.id] = distanceMap(map.grid, g); });
-    const others = [];
-    if (occupied) map.grid.forEach((row, y) => row.forEach((_, x) => { if (occupied(x, y)) others.push({ x, y }); }));
-    let scored = all.map((program) => {
-      const sim = simulate(map.grid, map.goals, robot, program, occupied);
-      const { x, y } = sim.pos;
-      const isRobot = (x2, y2) => (x2 === x && y2 === y) || others.some((o) => o.x === x2 && o.y === y2);
-      const boxes = others.some((o) => Math.abs(o.x - x) + Math.abs(o.y - y) === 1 && boxedIn(map.grid, o, isRobot));
-      return { program, boxes, score: score(map.grid, map.goals, dists, robot, sim) };
-    });
-    // Never stop where another robot is left with no way to move, if the roll
-    // allows anything else. If that robot sits on the treasure we still need, it
-    // could never leave and we would bump into it forever.
-    if (scored.some((s) => !s.boxes)) scored = scored.filter((s) => !s.boxes);
+    const scored = all.map((program) => ({ program, score: score(map.grid, map.goals, dists, robot, simulate(map.grid, map.goals, robot, program, occupied)) }));
     scored.sort((a, b) => b.score - a.score);
     let pool;
     // Hard always takes the best program. Medium picks from the best tenth and

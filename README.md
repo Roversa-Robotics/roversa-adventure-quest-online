@@ -170,8 +170,11 @@ it, run
 node tools/check-ai.js
 ```
 
-to play it through tricky spots (like a player boxed in on a treasure the AI
-still needs) with lots of random rolls at each skill level.
+to play whole games from tricky spots (like a player boxed in on a treasure the
+AI still needs) at each skill level and check they always end. In Dice Quest a
+robot that ends 3 turns in a row on the same square goes back to its start
+(`STAY_LIMIT` in [`js/engine.js`](js/engine.js)); the same rule holds for players and
+the AI Opponent, so a stuck robot can never stop the game.
 
 ## Publishing on GitHub Pages
 
