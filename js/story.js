@@ -1,6 +1,8 @@
 // Storybook: a picture book for the youngest players. Roversa drives along a
 // path through the three worlds, finds each puzzle piece and meets the characters.
-// Every line is read aloud, and the child taps the one glowing thing to move on.
+// The child taps the one glowing thing to move on. Every move Roversa makes in a
+// world joins the algorithm row under the map, so by the end of the chapter the
+// row shows exactly how Roversa got there.
 (function () {
   'use strict';
 
@@ -20,108 +22,123 @@
 
   // ---------- The story ----------
   //
-  // Each chapter is one world. A page has a map (same letters as js/levels.js),
-  // where Roversa starts (`robot`: x, y and the way it faces), the characters
-  // standing on the map (`items`), the dotted path ahead (`path`), and beats:
-  // the steps of the page, in order. Each beat shows `say` (a key in js/i18n.js,
-  // read aloud) and waits for one tap:
-  //   { tap: 'robot', run: ['F', 'F'] }  tap Roversa, it drives those pieces
-  //   { find: { t, x, y } }               a puzzle piece glows on the map; tap it
-  //   { piece: 'F', run: ['F'] }           the piece pops up big; tap it and Roversa
-  //                                        does `run`, and the piece goes in the pouch
-  //   { choice: 'W' }                      Wild: tap any arrow, Roversa does it
-  // A beat with none of these ends the page. Beats can also add a speech
-  // `bubble` (text key) over the character at `at`, add a `friend` to the pouch,
-  // `reveal` a new picture on a square, or turn on Toothie's `light`.
-  // Page options: `count` numbers each square Roversa lands on, `dark` dims the
-  // map around Toothie, `parade` lists friends who follow Roversa.
-  const POND_1 = ['L..V...L', 'S.......', '......L.', 'V..L...V'];
-  const POND_2 = ['L.V....L', 'S...V...', '......L.', 'V..L...V'];
-  const ISLAND_1 = ['OO..PM.M', 'OS==..fP', 'OO.=...M', 'OOOf.P.f'];
-  const ISLAND_2 = ['OO..PM.M', 'OS===K.P', 'OO....fM', 'OOOf.P.f'];
-  const ISLAND_3 = ['OOM.P.fM', 'OS=...YP', 'OO====.M', 'OOOf.P.f'];
-  const SEA_1 = ['#....*.#', 'S.......', '..%.....', '#...*..#'];
-  const SEA_2 = ['#....*.#', '....%...', '..%.....', '#...*..#'];
-  const SEA_3 = ['#.*....#', '........', '....%...', '#......#'];
-
+  // Each chapter is one world on one map (same letters as js/levels.js). Roversa
+  // starts at `start` (x, y and the way it faces) and keeps going from page to
+  // page, never jumping. `path` is the dotted trail. `items` are characters and
+  // things standing on a square: [x, y, picture, first page, page it leaves]
+  // (pages counted from 0 within the chapter; the last two are optional).
+  //
+  // Each page is a list of beats, in order. A beat shows `say` (a key in
+  // js/i18n.js) and waits for one tap:
+  //   { drive: [x, y, 'E'] }  tap Roversa; it drives there with Forward and the
+  //                           turns, facing that way (each move joins the algorithm)
+  //   { wake: true }          tap Roversa; it wakes up (no move)
+  //   { find: [x, y, t] }     puzzle piece t glows on the map; tap it
+  //   { piece: 'F' }          the piece pops up big; tap it and Roversa does it
+  //                           (Repeat does the piece before it again)
+  //   { choice: 'W' }         Wild: tap any arrow, Roversa does it
+  // A beat with none of these ends the page. Beats can also add a speech `bubble`
+  // (text key) over the square `at`, add a `friend` to the pouch, `reveal` a new
+  // picture on a square, turn on Toothie's `light`, or make the algorithm row
+  // `glow`. Page options: `dark` dims the map except near that square,
+  // `parade` lists friends who follow Roversa.
   const CHAPTERS = [
     {
       world: 'pond',
+      map: ['L.V....L', 'S...V...', '......L.', 'V..L...V'],
+      start: [0, 1, 'E'],
+      path: [[1, 1], [2, 1], [3, 1], [3, 0], [4, 0], [5, 0]],
+      items: [[6, 0, 'duck', 3]],
       pages: [
-        { map: POND_1, robot: [0, 1, 'E'], path: [[1, 1], [2, 1], [3, 1]], beats: [
-          { say: 'story.1.a', tap: 'robot', run: ['L', 'R', 'R', 'L'] },
+        { beats: [
+          { say: 'story.1.a', wake: true },
           { say: 'story.1.b' },
         ] },
-        { map: POND_1, robot: [0, 1, 'E'], path: [[2, 1], [3, 1]], beats: [
-          { say: 'story.2.a', find: { t: 'F', x: 1, y: 1 } },
-          { say: 'story.2.b', piece: 'F', run: ['F'] },
-          { say: 'story.2.c' },
+        { beats: [
+          { say: 'story.2.a', find: [1, 1, 'F'] },
+          { say: 'story.2.b', piece: 'F' },
+          { say: 'story.2.c', glow: true },
         ] },
-        { map: POND_2, robot: [1, 1, 'E'], path: [[2, 1], [3, 1]], beats: [
-          { say: 'story.drive', tap: 'robot', run: ['F', 'F'] },
-          { say: 'story.3.b', find: { t: 'L', x: 3, y: 0 } },
-          { say: 'story.3.c', piece: 'L', run: ['L'] },
+        { beats: [
+          { say: 'story.drive', drive: [3, 1, 'E'] },
+          { say: 'story.3.b', find: [3, 0, 'L'] },
+          { say: 'story.3.c', piece: 'L' },
           { say: 'story.3.d' },
         ] },
-        { map: POND_2, robot: [3, 1, 'N'], path: [[3, 0], [4, 0], [5, 0]], items: [[6, 0, 'duck']], beats: [
-          { say: 'story.drive', tap: 'robot', run: ['F'] },
-          { say: 'story.4.b', find: { t: 'R', x: 4, y: 0 } },
-          { say: 'story.4.c', piece: 'R', run: ['R'] },
+        { beats: [
+          { say: 'story.drive', drive: [3, 0, 'N'] },
+          { say: 'story.4.b', find: [4, 0, 'R'] },
+          { say: 'story.4.c', piece: 'R' },
           { say: 'story.4.d' },
         ] },
-        { map: POND_2, robot: [3, 0, 'E'], path: [[4, 0], [5, 0]], items: [[6, 0, 'duck']], beats: [
-          { say: 'story.5.a', tap: 'robot', run: ['F', 'F'] },
+        { beats: [
+          { say: 'story.5.a', drive: [5, 0, 'E'] },
           { say: 'story.5.b', bubble: 'story.5.bubble', at: [6, 0], friend: 'duck' },
+          { say: 'story.algoDone', glow: true },
         ] },
       ],
     },
     {
       world: 'island',
+      map: ['OO..PM.M', 'OS===KYP', 'OO.====.', 'OOOf.P.f'],
+      start: [1, 1, 'E'],
+      path: [[2, 1], [3, 1], [4, 1], [3, 2], [4, 2], [5, 2], [6, 2]],
+      items: [[2, 2, 'duck'], [7, 2, 'x', 0, 3]],
       pages: [
-        { map: ISLAND_1, robot: [1, 1, 'E'], path: [[2, 1], [3, 1]], items: [[2, 2, 'duck']], beats: [
-          { say: 'story.6.a', tap: 'robot', run: ['F', 'F'] },
+        { beats: [
+          { say: 'story.6.a', drive: [3, 1, 'E'] },
           { say: 'story.6.b' },
         ] },
-        { map: ISLAND_2, robot: [3, 1, 'E'], path: [[4, 1]], beats: [
-          { say: 'story.drive', tap: 'robot', run: ['F'] },
-          { say: 'story.7.b', bubble: 'story.7.bubble', at: [5, 1], find: { t: 'B', x: 3, y: 1 } },
-          { say: 'story.7.c', piece: 'B', run: ['B'] },
+        { beats: [
+          { say: 'story.drive', drive: [4, 1, 'E'] },
+          { say: 'story.7.b', bubble: 'story.7.bubble', at: [5, 1], find: [3, 1, 'B'] },
+          { say: 'story.7.c', piece: 'B' },
           { say: 'story.7.d', friend: 'pirate' },
         ] },
-        { map: ISLAND_3, robot: [2, 2, 'E'], path: [[3, 2], [4, 2]], count: true, beats: [
-          { say: 'story.drive', tap: 'robot', run: ['F'] },
-          { say: 'story.8.b', bubble: 'story.8.bubble', at: [6, 1], find: { t: 'P', x: 4, y: 1 } },
-          { say: 'story.8.c', piece: 'P', run: ['F'] },
-          { say: 'story.8.d', friend: 'byteclaw' },
+        { beats: [
+          { say: 'story.drive', drive: [3, 2, 'E'] },
+          { say: 'story.driveF', drive: [4, 2, 'E'] },
+          { say: 'story.8.b', bubble: 'story.8.bubble', at: [6, 1], find: [5, 2, 'P'] },
+          { say: 'story.8.c', piece: 'P' },
+          { say: 'story.8.d', friend: 'byteclaw', glow: true },
         ] },
-        { map: ISLAND_3, robot: [4, 2, 'E'], path: [[5, 2]], items: [[6, 2, 'x']], beats: [
-          { say: 'story.drive', tap: 'robot', run: ['F'] },
-          { say: 'story.9.b', reveal: [6, 2, 'chest'] },
+        { beats: [
+          { say: 'story.drive', drive: [6, 2, 'E'] },
+          { say: 'story.9.b', reveal: [7, 2, 'chest'] },
+          { say: 'story.algoDone', glow: true },
         ] },
       ],
     },
     {
       world: 'sea',
+      map: ['#....*.#', 'S.......', '..%.....', '#...*..#'],
+      start: [0, 1, 'E'],
+      path: [[1, 1], [2, 1], [3, 2], [4, 2], [5, 2], [6, 2]],
+      items: [[3, 1, 'octopus', 0, 1], [3, 0, 'octopus', 1, 3], [4, 2, 'toothie', 0, 3], [7, 2, 'sunken']],
       pages: [
-        { map: SEA_1, robot: [0, 1, 'E'], path: [[1, 1], [2, 1]], items: [[3, 1, 'octopus']], beats: [
-          { say: 'story.10.a', tap: 'robot', run: ['F', 'F'] },
+        { beats: [
+          { say: 'story.10.a', drive: [2, 1, 'E'] },
           { say: 'story.10.b', bubble: 'story.10.bubble', at: [3, 1], friend: 'octopus' },
         ] },
-        { map: SEA_1, robot: [2, 1, 'E'], items: [[3, 0, 'octopus']], beats: [
-          { say: 'story.11.a', find: { t: 'W', x: 3, y: 1 } },
+        { beats: [
+          { say: 'story.11.a', find: [3, 1, 'W'] },
           { say: 'story.11.b', choice: 'W' },
         ] },
-        { map: SEA_2, robot: [2, 2, 'E'], path: [[3, 2]], items: [[4, 2, 'toothie'], [7, 2, 'sunken']], dark: [4, 2], beats: [
-          { say: 'story.12.a', tap: 'robot', run: ['F'] },
+        { dark: [4, 2], beats: [
+          { say: 'story.12.a', drive: [3, 2, 'E'] },
           { say: 'story.12.b', bubble: 'story.12.bubble', at: [4, 2], friend: 'toothie', light: true },
         ] },
-        { map: SEA_3, robot: [2, 1, 'E'], path: [[3, 1], [4, 1], [5, 1], [6, 1]], parade: ['duck', 'pirate', 'byteclaw', 'octopus', 'toothie'], beats: [
-          { say: 'story.13.a', tap: 'robot', run: ['F', 'F', 'F', 'F'] },
+        { parade: ['toothie', 'octopus', 'duck', 'byteclaw', 'pirate'], beats: [
+          { say: 'story.13.a', drive: [6, 2, 'E'] },
+          { say: 'story.algoDone', glow: true },
           { say: 'story.13.b' },
         ] },
       ],
     },
   ];
+
+  // Squares Roversa can't drive onto, per world.
+  const BLOCKS = { pond: 'LV', island: 'OMPKY', sea: '*%#' };
 
   const PIECE_ORDER = ['F', 'L', 'R', 'B', 'P', 'W'];
   const FRIENDS = ['duck', 'pirate', 'byteclaw', 'octopus', 'toothie'];
@@ -160,7 +177,7 @@
     return pieceImages[t];
   }
 
-  // The map background for a page: the world's tiles, plus characters that stand on a square.
+  // The map background for a chapter: the world's tiles, plus characters that stand on a square.
   function background(world, rows) {
     const c = document.createElement('canvas');
     c.width = rows[0].length * S;
@@ -175,18 +192,23 @@
     return c;
   }
 
-  // A small still picture of a page, for the chapter shelf.
+  const DIRS = { N: 0, E: 1, S: 2, W: 3 };
+  const DX = [0, 1, 0, -1];
+  const DY = [-1, 0, 1, 0];
+  const itemsOn = (ch, i) => ch.items.filter(([, , , from = 0, to = Infinity]) => i >= from && i < to);
+
+  // A small still picture of a chapter's map, for the shelf.
   function thumbnail(c) {
-    const page = CHAPTERS[c].pages[0];
-    const bg = background(CHAPTERS[c].world, page.map);
+    const ch = CHAPTERS[c];
+    const bg = background(ch.world, ch.map);
     const g = bg.getContext('2d');
-    const [x, y, d] = page.robot;
+    const [x, y, d] = ch.start;
     g.save();
     g.translate((x + 0.5) * S, (y + 0.5) * S);
     g.rotate(DIRS[d] * Math.PI / 2);
     g.drawImage(robotSprite, -S / 2, -S / 2, S, S);
     g.restore();
-    (page.items || []).forEach(([ix, iy, s]) => g.drawImage(PICS[s], ix * S, iy * S, S, S));
+    itemsOn(ch, 0).forEach(([ix, iy, s]) => g.drawImage(PICS[s], ix * S, iy * S, S, S));
     if (c > readChapters()) { g.fillStyle = 'rgba(14,16,36,0.55)'; g.fillRect(0, 0, bg.width, bg.height); }
     bg.className = 'story-thumb';
     return bg;
@@ -210,8 +232,8 @@
   }
 
   // ---------- Reading aloud ----------
-  // Storybook reads every line unless read-aloud was turned off. Each word lights
-  // up as it is spoken, where the browser says which word it is on.
+  // Uses the game's read-aloud setting. Each word lights up as it is spoken,
+  // where the browser says which word it is on.
 
   let speechId = 0;
   function speak(text, force) {
@@ -237,11 +259,128 @@
     if ('speechSynthesis' in window) speechSynthesis.cancel();
   }
 
+  // ---------- Where Roversa is in a world ----------
+  //
+  // The world state carries from page to page: Roversa's square and heading,
+  // the squares it has driven over, its algorithm so far, and the Wild choice.
+  // Opening a page out of order (going back, or a test link) replays the pages
+  // before it instantly, so Roversa is always where the story left it.
+
+  function freshWorld(c) {
+    const [x, y, d] = CHAPTERS[c].start;
+    return { c, page: 0, robot: { x, y, dir: DIRS[d], rx: x, ry: y, ang: DIRS[d] * Math.PI / 2, hop: 0 }, visited: [], algo: [], followers: [], wild: null };
+  }
+
+  function blocked(w, i, x, y) {
+    const ch = CHAPTERS[w.c];
+    if (y < 0 || y >= ch.map.length || x < 0 || x >= ch.map[0].length) return true;
+    if (BLOCKS[ch.world].includes(ch.map[y][x])) return true;
+    const parade = ch.pages[i].parade || [];
+    return itemsOn(ch, i).some(([ix, iy, s]) => ix === x && iy === y && !parade.includes(s));
+  }
+
+  // The fewest Forward, Turn Left and Turn Right pieces from where Roversa is to [x, y, facing].
+  function route(w, i, [tx, ty, td]) {
+    const goal = DIRS[td];
+    const r = w.robot;
+    const key = (x, y, d) => x + ',' + y + ',' + d;
+    const seen = new Set([key(r.x, r.y, r.dir)]);
+    const queue = [{ x: r.x, y: r.y, d: r.dir, moves: [] }];
+    while (queue.length) {
+      const s = queue.shift();
+      if (s.x === tx && s.y === ty && s.d === goal) return s.moves;
+      const next = [
+        ['F', s.x + DX[s.d], s.y + DY[s.d], s.d],
+        ['L', s.x, s.y, (s.d + 3) % 4],
+        ['R', s.x, s.y, (s.d + 1) % 4],
+      ];
+      for (const [t, x, y, d] of next) {
+        if (t === 'F' && blocked(w, i, x, y)) continue;
+        if (seen.has(key(x, y, d))) continue;
+        seen.add(key(x, y, d));
+        queue.push({ x, y, d, moves: s.moves.concat(t) });
+      }
+    }
+    return [];
+  }
+
+  // What a puzzle piece does: 'F', 'B', 'L' or 'R'. Repeat does the piece before it again.
+  function actionOf(w, step) {
+    if (step.t === 'W') return step.chosen;
+    if (step.t === 'P') {
+      for (let k = w.algo.length - 1; k >= 0; k--) if (w.algo[k].t !== 'P') return actionOf(w, w.algo[k]);
+      return null;
+    }
+    return step.t;
+  }
+
+  // Does one puzzle piece and adds it to the algorithm. Animated unless `instant`.
+  async function doStep(w, step, instant) {
+    const a = actionOf(w, step);
+    if (step.t === 'P') step = { t: 'P', copies: a };
+    w.algo.push(step);
+    if (!instant) renderAlgo();
+    const r = w.robot;
+    if (a === 'F' || a === 'B') {
+      const s = a === 'F' ? 1 : -1;
+      const fx = r.x, fy = r.y;
+      const fol = w.followers.map((f) => ({ f, fx: f.x, fy: f.y }));
+      // Each friend in the parade steps into the square of the one ahead of it.
+      fol.forEach((o, k) => {
+        const ahead = k === 0 ? { x: fx, y: fy } : fol[k - 1];
+        o.f.x = ahead.fx === undefined ? ahead.x : ahead.fx;
+        o.f.y = ahead.fy === undefined ? ahead.y : ahead.fy;
+      });
+      r.x += DX[r.dir] * s;
+      r.y += DY[r.dir] * s;
+      w.visited.push([r.x, r.y]);
+      if (instant) {
+        r.rx = r.x; r.ry = r.y;
+        w.followers.forEach((f) => { f.rx = f.x; f.ry = f.y; });
+        return;
+      }
+      SND.move();
+      await tween(MOVE_MS, (k) => {
+        r.rx = fx + (r.x - fx) * k; r.ry = fy + (r.y - fy) * k;
+        fol.forEach((o) => { o.f.rx = o.fx + (o.f.x - o.fx) * k; o.f.ry = o.fy + (o.f.y - o.fy) * k; });
+      });
+    } else if (a === 'L' || a === 'R') {
+      const s = a === 'R' ? 1 : -1;
+      const from = r.dir * Math.PI / 2;
+      r.dir = (r.dir + s + 4) % 4;
+      if (instant) { r.ang = r.dir * Math.PI / 2; return; }
+      SND.turn();
+      await tween(TURN_MS, (k) => { r.ang = from + (s * Math.PI / 2) * k; });
+      r.ang = r.dir * Math.PI / 2;
+    }
+    if (!instant) await sleep(140);
+  }
+
+  // Sets up the parade: friends line up on the squares Roversa just drove over.
+  function startParade(w, page) {
+    if (!page.parade || w.followers.length) return;
+    const [sx, sy, sd] = CHAPTERS[w.c].start;
+    const trail = [];
+    w.visited.slice().reverse().concat([[sx, sy]]).forEach(([x, y]) => {
+      if ((x !== w.robot.x || y !== w.robot.y) && !trail.some((p) => p[0] === x && p[1] === y)) trail.push([x, y]);
+    });
+    for (let k = 1; trail.length < page.parade.length; k++) trail.push([sx - DX[DIRS[sd]] * k, sy - DY[DIRS[sd]] * k]);
+    w.followers = page.parade.map((s, k) => ({ s, x: trail[k][0], y: trail[k][1], rx: trail[k][0], ry: trail[k][1] }));
+  }
+
+  // Plays a page's moves instantly, to catch up when a page is opened out of order.
+  function replayPage(w, i) {
+    const page = CHAPTERS[w.c].pages[i];
+    startParade(w, page);
+    for (const b of page.beats) {
+      if (b.drive) route(w, i, b.drive).forEach((t) => doStep(w, { t }, true));
+      if (b.piece) doStep(w, { t: b.piece }, true);
+      if (b.choice) doStep(w, { t: 'W', chosen: w.wild || 'F' }, true);
+    }
+  }
+
   // ---------- Reading a page ----------
 
-  const DIRS = { N: 0, E: 1, S: 2, W: 3 };
-  const DX = [0, 1, 0, -1];
-  const DY = [-1, 0, 1, 0];
   const body = $('#story-body');
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const tween = (ms, fn) => new Promise((resolve) => {
@@ -254,20 +393,29 @@
     requestAnimationFrame(step);
   });
 
-  let view = null; // the page being read: { c, i, page, ... }
+  let world = null; // the world being read (see freshWorld)
+  let view = null; // the page being read: { c, i, page, beat, ... }
+  const bgCache = {};
 
   function openPage(c, i) {
     hush();
-    const page = CHAPTERS[c].pages[i];
-    const [x, y, d] = page.robot;
+    // Carry on from the page before, or replay the world up to this page.
+    if (!world || world.c !== c || world.page !== i) {
+      const wild = world && world.c === c ? world.wild : null;
+      world = freshWorld(c);
+      world.wild = wild;
+      for (let k = 0; k < i; k++) replayPage(world, k);
+    }
+    world.page = i;
+    const ch = CHAPTERS[c];
+    const page = ch.pages[i];
+    startParade(world, page);
+    if (!bgCache[c]) bgCache[c] = background(ch.world, ch.map);
     view = {
-      c, i, page, token: {},
-      bg: background(CHAPTERS[c].world, page.map),
-      robot: { x, y, dir: DIRS[d], rx: x, ry: y, ang: DIRS[d] * Math.PI / 2 },
-      items: (page.items || []).map(([ix, iy, s]) => ({ x: ix, y: iy, s })),
-      visited: [], nums: [], bubbles: [], sparks: [],
-      mapPiece: null,
-      light: page.dark ? 2.6 : 0,
+      c, i, page, bg: bgCache[c],
+      items: itemsOn(ch, i).filter(([, , s]) => !(page.parade || []).includes(s)).map(([x, y, s]) => ({ x, y, s })),
+      bubbles: [], sparks: [], mapPiece: null,
+      light: page.dark ? 2.6 : 0, glow: false,
       beat: -1, done: false, got: { pieces: [], friends: [] }, text: '',
     };
     renderPage();
@@ -276,31 +424,33 @@
 
   function renderPage() {
     const { c, i } = view;
-    const chap = CHAPTERS[c];
+    const ch = CHAPTERS[c];
     body.innerHTML = '';
     const el = document.createElement('div');
     el.className = 'story-page';
     el.innerHTML =
-      '<p class="story-chapter">' + tr('story.chapter', { n: c + 1 }) + ' · ' + tr('world.' + chap.world) + '</p>' +
+      '<p class="story-chapter">' + tr('story.chapter', { n: c + 1 }) + ' · ' + tr('world.' + ch.world) + '</p>' +
       '<button type="button" class="icon-btn story-prev" aria-label="' + tr('story.prev') + '">◀</button>' +
       '<div class="story-map"><canvas id="story-canvas" role="img"></canvas><div class="story-layer"></div></div>' +
       '<button type="button" class="icon-btn story-next" aria-label="' + tr('story.next') + '">▶</button>' +
+      '<div class="story-algo"><p class="story-algo-label">' + tr('story.algorithm') + '</p><div class="story-algo-row"></div></div>' +
       '<div class="story-say"><button type="button" class="story-replay" aria-label="' + tr('story.replay') + '">🔊</button>' +
       '<p id="story-text" aria-live="polite"></p></div>' +
       '<div class="story-pouch"><p class="story-pouch-label">' + tr('story.pouch') + '</p><div class="story-pouch-row"></div></div>' +
       '<p class="story-dots" aria-label="' + pageNumber(c, i) + ' / ' + ALL_PAGES.length + '">' +
-      chap.pages.map((_, k) => '<span class="' + (k === i ? 'on' : '') + '"></span>').join('') + '</p>';
+      ch.pages.map((_, k) => '<span class="' + (k === i ? 'on' : '') + '"></span>').join('') + '</p>';
     body.appendChild(el);
     const cv = el.querySelector('canvas');
     cv.width = view.bg.width;
     cv.height = view.bg.height;
-    el.querySelector('.story-map').style.setProperty('--cols', view.page.map[0].length);
-    el.querySelector('.story-map').style.setProperty('--rows', view.page.map.length);
+    el.querySelector('.story-map').style.setProperty('--cols', ch.map[0].length);
+    el.querySelector('.story-map').style.setProperty('--rows', ch.map.length);
     el.querySelector('.story-prev').addEventListener('click', () => { SND.tap(); goPrev(); });
     el.querySelector('.story-next').addEventListener('click', () => { if (canGoOn()) { SND.tap(); goNext(); } });
     el.querySelector('.story-replay').addEventListener('click', () => { SND.tap(); speak(view.text, true); });
     swipe(el);
     showText(view.text);
+    renderAlgo();
     renderPouch();
     syncNext();
   }
@@ -319,7 +469,9 @@
     });
   }
 
-  const canGoOn = () => view && (view.done || readChapters() > view.c);
+  // A page that was read before can be skipped; a new one is finished first,
+  // so Roversa never skips part of the path.
+  const canGoOn = () => view && (view.done || (readChapters() > view.c && !view.busy));
   function syncNext() {
     const b = body.querySelector('.story-next');
     if (!b) return;
@@ -329,6 +481,8 @@
 
   function goNext() {
     const { c, i } = view;
+    // Skipping a page that was read before: play its moves so Roversa is in the right place.
+    if (!view.done) { world.page = -1; }
     if (i + 1 < CHAPTERS[c].pages.length) { openPage(c, i + 1); return; }
     markRead(c);
     if (c + 1 < CHAPTERS.length) openPage(c + 1, 0);
@@ -357,6 +511,26 @@
       p.appendChild(w);
       at += part.length;
     });
+  }
+
+  // The algorithm row: every puzzle piece Roversa has done in this world, in order.
+  function renderAlgo() {
+    const box = body.querySelector('.story-algo');
+    if (!box || !world) return;
+    box.classList.toggle('glow', view.glow);
+    const row = box.querySelector('.story-algo-row');
+    row.innerHTML = '';
+    world.algo.forEach((step, k) => {
+      const s = document.createElement('span');
+      s.className = 'story-step' + (k === world.algo.length - 1 && !view.glow ? ' last' : '');
+      s.innerHTML = UI.pieceSvg(step.t, step.chosen, step.copies);
+      s.setAttribute('role', 'img');
+      s.setAttribute('aria-label', step.t === 'W' ? tr('wildAs', { name: tr('piece.' + step.chosen) })
+        : step.t === 'P' ? tr('repeatAs', { name: tr('piece.' + step.copies) }) : tr('piece.' + step.t));
+      row.appendChild(s);
+    });
+    if (!world.algo.length) row.innerHTML = '<span class="story-step empty"></span>';
+    row.scrollLeft = row.scrollWidth;
   }
 
   function renderPouch() {
@@ -392,13 +566,14 @@
     const b = v.page.beats[v.beat];
     if (!b) {
       v.done = true;
+      world.page = v.i + 1;
       syncNext();
       layer();
       return;
     }
     showText(tr(b.say));
     if (b.bubble) v.bubbles.push({ x: b.at[0], y: b.at[1], key: b.bubble });
-    if (b.friend) { v.got.friends.push(b.friend); renderPouch(); SND.goal(); burst(b.at || [v.robot.x, v.robot.y]); }
+    if (b.friend) { v.got.friends.push(b.friend); renderPouch(); SND.goal(); burst(b.at || [world.robot.x, world.robot.y]); }
     if (b.reveal) {
       const [x, y, s] = b.reveal;
       v.items = v.items.filter((it) => it.x !== x || it.y !== y).concat([{ x, y, s }]);
@@ -406,12 +581,18 @@
       burst([x, y]);
     }
     if (b.light) tween(900, (k) => { v.light = 2.6 + k * 3.5; });
-    if (b.find) v.mapPiece = b.find;
+    if (b.glow) { v.glow = true; renderAlgo(); }
+    if (b.find) v.mapPiece = { x: b.find[0], y: b.find[1], t: b.find[2] };
     speak(v.text);
-    const interactive = b.tap || b.find || b.piece || b.choice;
-    if (!interactive) {
+    const interactive = b.drive || b.wake || b.find || b.piece || b.choice;
+    if (!interactive && v.beat === v.page.beats.length - 1) {
       v.done = true;
+      world.page = v.i + 1;
       syncNext();
+    } else if (!interactive) {
+      // A line with nothing to tap leads straight on to the next one.
+      v.busy = true;
+      setTimeout(() => { if (view === v) { v.busy = false; nextBeat(); } }, 2600);
     }
     layer();
   }
@@ -419,6 +600,7 @@
   async function act(fn) {
     const v = view;
     v.busy = true;
+    syncNext();
     layer();
     await fn();
     if (view !== v) return;
@@ -432,9 +614,13 @@
     const el = body.querySelector('.story-layer');
     if (!el) return;
     el.innerHTML = '';
-    const cols = v.page.map[0].length, rows = v.page.map.length;
+    const ch = CHAPTERS[v.c];
+    const cols = ch.map[0].length, rows = ch.map.length;
     const place = (node, x, y) => { node.style.left = (x / cols) * 100 + '%'; node.style.top = (y / rows) * 100 + '%'; el.appendChild(node); return node; };
-    v.bubbles.forEach((bb) => place(Object.assign(document.createElement('div'), { className: 'story-bubble', textContent: tr(bb.key) }), bb.x + 0.5, bb.y));
+    // A bubble on the top row hangs below its square so it stays on the map.
+    v.bubbles.forEach((bb) => place(Object.assign(document.createElement('div'), {
+      className: 'story-bubble' + (bb.y === 0 ? ' below' : ''), textContent: tr(bb.key),
+    }), bb.x + 0.5, bb.y === 0 ? 1 : bb.y));
     const b = v.page.beats[v.beat];
     if (!b || v.busy) return;
     const hit = (x, y, label, onTap) => {
@@ -445,10 +631,23 @@
       btn.addEventListener('click', onTap);
       place(handEl(), x + 0.45, y + 0.5);
     };
-    if (b.tap === 'robot') {
-      hit(v.robot.x, v.robot.y, tr('story.tapRobot'), () => { SND.tap(); act(() => run(b.run)); });
+    const r = world.robot;
+    if (b.drive) {
+      hit(r.x, r.y, tr('story.tapRobot'), () => {
+        SND.tap();
+        act(async () => { for (const t of route(world, v.i, b.drive)) await doStep(world, { t }); });
+      });
+    } else if (b.wake) {
+      hit(r.x, r.y, tr('story.tapRobot'), () => {
+        SND.goal();
+        act(async () => {
+          burst([r.x, r.y]);
+          await tween(500, (k) => { r.hop = Math.sin(k * Math.PI * 2); });
+          r.hop = 0;
+        });
+      });
     } else if (b.find) {
-      hit(b.find.x, b.find.y, tr('story.tapPiece', { name: tr('piece.' + b.find.t) }), () => {
+      hit(b.find[0], b.find[1], tr('story.tapPiece', { name: tr('piece.' + b.find[2]) }), () => {
         SND.drop();
         v.mapPiece = null;
         act(() => sleep(120));
@@ -463,7 +662,7 @@
       big.addEventListener('click', () => {
         SND.tap();
         act(async () => {
-          await run(b.run);
+          await doStep(world, { t: b.piece });
           v.got.pieces.push(b.piece);
           renderPouch();
           SND.drop();
@@ -492,11 +691,12 @@
             const text = tr('story.wildAs', { name: tr('piece.' + t) });
             showText(text);
             speak(text);
-            await run([t]);
+            world.wild = t;
+            await doStep(world, { t: 'W', chosen: t });
             v.got.pieces.push(b.choice);
             renderPouch();
             SND.drop();
-            await sleep(400);
+            await sleep(1200);
           });
         });
         row.appendChild(btn);
@@ -519,32 +719,6 @@
     return h;
   }
 
-  // Roversa does each puzzle piece in turn.
-  async function run(moves) {
-    const v = view;
-    for (const m of moves) {
-      if (view !== v) return;
-      const r = v.robot;
-      if (m === 'F' || m === 'B') {
-        const s = m === 'F' ? 1 : -1;
-        const fx = r.x, fy = r.y;
-        r.x += DX[r.dir] * s;
-        r.y += DY[r.dir] * s;
-        SND.move();
-        await tween(MOVE_MS, (k) => { r.rx = fx + (r.x - fx) * k; r.ry = fy + (r.y - fy) * k; });
-        v.visited.push([r.x, r.y]);
-        if (v.page.count) v.nums.push({ x: r.x, y: r.y, n: v.nums.length + 1 });
-      } else {
-        const s = m === 'R' ? 1 : -1;
-        const from = r.ang;
-        r.dir = (r.dir + s + 4) % 4;
-        SND.turn();
-        await tween(TURN_MS, (k) => { r.ang = from + (s * Math.PI / 2) * k; });
-      }
-      await sleep(120);
-    }
-  }
-
   function burst([x, y]) {
     for (let k = 0; k < 14; k++) {
       view.sparks.push({ x: (x + 0.5) * S, y: (y + 0.4) * S, vx: (Math.random() - 0.5) * 7, vy: -Math.random() * 7 - 2, life: 40,
@@ -558,7 +732,8 @@
     requestAnimationFrame(draw);
     const v = view;
     const cv = $('#story-canvas');
-    if (!v || !cv || !$('#screen-story').classList.contains('active')) return;
+    if (!v || !world || !cv || !$('#screen-story').classList.contains('active')) return;
+    const ch = CHAPTERS[v.c];
     const g = cv.getContext('2d');
     g.imageSmoothingEnabled = false;
     g.drawImage(v.bg, 0, 0);
@@ -568,8 +743,10 @@
       g.fillStyle = color;
       [-1, 0, 1].forEach((k) => g.fillRect((x + 0.5) * S + k * SCALE * 4 - SCALE, (y + 0.5) * S - SCALE, SCALE * 2, SCALE * 2));
     };
-    (v.page.path || []).forEach(([x, y]) => { if (!v.visited.some((p) => p[0] === x && p[1] === y)) dots(x, y, 'rgba(255,255,255,0.8)'); });
-    v.visited.forEach(([x, y]) => dots(x, y, '#fbbd27'));
+    const been = (x, y) => world.visited.some((p) => p[0] === x && p[1] === y);
+    ch.path.forEach(([x, y]) => { if (!been(x, y)) dots(x, y, 'rgba(255,255,255,0.8)'); });
+    world.visited.forEach(([x, y]) => dots(x, y, '#fbbd27'));
+
     v.items.forEach((it, k) => {
       const bob = Math.round(Math.sin(now / 320 + k) * 1.5) * SCALE;
       g.drawImage(PICS[it.s], it.x * S, it.y * S + bob, S, S);
@@ -587,28 +764,14 @@
       g.restore();
     }
 
-    // Friends in the parade follow along behind Roversa.
-    const r = v.robot;
-    (v.page.parade || []).forEach((n, k) => g.drawImage(PICS[n], (r.rx - k - 1) * S, r.ry * S + Math.round(Math.sin(now / 150 + k) * 1.5) * SCALE, S, S));
+    world.followers.forEach((f, k) => g.drawImage(PICS[f.s], f.rx * S, f.ry * S + Math.round(Math.sin(now / 150 + k) * 1.5) * SCALE, S, S));
 
+    const r = world.robot;
     g.save();
-    g.translate((r.rx + 0.5) * S, (r.ry + 0.5) * S);
+    g.translate((r.rx + 0.5) * S, (r.ry + 0.5) * S - Math.abs(r.hop) * SCALE * 3);
     g.rotate(r.ang);
     g.drawImage(robotSprite, -S / 2, -S / 2, S, S);
     g.restore();
-
-    // Numbered squares (Repeat page): a small badge in the corner of each square Roversa landed on.
-    v.nums.forEach((n) => {
-      const cx = (n.x + 0.78) * S, cy = (n.y + 0.78) * S;
-      g.fillStyle = '#14172e';
-      g.beginPath(); g.arc(cx, cy, S * 0.2, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#fbbd27';
-      g.beginPath(); g.arc(cx, cy, S * 0.16, 0, Math.PI * 2); g.fill();
-      g.fillStyle = '#14172e';
-      g.font = Math.round(S * 0.18) + 'px "Press Start 2P", monospace';
-      g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(String(n.n), cx + 1, cy + 2);
-    });
 
     // Under the sea it is dark, except near Toothie's light.
     if (v.page.dark) {
@@ -636,6 +799,7 @@
   function showShelf() {
     hush();
     view = null;
+    world = null;
     body.innerHTML = '';
     const read = readChapters();
     const shelf = document.createElement('div');
@@ -663,6 +827,7 @@
   function showEnd() {
     hush();
     view = null;
+    world = null;
     SND.win();
     body.innerHTML = '';
     const end = document.createElement('div');
@@ -691,15 +856,30 @@
 
   // ---------- Getting in and out ----------
 
+  // Read-aloud stays as the player set it. When it is off, Storybook offers it
+  // once each time it opens.
+  function offerVoice() {
+    if (!('speechSynthesis' in window) || UI.voiceOn()) return;
+    UI.openModal('<h3>' + tr('story.voiceTitle') + '</h3><p>' + tr('story.voiceText') + '</p>' +
+      '<div class="choices col"><button type="button" class="btn big green" data-voice="1">🔊 ' + tr('story.voiceYes') + '</button>' +
+      '<button type="button" class="btn" data-voice="0">' + tr('story.voiceNo') + '</button></div>');
+    document.querySelectorAll('[data-voice]').forEach((b) => b.addEventListener('click', () => {
+      SND.tap();
+      const on = b.dataset.voice === '1';
+      UI.closeModal();
+      if (on) {
+        UI.setVoice(true);
+        if (view) speak(view.text);
+      }
+    }));
+  }
+
   let entered = false;
   document.addEventListener('roversa:screen', (e) => {
     if (e.detail !== 'story') { hush(); return; }
-    // Read aloud starts on for the storybook, unless it was turned off before.
-    let choice = null;
-    try { choice = localStorage.getItem('roversa-voice'); } catch (err) { /* storage blocked */ }
-    if (choice === null && 'speechSynthesis' in window) UI.setVoice(true);
     if (!entered || !view) showShelf();
     entered = true;
+    offerVoice();
   });
   $('#story-back').addEventListener('click', () => {
     SND.tap();
@@ -710,9 +890,9 @@
   I18N.onChange(() => {
     if (!$('#screen-story').classList.contains('active')) return;
     if (!view) { if (body.querySelector('.story-end')) showEnd(); else showShelf(); return; }
+    renderPage();
     const b = view.page.beats[view.beat];
     if (b) showText(tr(b.say));
-    renderPage();
     layer();
   });
 

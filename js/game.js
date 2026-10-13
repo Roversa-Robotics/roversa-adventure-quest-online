@@ -3306,6 +3306,8 @@
     show,
     pieceSvg,
     startTutorial: () => startLevel(0),
+    openModal,
+    closeModal,
     voiceOn: () => voiceOn,
     setVoice(on) {
       voiceOn = on;
