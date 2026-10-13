@@ -246,6 +246,8 @@
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 0.9;
       u.lang = I18N.speechLang;
+      const v = UI.bestVoice();
+      if (v) u.voice = v;
       u.onboundary = (e) => {
         if (id !== speechId || e.name === 'sentence') return;
         words.forEach((w) => w.classList.toggle('on', Number(w.dataset.at) <= e.charIndex && e.charIndex < Number(w.dataset.end)));
