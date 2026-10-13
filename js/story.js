@@ -861,7 +861,7 @@
   function offerVoice() {
     if (!('speechSynthesis' in window) || UI.voiceOn()) return;
     UI.openModal('<h3>' + tr('story.voiceTitle') + '</h3><p>' + tr('story.voiceText') + '</p>' +
-      '<div class="choices col"><button type="button" class="btn big green" data-voice="1">🔊 ' + tr('story.voiceYes') + '</button>' +
+      '<div class="choices col"><button type="button" class="btn big green" data-voice="1"><span class="btn-icon story-voice-icon" aria-hidden="true">🔊</span> ' + tr('story.voiceYes') + '</button>' +
       '<button type="button" class="btn" data-voice="0">' + tr('story.voiceNo') + '</button></div>');
     document.querySelectorAll('[data-voice]').forEach((b) => b.addEventListener('click', () => {
       SND.tap();
