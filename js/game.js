@@ -699,7 +699,16 @@
       if (speechSynthesis.paused) speechSynthesis.resume();
       speechSynthesis.speak(u);
       setTimeout(retry, 3000);
-      // Some browsers never send 'end'; don't let one line block the rest.
+      // Some browsers never send 'end', so also move on as soon as the browser
+      // says it has stopped talking; otherwise the AI Opponent would wait for
+      // the timeout below before starting its turn.
+      let heard = false;
+      const watch = setInterval(() => {
+        if (current !== u || finished) { clearInterval(watch); return; }
+        if (speechSynthesis.speaking) heard = true;
+        else if ((heard || started) && !speechSynthesis.pending) { clearInterval(watch); done(); }
+      }, 200);
+      // Don't let one line block the rest.
       setTimeout(() => { if (current === u && !finished) { cancelSpeech(); done(); } }, 4000 + u.text.length * 120);
     }, Math.max(0, cancelledAt + 300 - Date.now()));
   }
