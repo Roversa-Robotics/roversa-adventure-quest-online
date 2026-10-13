@@ -570,6 +570,12 @@ button.pic:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px
 .score .you-tag { position: absolute; top: -7px; left: -5px; font-size: 8px; padding: 0 3px; z-index: 1; }
 .score.away { opacity: 0.55; }
 .score .net-note { font-family: var(--mono); font-size: 11px; color: var(--brand-yellow); white-space: nowrap; }
+/* Two players on a phone: the treasures move under the name, so a card never
+   runs wider than half the screen. */
+@media (max-width: 560px) {
+  .scoreboard:not(.many) .score:not(:only-child) { flex-wrap: wrap; align-content: flex-start; row-gap: 4px; padding: 6px 8px; }
+  .scoreboard:not(.many) .score:not(:only-child) .goal-icons { flex-basis: 100%; margin-left: 0; }
+}
 .scoreboard.many { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .scoreboard.many .score { padding: 4px 6px; gap: 4px; font-size: 13px; min-width: 0; }
 .scoreboard.many .score canvas { width: 28px; height: 28px; }
