@@ -2552,7 +2552,8 @@
       const home = await stayGoHome(r);
       game.running = false;
       if (game.quest !== q || !$('#screen-game').classList.contains('active')) return;
-      text += tr(home ? 'msg.stayHome' : 'msg.stayBlocked', { robot: r.name });
+      // The trip home is the news, so it replaces the usual "stopped" message.
+      text = tr(home ? 'msg.stayHome' : 'msg.stayBlocked', { robot: r.name }).trim();
       kind = 'bad';
     }
     nextTurn(text, kind);
