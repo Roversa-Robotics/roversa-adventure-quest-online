@@ -161,6 +161,18 @@ node tools/check-random.js
 to make lots of challenges for each difficulty, check them, and see how long
 they take to make.
 
+## AI Opponent
+
+The AI Opponent's moves are worked out in [`js/ai.js`](js/ai.js). After changing
+it, run
+
+```
+node tools/check-ai.js
+```
+
+to play it through tricky spots (like a player boxed in on a treasure the AI
+still needs) with lots of random rolls at each skill level.
+
 ## Publishing on GitHub Pages
 
 Settings > Pages > Build and deployment > Source: **GitHub Actions**.

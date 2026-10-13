@@ -90,6 +90,17 @@
     return { pos, visited, off };
   }
 
+  // True when the robot at p has no square to drive to: every side is a rock,
+  // tree, water or another robot. Driving off the edge still counts as a way out.
+  function boxedIn(grid, p, isRobot) {
+    for (let d = 0; d < 4; d++) {
+      const nx = p.x + E.DX[d], ny = p.y + E.DY[d];
+      if (nx < 0 || ny < 0 || ny >= grid.length || nx >= grid[0].length) return false;
+      if (!E.isBlocked(grid, nx, ny) && !isRobot(nx, ny)) return false;
+    }
+    return true;
+  }
+
   function score(grid, goals, dists, robot, sim) {
     const found = sim.visited.size - robot.visited.size;
     const left = goals.filter((g) => !sim.visited.has(g.id));
@@ -119,7 +130,19 @@
     const all = candidates(tray.map((p) => p.t));
     const dists = {};
     map.goals.forEach((g) => { dists[g.id] = distanceMap(map.grid, g); });
-    const scored = all.map((program) => ({ program, score: score(map.grid, map.goals, dists, robot, simulate(map.grid, map.goals, robot, program, occupied)) }));
+    const others = [];
+    if (occupied) map.grid.forEach((row, y) => row.forEach((_, x) => { if (occupied(x, y)) others.push({ x, y }); }));
+    let scored = all.map((program) => {
+      const sim = simulate(map.grid, map.goals, robot, program, occupied);
+      const { x, y } = sim.pos;
+      const isRobot = (x2, y2) => (x2 === x && y2 === y) || others.some((o) => o.x === x2 && o.y === y2);
+      const boxes = others.some((o) => Math.abs(o.x - x) + Math.abs(o.y - y) === 1 && boxedIn(map.grid, o, isRobot));
+      return { program, boxes, score: score(map.grid, map.goals, dists, robot, sim) };
+    });
+    // Never stop where another robot is left with no way to move, if the roll
+    // allows anything else. If that robot sits on the treasure we still need, it
+    // could never leave and we would bump into it forever.
+    if (scored.some((s) => !s.boxes)) scored = scored.filter((s) => !s.boxes);
     scored.sort((a, b) => b.score - a.score);
     let pool;
     // Hard always takes the best program. Medium picks from the best tenth and
