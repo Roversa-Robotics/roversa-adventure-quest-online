@@ -37,7 +37,9 @@ Once installed (or after one visit), it also works offline.
   five pieces, and run them. Roversa stays where it stops. First robot to visit
   all three treasures wins. One or two players on one device (or against the AI
   Opponent), each picking a robot costume, or 2 to 4 players on their own
-  devices (see below).
+  devices (see below). Each player's card on top is the color of their robot's
+  flag and wheels, and a small tag with their costume sits next to their robot on
+  the map, so players can tell the robots apart without relying on color.
 
 ## Playing on several devices
 
