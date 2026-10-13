@@ -560,7 +560,7 @@
   }
   // The most natural-sounding voice this device has for the current language.
   // Browsers default to a basic voice, but many devices also have much better
-  // ones (Natural voices in Edge, Google voices in Chrome, Enhanced and Premium
+  // ones (Natural voices in Edge, Enhanced and Premium
   // voices on Apple devices). Novelty voices on Macs are skipped.
   const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|ralph|fred|junior|kathy|grandpa|grandma|rocko|shelley|flo|eddy|reed|sandy/i;
   let voiceCache = { lang: null, voice: null };
@@ -578,7 +578,9 @@
       if (/natural|neural/i.test(v.name)) score += 10;
       if (/premium/i.test(v.name)) score += 8;
       if (/enhanced/i.test(v.name)) score += 6;
-      if (/google/i.test(v.name)) score += 5;
+      // Voices built into the device beat Chrome's online Google voices, which
+      // say ROversa and stop working offline.
+      if (v.localService) score += 3;
       if (/samantha|ava|allison|susan|zoe|evan|nathan|monica|mónica|paulina|marisol|jorge|lucia|lucía/i.test(v.name)) score += 2;
       if (/compact|espeak/i.test(v.name)) score -= 4;
       if (NOVELTY.test(v.name)) score -= 20;
