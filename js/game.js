@@ -558,6 +558,39 @@
       b.setAttribute('aria-pressed', String(voiceOn));
     });
   }
+  // The most natural-sounding voice this device has for the current language.
+  // Browsers default to a basic voice, but many devices also have much better
+  // ones (Natural voices in Edge, Google voices in Chrome, Enhanced and Premium
+  // voices on Apple devices). Novelty voices on Macs are skipped.
+  const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|ralph|fred|junior|kathy|grandpa|grandma|rocko|shelley|flo|eddy|reed|sandy/i;
+  let voiceCache = { lang: null, voice: null };
+  function bestVoice() {
+    if (!('speechSynthesis' in window)) return null;
+    const want = I18N.speechLang;
+    if (voiceCache.lang === want && voiceCache.voice) return voiceCache.voice;
+    const base = want.split('-')[0];
+    let best = null, bestScore = -Infinity;
+    speechSynthesis.getVoices().forEach((v) => {
+      const lang = (v.lang || '').replace('_', '-');
+      if (lang.split('-')[0].toLowerCase() !== base) return;
+      let score = 0;
+      if (lang.toLowerCase() === want.toLowerCase()) score += 2;
+      if (/natural|neural/i.test(v.name)) score += 10;
+      if (/premium/i.test(v.name)) score += 8;
+      if (/enhanced/i.test(v.name)) score += 6;
+      if (/google/i.test(v.name)) score += 5;
+      if (/samantha|ava|allison|susan|zoe|evan|nathan|monica|mónica|paulina|marisol|jorge|lucia|lucía/i.test(v.name)) score += 2;
+      if (/compact|espeak/i.test(v.name)) score -= 4;
+      if (NOVELTY.test(v.name)) score -= 20;
+      if (score > bestScore) { best = v; bestScore = score; }
+    });
+    voiceCache = { lang: want, voice: best };
+    return best;
+  }
+  if ('speechSynthesis' in window) {
+    speechSynthesis.addEventListener('voiceschanged', () => { voiceCache = { lang: null, voice: null }; });
+  }
+
   function say(text) {
     if (!voiceOn || !('speechSynthesis' in window)) return;
     try {
@@ -565,6 +598,8 @@
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 0.95;
       u.lang = I18N.speechLang;
+      const v = bestVoice();
+      if (v) u.voice = v;
       speechSynthesis.speak(u);
     } catch (e) { /* speech unavailable */ }
   }
