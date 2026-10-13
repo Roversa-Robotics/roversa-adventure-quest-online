@@ -7,6 +7,12 @@
   // The iOS Share icon (a box with an arrow), drawn in the text colour.
   const SHARE_ICON = '<svg class="share-icon" viewBox="0 0 16 20" width="14" height="18" aria-hidden="true"><path d="M8 1v11M4 5l4-4 4 4M5 8H2v11h12V8h-3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
 
+  // Roversa's page about the hands-on classroom game. Change it here only.
+  const CLASSROOM_URL = 'https://www.roversa.com/adventure-quest.html';
+  const LICENSE_URL = 'https://creativecommons.org/licenses/by-nc-sa/4.0/';
+  // A link that opens outside the game, with a hint for screen readers.
+  const outLink = (url, text, hint) => `<a href="${url}" target="_blank" rel="noopener">${text}<span class="sr-only"> (${hint})</span></a>`;
+
   const STRINGS = {
     en: {
       'page.title': 'Roversa Adventure Quest',
@@ -18,7 +24,8 @@
       'fresh.title': 'Start fresh?',
       'fresh.text': 'This forgets everything saved on this device: Adventure stars, the chosen costume, puzzle pieces already seen, and the language and sound settings.',
       'fresh.keep': 'Keep everything',
-      'credit': 'Inspired by Roversa Adventure Quest from <a href="https://roversa.com" target="_blank" rel="noopener">Roversa Robotics</a> (CC BY-NC-SA 4.0).',
+      'explore': `Explore the original hands-on classroom activity, lessons, and materials at ${outLink(CLASSROOM_URL, 'roversa.com', 'opens a new page')}.`,
+      'license': `License: ${outLink(LICENSE_URL, 'CC BY-NC-SA 4.0', 'opens a new page')}`,
       'home': 'Home',
       'back': 'Back',
       'quest.tagline': 'Roll the dice. Create an algorithm. Find the treasure!',
@@ -319,7 +326,8 @@
       'fresh.title': '¿Empezar de cero?',
       'fresh.text': 'Esto olvida todo lo guardado en este dispositivo: las estrellas de Aventuras, el disfraz elegido, las piezas de rompecabezas ya vistas y los ajustes de idioma y sonido.',
       'fresh.keep': 'Conservar todo',
-      'credit': 'Inspirado en Roversa Adventure Quest de <a href="https://roversa.com" target="_blank" rel="noopener">Roversa Robotics</a> (CC BY-NC-SA 4.0).',
+      'explore': `Explora la actividad práctica original para el aula, con lecciones y materiales, en ${outLink(CLASSROOM_URL, 'roversa.com', 'abre una página nueva')}.`,
+      'license': `Licencia: ${outLink(LICENSE_URL, 'CC BY-NC-SA 4.0', 'abre una página nueva')}`,
       'home': 'Inicio',
       'back': 'Atrás',
       'quest.tagline': 'Tira los dados. Crea un algoritmo. ¡Encuentra el tesoro!',
