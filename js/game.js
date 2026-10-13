@@ -591,11 +591,17 @@
     speechSynthesis.addEventListener('voiceschanged', () => { voiceCache = { lang: null, voice: null }; });
   }
 
+  // English voices stress the first syllable of "Roversa"; we say ro-VER-sa.
+  // The respelling has the same length, so word highlighting still lines up.
+  function speechText(text) {
+    return /^en/i.test(I18N.speechLang) ? String(text).replace(/Roversa/g, 'Rovirsa') : text;
+  }
+
   function say(text) {
     if (!voiceOn || !('speechSynthesis' in window)) return;
     try {
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
+      const u = new SpeechSynthesisUtterance(speechText(text));
       u.rate = 0.95;
       u.lang = I18N.speechLang;
       const v = bestVoice();
@@ -3345,6 +3351,7 @@
     closeModal,
     voiceOn: () => voiceOn,
     bestVoice,
+    speechText,
     setVoice(on) {
       voiceOn = on;
       try { localStorage.setItem('roversa-voice', on ? '1' : '0'); } catch (e) { /* storage blocked */ }

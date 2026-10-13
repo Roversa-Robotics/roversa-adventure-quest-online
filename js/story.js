@@ -243,7 +243,7 @@
     const id = ++speechId;
     try {
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
+      const u = new SpeechSynthesisUtterance(UI.speechText(text));
       u.rate = 0.9;
       u.lang = I18N.speechLang;
       const v = UI.bestVoice();
