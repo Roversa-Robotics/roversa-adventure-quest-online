@@ -558,14 +558,124 @@
       b.setAttribute('aria-pressed', String(voiceOn));
     });
   }
+  // The most natural-sounding voice this device has for the current language.
+  // Browsers default to a basic voice, but many devices also have much better
+  // ones (Natural voices in Edge, Enhanced and Premium
+  // voices on Apple devices). Novelty voices on Macs are skipped.
+  const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|ralph|fred|junior|kathy|grandpa|grandma|rocko|shelley|flo|eddy|reed|sandy/i;
+  let voiceCache = { lang: null, voice: null };
+  const badVoices = new Set();
+  function bestVoice() {
+    if (!('speechSynthesis' in window)) return null;
+    const want = I18N.speechLang;
+    if (voiceCache.lang === want && voiceCache.voice) return voiceCache.voice;
+    const base = want.split('-')[0];
+    let best = null, bestScore = -Infinity;
+    speechSynthesis.getVoices().forEach((v) => {
+      const lang = (v.lang || '').replace('_', '-');
+      if (lang.split('-')[0].toLowerCase() !== base || badVoices.has(v.name)) return;
+      let score = 0;
+      if (lang.toLowerCase() === want.toLowerCase()) score += 2;
+      if (/natural|neural/i.test(v.name)) score += 10;
+      if (/premium/i.test(v.name)) score += 8;
+      if (/enhanced/i.test(v.name)) score += 6;
+      // Voices built into the device beat Chrome's online Google voices, which
+      // say ROversa and stop working offline.
+      if (v.localService) score += 3;
+      if (/samantha|ava|allison|susan|zoe|evan|nathan|monica|mónica|paulina|marisol|jorge|lucia|lucía/i.test(v.name)) score += 2;
+      if (/compact|espeak/i.test(v.name)) score -= 4;
+      if (NOVELTY.test(v.name)) score -= 20;
+      if (score > bestScore) { best = v; bestScore = score; }
+    });
+    voiceCache = { lang: want, voice: best };
+    return best;
+  }
+  if ('speechSynthesis' in window) {
+    speechSynthesis.addEventListener('voiceschanged', () => { voiceCache = { lang: null, voice: null }; });
+  }
+
+  // Chrome on a Mac stops speaking for good (until it restarts) when speech is
+  // cancelled while the next line is still starting, which happened whenever
+  // two lines came in the same moment ("Forward", then "Now press GO!"). So
+  // lines never interrupt each other: each one finishes, then only the newest
+  // waiting line is said. cancel() is used only to stop speech on purpose.
+  // If a line hasn't started after a few seconds, it is tried once more and
+  // then with the browser's default voice; if it never ends, we move on.
+  let current = null;
+  let waiting = null;
+  let cancelledAt = 0;
+  function cancelSpeech() {
+    cancelledAt = Date.now();
+    speechSynthesis.cancel();
+  }
+  function speakUtterance(u) {
+    if (current) { waiting = u; return; }
+    startUtterance(u, 0);
+  }
+  function startUtterance(u, attempt) {
+    current = u;
+    let started = false;
+    let finished = false;
+    const mark = () => { started = true; };
+    const done = () => {
+      if (finished || current !== u) return;
+      finished = true;
+      current = null;
+      const next = waiting;
+      waiting = null;
+      if (next) startUtterance(next, 0);
+    };
+    u.addEventListener('start', mark);
+    u.addEventListener('boundary', mark);
+    u.addEventListener('end', done);
+    u.addEventListener('error', (e) => {
+      if (e.error === 'interrupted' || e.error === 'canceled') return;
+      if (!started) retry(); else done();
+    });
+    const retry = () => {
+      if (current !== u || started || finished) return;
+      if (attempt >= 2) { done(); return; }
+      finished = true;
+      const again = new SpeechSynthesisUtterance(u.text);
+      again.rate = u.rate;
+      again.lang = u.lang;
+      if (attempt === 0 && u.voice) again.voice = u.voice;
+      else if (u.voice) { badVoices.add(u.voice.name); voiceCache = { lang: null, voice: null }; }
+      again.onboundary = u.onboundary;
+      again.onend = u.onend;
+      cancelSpeech();
+      current = null;
+      startUtterance(again, attempt + 1);
+    };
+    // Give a cancel a moment to settle before speaking again.
+    setTimeout(() => {
+      if (current !== u || finished) return;
+      if (speechSynthesis.paused) speechSynthesis.resume();
+      speechSynthesis.speak(u);
+      setTimeout(retry, 3000);
+      // Some browsers never send 'end'; don't let one line block the rest.
+      setTimeout(() => { if (current === u && !finished) { cancelSpeech(); done(); } }, 4000 + u.text.length * 120);
+    }, Math.max(0, cancelledAt + 300 - Date.now()));
+  }
+  function stopSpeech() {
+    const busy = current || waiting;
+    current = null;
+    waiting = null;
+    if (busy && 'speechSynthesis' in window) cancelSpeech();
+  }
+  function speaking() {
+    return Boolean(current || waiting);
+  }
+
   function say(text) {
     if (!voiceOn || !('speechSynthesis' in window)) return;
     try {
-      speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 0.95;
       u.lang = I18N.speechLang;
-      speechSynthesis.speak(u);
+      const v = bestVoice();
+      if (v) u.voice = v;
+      speakUtterance(u);
     } catch (e) { /* speech unavailable */ }
   }
   voiceBtns.forEach((b) => {
@@ -576,7 +686,7 @@
       syncVoiceBtn();
       SND.tap();
       if (voiceOn) say(tr('msg.readAloudOn'));
-      else if ('speechSynthesis' in window) speechSynthesis.cancel();
+      else stopSpeech();
     });
   });
   syncVoiceBtn();
@@ -2383,7 +2493,7 @@
     // Leave the last turn's message (like a bump) up long enough to read, and
     // let the voice finish saying it, before the AI Opponent starts talking.
     await sleep(readingTime($('#message').textContent));
-    for (let waited = 0; voiceOn && 'speechSynthesis' in window && speechSynthesis.speaking && waited < 15000; waited += 200) await sleep(200);
+    for (let waited = 0; voiceOn && speaking() && waited < 15000; waited += 200) await sleep(200);
     if (!still()) return;
     setMessage(tr('ai.rolling', { robot: r.name }));
     await roll(true);
