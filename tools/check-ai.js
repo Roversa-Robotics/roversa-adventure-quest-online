@@ -1,19 +1,21 @@
 #!/usr/bin/env node
-// Plays the AI Opponent through tricky Dice Quest spots with many random rolls
-// and checks it never leaves another robot boxed in with no way to move.
-// Usage: node tools/check-ai.js [rolls per spot]
+// Plays Dice Quest games with the AI Opponent driving every robot, from tricky
+// spots, and checks every game ends. The "three turns on one square" rule
+// (Engine.countStay) is what keeps a stuck robot from stopping the game.
+// Usage: node tools/check-ai.js [games per spot and skill level]
 const path = require('path');
 const E = require(path.join(__dirname, '..', 'js', 'engine.js'));
 const AI = require(path.join(__dirname, '..', 'js', 'ai.js'));
 
 const FACES = ['F', 'B', 'L', 'R', 'W', 'P'];
-const count = Number(process.argv[2]) || 300;
+const MAX_TURNS = 400;
+const count = Number(process.argv[2]) || 40;
 
-// Tom's game (2026-10-13): the AI (2) has found A and B, and its last treasure C
-// is under the player (1), who has water, a tree and a rock on three sides.
-// The AI kept bumping into the player from the fourth side, so neither could move.
+// Tom's game (2026-10-13): robot 1 sits on treasure C with water, a tree and a
+// rock on three sides. Robot 2 has found A and B, needs C, and stands on the
+// fourth side, so neither robot can move. It used to go on forever.
 const SPOTS = [{
-  name: 'last treasure under a boxed-in player',
+  name: 'player boxed in on the AI\'s last treasure',
   map: [
     '.......2',
     '...WWR..',
@@ -24,40 +26,63 @@ const SPOTS = [{
     '.......B',
     '1...A...',
   ],
-  player: { x: 4, y: 2 },
-  ai: { x: 3, y: 2, dir: 3, visited: ['A', 'B'] },
+  robots: [
+    { x: 4, y: 2, dir: 2, visited: ['A', 'C'] },
+    { x: 3, y: 2, dir: 1, visited: ['A', 'B'] },
+  ],
 }];
 
-function trapped(grid, p, isRobot) {
-  for (let d = 0; d < 4; d++) {
-    const nx = p.x + E.DX[d], ny = p.y + E.DY[d];
-    if (nx < 0 || ny < 0 || ny >= grid.length || nx >= grid[0].length) return false;
-    if (!E.isBlocked(grid, nx, ny) && !isRobot(nx, ny)) return false;
-  }
-  return true;
+let failed = false;
+const check = (ok, text) => { if (!ok) failed = true; console.log(`${ok ? 'ok  ' : 'FAIL'} ${text}`); };
+
+// The rule itself: home on the third turn ended on one square, never on the start square.
+{
+  const r = { sx: 0, sy: 0, x: 0, y: 0, stay: 0, stayAt: null };
+  const ends = [[0, 0], [1, 0], [1, 0], [1, 0]].map(([x, y]) => { r.x = x; r.y = y; return E.countStay(r); });
+  check(ends.join() === 'false,false,false,true' && r.stay === 3, 'three turns ended on one square sends a robot home; its start square never counts');
 }
 
-let failed = false;
+// One turn the way js/game.js plays it.
+// With `blind`, the AI plans as if it did not know the rule, like a player who
+// just keeps bumping: the rule alone has to end the game.
+function playTurn(map, robots, i, level, blind) {
+  const r = robots[i];
+  const occupied = (x, y) => robots.some((o) => o !== r && o.x === x && o.y === y);
+  const tray = [0, 1, 2, 3, 4].map(() => ({ t: FACES[Math.floor(Math.random() * FACES.length)] }));
+  const program = AI.plan(map, blind ? { ...r, stay: undefined } : r, tray, level, occupied);
+  for (const cmd of E.resolve(program)) {
+    const res = E.step(map.grid, r, cmd, occupied);
+    if (res.result === 'move' || res.result === 'turn') {
+      Object.assign(r, { x: res.x, y: res.y, dir: res.dir });
+      const goal = map.goals.find((g) => g.x === r.x && g.y === r.y);
+      if (goal) r.visited.add(goal.id);
+    } else if (res.result === 'bump') break;
+    else if (res.result === 'off') {
+      if (!occupied(r.sx, r.sy)) Object.assign(r, { x: r.sx, y: r.sy, dir: r.sdir });
+      break;
+    }
+  }
+  if (r.visited.size === map.goals.length) return true;
+  if (E.countStay(r) && !occupied(r.sx, r.sy)) Object.assign(r, { x: r.sx, y: r.sy, dir: r.sdir, stay: 0, stayAt: null });
+  return false;
+}
+
 SPOTS.forEach((spot) => {
   const map = E.parseMap(spot.map);
-  const start = map.starts['2'];
-  AI.LEVELS.forEach((level) => {
-    let bad = 0;
-    for (let i = 0; i < count; i++) {
-      const tray = [0, 1, 2, 3, 4].map(() => ({ t: FACES[Math.floor(Math.random() * FACES.length)] }));
-      const robot = { ...spot.ai, sx: start.x, sy: start.y, sdir: 0, visited: new Set(spot.ai.visited) };
-      const occupied = (x, y) => x === spot.player.x && y === spot.player.y;
-      const program = AI.plan(map, robot, tray, level, occupied);
-      const end = AI.simulate(map.grid, map.goals, robot, program, occupied).pos;
-      const boxes = (pos) => trapped(map.grid, spot.player, (x, y) => x === pos.x && y === pos.y);
-      // Some rolls (all turns, say) cannot move the AI away; only count the rest.
-      const canLeave = AI.candidates(tray.map((p) => p.t))
-        .some((prog) => !boxes(AI.simulate(map.grid, map.goals, robot, prog, occupied).pos));
-      if (canLeave && boxes(end)) bad++;
+  [...AI.LEVELS.map((level) => ({ level })), { level: 'hard', blind: true }].forEach(({ level, blind }) => {
+    const lengths = [];
+    for (let game = 0; game < count; game++) {
+      const robots = spot.robots.map((s, i) => {
+        const start = map.starts[String(i + 1)];
+        return { ...s, sx: start.x, sy: start.y, sdir: 0, visited: new Set(s.visited), stay: 0, stayAt: null };
+      });
+      let turn = 0;
+      while (turn < MAX_TURNS && !playTurn(map, robots, turn % robots.length, level, blind)) turn++;
+      lengths.push(turn + 1);
     }
-    const ok = bad === 0;
-    if (!ok) failed = true;
-    console.log(`${ok ? 'ok  ' : 'FAIL'} ${spot.name}, ${level}: player boxed in after ${bad} of ${count} AI turns`);
+    const stuck = lengths.filter((n) => n > MAX_TURNS).length;
+    lengths.sort((a, b) => a - b);
+    check(stuck === 0, `${spot.name}, ${level}${blind ? ', AI not told the rule' : ''}: ${count - stuck} of ${count} games ended (median ${lengths[lengths.length >> 1]} turns)`);
   });
 });
 process.exit(failed ? 1 : 0);

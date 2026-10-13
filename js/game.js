@@ -251,12 +251,15 @@
       rx: start.x, ry: start.y, ang: (dir * Math.PI) / 2, scale: 1, alpha: 1, bump: 0,
       visited: new Set(),
       turns: 0,
+      stay: 0, stayAt: null, // Dice Quest: turns in a row ended on the same square (E.countStay)
     };
   }
 
   function resetRobot(r) {
     Object.assign(r, { x: r.sx, y: r.sy, dir: r.sdir, rx: r.sx, ry: r.sy, ang: (r.sdir * Math.PI) / 2, scale: 1, alpha: 1 });
     r.visited = new Set();
+    r.stay = 0;
+    r.stayAt = null;
   }
 
   // ---------- Board drawing ----------
@@ -380,6 +383,7 @@
     });
 
     if (costumeTags()) game.robots.forEach((r) => drawCostumeTag(g, r, S));
+    if (game.mode === 'quest') game.robots.forEach((r) => drawStayDots(g, r, S));
 
     if (isGuess()) drawGuessMarks(g, S);
     if (game.stopMark) drawStopMark(g, S, true);
@@ -474,6 +478,32 @@
     g.fillStyle = r.css;
     g.fillRect(x, y, TAG, TAG);
     g.drawImage(r.character, x + SCALE / 4, y + SCALE / 4, TAG - SCALE / 2, TAG - SCALE / 2);
+    g.restore();
+  }
+
+  // From the second turn in a row a robot ends on the same square, three dots
+  // beside its costume tag count the turns (filled orange) toward going back
+  // to the start. Without tags (one player) they sit above the robot.
+  function drawStayDots(g, r, S) {
+    if (r.gone || r.stay < 2 || r.alpha < 0.5 || r.x !== r.rx || r.y !== r.ry) return;
+    const [dx, dy] = costumeTags() ? TAG_SIDES[placeTag(r)] : r.y === 0 ? TAG_SIDES[1] : TAG_SIDES[0];
+    const reach = S / 2 + TAG_GAP + TAG / 2;
+    const tx = Math.round((r.rx + 0.5) * S + dx * reach - TAG / 2);
+    const ty = Math.round((r.ry + 0.5) * S + dy * reach - TAG / 2);
+    const dot = 2 * SCALE, gap = SCALE;
+    const w = E.STAY_LIMIT * dot + (E.STAY_LIMIT + 1) * gap, h = dot + 2 * gap;
+    let x = costumeTags() ? tx + TAG + SCALE * 1.5 : Math.round((r.rx + 0.5) * S - w / 2);
+    if (x + w > game.map.cols * S - SCALE) x = tx - w - SCALE * 1.5;
+    const y = Math.round(ty + TAG / 2 - h / 2);
+    g.save();
+    g.fillStyle = '#0e1024';
+    g.fillRect(x - SCALE / 2, y - SCALE / 2, w + SCALE, h + SCALE);
+    g.fillStyle = '#ffffff';
+    g.fillRect(x, y, w, h);
+    for (let i = 0; i < E.STAY_LIMIT; i++) {
+      g.fillStyle = i < r.stay ? '#e8590c' : '#c9ccd6';
+      g.fillRect(x + gap + i * (dot + gap), y + gap, dot, dot);
+    }
     g.restore();
   }
 
@@ -2090,6 +2120,23 @@
     return { result: res.result };
   }
 
+  // Dice Quest: a robot that ended too many turns on one square shrinks away and
+  // pops up on its start square. Returns false (and stays put) when another
+  // robot is on the start square.
+  async function stayGoHome(r) {
+    if (game.robots.some((o) => o !== r && o.x === r.sx && o.y === r.sy)) return false;
+    SND.off();
+    await tween(r, { scale: 0.3, alpha: 0 }, 500);
+    await sleep(250);
+    Object.assign(r, { x: r.sx, y: r.sy, dir: r.sdir, rx: r.sx, ry: r.sy, ang: (r.sdir * Math.PI) / 2 });
+    r.stay = 0;
+    r.stayAt = null;
+    r.tagSide = null;
+    sparkle(r.x, r.y);
+    await tween(r, { scale: 1, alpha: 1 }, 300);
+    return true;
+  }
+
   // Starts a program from the beginning: in Adventures the robot goes back to its start first.
   function beginRun() {
     const r = game.robots[game.active];
@@ -2479,7 +2526,7 @@
     game.homing = null;
   }
 
-  function finishQuestTurn(r, outcome) {
+  async function finishQuestTurn(r, outcome) {
     r.turns++;
     const q = game.quest;
     if (game.net) game.net.turn++;
@@ -2513,7 +2560,17 @@
     if (outcome.result === 'bump') text = tr('msg.bumpQuest', { robot: r.name, what: outcome.what });
     else if (outcome.result === 'off') text = tr('msg.offQuest', { robot: r.name });
     else text = tr('msg.stopped', { robot: r.name });
-    nextTurn(text, outcome.result === 'done' ? '' : 'bad');
+    let kind = outcome.result === 'done' ? '' : 'bad';
+    if (E.countStay(r)) {
+      game.running = true;
+      const home = await stayGoHome(r);
+      game.running = false;
+      if (game.quest !== q || !$('#screen-game').classList.contains('active')) return;
+      // The trip home is the news, so it replaces the usual "stopped" message.
+      text = tr(home ? 'msg.stayHome' : 'msg.stayBlocked', { robot: r.name }).trim();
+      kind = 'bad';
+    }
+    nextTurn(text, kind);
   }
 
   // Passes the dice to the next robot still in the game.
@@ -2531,6 +2588,11 @@
     } else {
       if (game.robots[game.active].gone) game.active = game.robots.indexOf(playing[0]);
       text += tr('msg.rollAgain');
+    }
+    const up = game.robots[game.active];
+    if (up.stay >= E.STAY_LIMIT - 1) {
+      text += tr('msg.stayWarn', { robot: up.name, n: up.stay });
+      kind = 'bad';
     }
     setMessage(text, kind);
     renderAll();

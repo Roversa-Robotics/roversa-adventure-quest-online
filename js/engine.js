@@ -171,7 +171,27 @@
     return { after, end: pos, stopped };
   }
 
-  const api = { DX, DY, DIR_NAMES, COMMANDS, parseMap, inBounds, isBlocked, resolve, step, solve, parseAlgorithm, trace };
+  // Dice Quest: a robot that ends STAY_LIMIT turns in a row on the same square
+  // goes back to its start, so a robot that is stuck (or keeps another robot
+  // stuck) can never stop the game. The same rule holds for every player and
+  // the AI Opponent.
+  const STAY_LIMIT = 3;
+
+  // How many turns in a row the robot will have ended on (x, y) if its turn
+  // ends there. On its own start square nothing is counted.
+  function staysAfter(robot, x, y) {
+    if (x === robot.sx && y === robot.sy) return 0;
+    return robot.stayAt && robot.stayAt.x === x && robot.stayAt.y === y ? robot.stay + 1 : 1;
+  }
+
+  // Counts the turn that just ended. Returns true when the robot must go back to its start.
+  function countStay(robot) {
+    robot.stay = staysAfter(robot, robot.x, robot.y);
+    robot.stayAt = robot.stay ? { x: robot.x, y: robot.y } : null;
+    return robot.stay >= STAY_LIMIT;
+  }
+
+  const api = { DX, DY, DIR_NAMES, COMMANDS, STAY_LIMIT, parseMap, inBounds, isBlocked, resolve, step, solve, parseAlgorithm, trace, staysAfter, countStay };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.RoversaEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
