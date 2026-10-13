@@ -187,6 +187,20 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .level-card .num { font-family: var(--mono); font-weight: 700; font-size: 14px; margin: 10px 0 6px; color: var(--yellow); }
 .level-card .name { font-weight: 700; font-size: 15px; }
 .level-world { grid-column: 1 / -1; margin: 6px 0 -4px; font-family: var(--heading); font-weight: 400; font-size: 20px; color: var(--yellow); }
+.random-pic { position: relative; }
+.random-pic canvas { filter: blur(2.5px) brightness(0.85); }
+.random-q {
+  position: absolute; left: 50%; top: 50%;
+  width: 44px; height: 44px; margin: -22px 0 0 -22px;
+  background: #fff; color: #1d1f3a; border: 3px solid #1d1f3a; border-radius: 9px;
+  box-shadow: 3px 3px 0 #1d1f3a;
+  font: 900 30px/38px system-ui, sans-serif; text-align: center;
+  transform: rotate(-8deg);
+}
+.random-card.busy .random-q { animation: random-roll 0.5s linear infinite; }
+@keyframes random-roll { to { transform: rotate(352deg); } }
+.random-solved { font-size: 14px; color: #b9bbd8; margin-top: 6px; }
+.random-solved::first-letter { color: var(--yellow); }
 .stars { font-size: 20px; letter-spacing: 2px; color: #555a80; margin-top: 4px; }
 .stars .on { color: var(--yellow); }
 
@@ -457,7 +471,7 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  #title-robot, .piece.running, .guide-hand { animation: none; }
+  #title-robot, .piece.running, .guide-hand, .random-card.busy .random-q { animation: none; }
 }
 
 /* Costume row on the Adventures screen */

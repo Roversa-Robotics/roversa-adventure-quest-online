@@ -9,6 +9,7 @@
   // Silent while a device catches up on moves it missed (see "Playing on several devices").
   const SND = new Proxy(AUDIO.sfx, { get: (o, k) => (game.fast ? () => {} : o[k]) });
   const LEVELS = globalThis.ROVERSA_LEVELS;
+  const RANDOM = globalThis.RoversaRandom;
   const I18N = globalThis.RoversaI18n;
   const tr = I18N.tr;
   // Name tables that always answer in the current language, e.g. PIECE_NAMES.F.
@@ -551,14 +552,15 @@
     b.setAttribute('aria-label', aria);
   }
 
-  const levelHint = () => I18N.levelText(game.levelIndex, game.level).hint;
+  const levelHint = () => (game.level.random ? tr('rand.hint.' + game.level.random) : I18N.levelText(game.levelIndex, game.level).hint);
   // Level numbers start at 1 after the Meet Roversa tutorial, which has a star instead.
   const FIRST_NUM = LEVELS[0] && LEVELS[0].stages ? 0 : 1;
 
   // Titles and button words on the game screen that depend on the mode and language.
   function syncGameText() {
     if (game.mode === 'level') {
-      $('#game-title').textContent = (game.level.stages ? '\u2605' : (game.levelIndex + FIRST_NUM) + '.') + ' ' + I18N.levelText(game.levelIndex, game.level).name;
+      $('#game-title').textContent = game.level.random ? '\u{1F3B2} ' + tr('rand.title.' + game.level.random)
+        : (game.level.stages ? '\u2605' : (game.levelIndex + FIRST_NUM) + '.') + ' ' + I18N.levelText(game.levelIndex, game.level).name;
       $('#pool-label').textContent = tr(game.level.algorithms ? 'guess.label' : 'puzzlePieces');
       labelButton('#btn-reset', tr('startOver'), tr('startOver'));
       labelButton('#btn-clear', tr('clear'), tr('clearProgram'));
@@ -696,6 +698,115 @@
       card.addEventListener('click', () => { SND.tap(); startLevel(i); });
       grid.appendChild(card);
     });
+    renderRandomCards(grid);
+  }
+
+  // ---------- Random Challenges ----------
+  //
+  // After the last world, one card per difficulty makes a fresh map from that
+  // world's tiles (see js/random.js). The card's picture is a blurred made-up
+  // map with a ? on it, so it never gives away the challenge.
+
+  const RANDOM_KEY = 'roversa-random-solved';
+  function loadSolved() {
+    try { return JSON.parse(localStorage.getItem(RANDOM_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function addSolved(diff) {
+    const all = loadSolved();
+    all[diff] = (all[diff] || 0) + 1;
+    try { localStorage.setItem(RANDOM_KEY, JSON.stringify(all)); } catch (e) { /* storage blocked */ }
+    return all[diff];
+  }
+
+  function renderRandomCards(grid) {
+    const head = document.createElement('h3');
+    head.className = 'level-world';
+    head.textContent = '\u{1F3B2} ' + tr('rand.heading');
+    grid.appendChild(head);
+    const solved = loadSolved();
+    RANDOM.ORDER.forEach((diff) => {
+      const d = RANDOM.DIFFICULTIES[diff];
+      let rows = null;
+      while (!rows) rows = RANDOM.layout(diff, Math.random);
+      const map = E.parseMap(rows);
+      const v = buildView(map, 7, d.world);
+      const c = document.createElement('canvas');
+      c.width = v.bg.width;
+      c.height = v.bg.height;
+      const g = c.getContext('2d');
+      g.drawImage(v.bg, 0, 0);
+      v.props.forEach((p) => g.drawImage(p.img, p.x * T, p.y * T, T, T));
+      map.goals.forEach((goal) => g.drawImage(goalArt(goal.id, d.world), goal.x * T, goal.y * T, T, T));
+      const card = document.createElement('button');
+      card.className = 'level-card random-card';
+      card.innerHTML = '<div class="random-pic"><span class="random-q" aria-hidden="true">?</span></div>' +
+        '<div class="num">' + tr('rand.' + diff) + '</div><div class="name"></div>' +
+        '<div class="random-solved">&#9733; ' + tr('rand.solved', { n: solved[diff] || 0 }) + '</div>';
+      card.querySelector('.name').textContent = tr('world.' + d.world);
+      card.querySelector('.random-pic').prepend(c);
+      card.addEventListener('click', () => {
+        if (card.classList.contains('busy')) return;
+        SND.tap();
+        card.classList.add('busy');
+        newChallenge(diff, () => card.classList.remove('busy'));
+      });
+      grid.appendChild(card);
+    });
+  }
+
+  // Makes a new challenge, calls ready(), then starts it (if one could be made).
+  function newChallenge(diff, ready) {
+    RANDOM.generateSoon(diff, (level) => {
+      ready();
+      if (level) startRandom(level);
+    });
+  }
+
+  function startRandom(level) {
+    game.mode = 'level';
+    game.levelIndex = -1;
+    game.level = level;
+    game.quest = null;
+    $('#btn-roll').hidden = true;
+    syncGameText();
+    setUpMap(level, Math.floor(Math.random() * 1000));
+    setMessage(levelHint());
+  }
+
+  function finishRandomRun() {
+    const level = game.level;
+    const diff = level.random;
+    const used = game.program.length;
+    const best = level.best;
+    const stars = used <= best ? 3 : used <= best + 2 ? 2 : 1;
+    const solved = addSolved(diff);
+    setMessage(tr('msg.didIt'), 'good');
+    setTimeout(() => {
+      SND.win();
+      confetti();
+      const harder = RANDOM.ORDER[RANDOM.ORDER.indexOf(diff) + 1];
+      openModal(
+        '<h3>' + tr('rand.done') + '</h3>' +
+        '<div class="big-stars">' + [0, 1, 2].map((k) => '<span class="' + (k < stars ? 'on' : '') + '">&#9733;</span>').join('') + '</div>' +
+        '<p>' + tr('modal.used', { n: used }) +
+        (stars < 3 ? tr('modal.canYou', { n: best }) : tr('modal.fewest')) + '</p>' +
+        '<p class="small">&#127922; ' + tr('rand.count.' + diff, { n: solved }) + '</p>' +
+        '<div class="choices">' +
+        '<button class="btn gray" data-act="again">' + tr('modal.tryAgain') + '</button>' +
+        (harder ? '<button class="btn blue" data-act="harder">' + tr('rand.try.' + harder) + ' &#9654;</button>' : '') +
+        '<button class="btn big green" data-act="new">&#127922; ' + tr('rand.new') + '</button>' +
+        '</div>'
+      );
+      modal.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
+        const act = b.dataset.act;
+        if (act === 'again') { SND.tap(); closeModal(); return; }
+        if (b.disabled) return;
+        SND.tap();
+        modal.querySelectorAll('[data-act]').forEach((x) => { x.disabled = true; });
+        newChallenge(act === 'harder' ? harder : diff, closeModal);
+      }));
+      modal.querySelector('.btn.green').focus();
+    }, 600);
   }
 
   // ---------- Starting a level or a quest ----------
@@ -1852,7 +1963,9 @@
   function finishLevelRun(r, outcome) {
     if (game.guess) { finishGuessRun(r); return; }
     const allDone = game.map.goals.every((g) => r.visited.has(g.id));
-    if (allDone) {
+    if (allDone && game.level.random) {
+      finishRandomRun();
+    } else if (allDone) {
       const used = game.program.length;
       const best = par(game.levelIndex);
       const stars = used <= best ? 3 : used <= best + 2 ? 2 : 1;
