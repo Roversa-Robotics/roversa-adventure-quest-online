@@ -28,6 +28,13 @@
 // newPiece: a puzzle piece this level uses for the first time. The first time the
 //           level opens, a pop-up shows the piece and says what it does.
 //
+// algorithms: makes a Find the Square level (the last level of each world).
+//           Instead of pieces and slots it has ready-made algorithms the player
+//           cannot change; they tap the square where they think Roversa will stop.
+//           A wrong guess moves on to the next algorithm. Pieces are written as
+//           letters with spaces, and 'W:L' is a Wild piece set to Turn Left.
+//           The map has no A, B or C. Algorithms must never bump or leave the map.
+//
 // The first level, Meet Roversa, is the guided tutorial. Instead of one map it
 // has stages, each with its own map, pieces and guide: the steps a pointing hand
 // walks the player through. Guide steps:
@@ -148,6 +155,22 @@ globalThis.ROVERSA_LEVELS = [
       'V.....',
     ],
   },
+  {
+    name: 'Find the Square',
+    hint: 'Read the algorithm. Where will Roversa stop? Tap a square to plant your flag, then press GO.',
+    world: 'pond',
+    startDir: 'E',
+    map: [
+      '..L..V',
+      'S.....',
+      'V....L',
+    ],
+    algorithms: [
+      'F F F L F',
+      'F R F L F F',
+      'F F F F R F',
+    ],
+  },
   // ---------- Roversa Island ----------
   {
     name: 'Back It Up',
@@ -205,6 +228,23 @@ globalThis.ROVERSA_LEVELS = [
       '......',
     ],
   },
+  {
+    name: 'Find the Island Square',
+    hint: 'Watch out for Backward, repeat and Wild! Where will Roversa stop? Tap a square, then press GO.',
+    world: 'island',
+    startDir: 'E',
+    map: [
+      'Pf...M.',
+      'S===.f.',
+      '.f.Y...',
+      'M..f.PO',
+    ],
+    algorithms: [
+      'F P R F P',
+      'F F L F R F B',
+      'F P P P W:R F B P',
+    ],
+  },
   // ---------- Under the Sea ----------
   {
     name: 'Coral Path',
@@ -244,6 +284,23 @@ globalThis.ROVERSA_LEVELS = [
       '#*.%%.*',
       '.%...B%',
       'S..*%.#',
+    ],
+  },
+  {
+    name: 'Find the Sea Square',
+    hint: 'A long algorithm! Follow it one puzzle piece at a time. Where will Roversa stop?',
+    world: 'sea',
+    startDir: 'E',
+    map: [
+      '#*...%#',
+      'S....%.',
+      '#.%....',
+      '#%..*..',
+    ],
+    algorithms: [
+      'F P P R F P R F',
+      'F P P P R F L F P',
+      'F P L F R W:F P B R F',
     ],
   },
 ];
