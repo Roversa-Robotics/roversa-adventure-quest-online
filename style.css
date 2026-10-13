@@ -129,7 +129,12 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .tagline { font-size: 18px; color: var(--muted); line-height: 1.5; }
 .menu { display: flex; flex-direction: column; gap: 16px; margin: 28px auto; max-width: 320px; }
 .menu.row { flex-direction: row; flex-wrap: wrap; justify-content: center; max-width: none; }
-.credit { font-size: 13px; color: var(--muted); }
+.explore { font-size: 16px; line-height: 1.5; color: var(--muted); max-width: 34em; margin: 16px auto 6px; }
+/* Bright and bold: the one link on this screen that leaves the game. */
+.explore a { padding: 10px 0; color: #ffda86; /* brand Soft Sunflower */ font-weight: 700; }
+/* Smaller than the Explore sentence, as agreed in issue #100. */
+.license { font-size: 11px; color: var(--muted); margin: 0 0 8px; }
+.license a { padding: 10px 0; color: inherit; }
 /* Quiet on purpose: it is for grown-ups running a demo, not a big game button. */
 .btn.fresh-btn { min-height: 44px; margin: 18px auto 10px; padding: 8px 14px; font-size: 10px; color: var(--muted); background: var(--bg2); }
 
