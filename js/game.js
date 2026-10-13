@@ -3410,4 +3410,23 @@
     const saved = !linked && NET.available() && !location.hash && NET.saved();
     if (saved) netConnect({ code: saved.code, token: saved.token, quiet: true });
   });
+
+  // What Storybook (js/story.js) borrows from the game.
+  globalThis.RoversaUI = {
+    show,
+    pieceSvg,
+    startTutorial: () => startLevel(0),
+    openModal,
+    closeModal,
+    voiceOn: () => voiceOn,
+    bestVoice,
+    speakUtterance,
+    stopSpeech,
+    speaking,
+    setVoice(on) {
+      voiceOn = on;
+      try { localStorage.setItem('roversa-voice', on ? '1' : '0'); } catch (e) { /* storage blocked */ }
+      syncVoiceBtn();
+    },
+  };
 })();

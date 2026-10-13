@@ -36,6 +36,9 @@
       <canvas id="title-robot" width="32" height="32" aria-hidden="true"></canvas>
       <p class="tagline" data-i18n="title.tagline">Choose a game. Create algorithms. Guide Roversa on a treasure-filled adventure!</p>
       <div class="menu">
+        <button class="btn big purple" data-go="story">
+          <span class="btn-icon" aria-hidden="true">&#128214;</span> <span data-i18n="menu.story">Storybook</span>
+        </button>
         <button class="btn big green" data-go="levels">
           <span class="btn-icon" aria-hidden="true">&#9733;</span> <span data-i18n="menu.adventures">Adventures</span>
         </button>
@@ -72,6 +75,17 @@
     </header>
     <div id="costume-bar" class="costume-bar"></div>
     <div id="level-grid" class="level-grid"></div>
+  </section>
+
+  <!-- Storybook: the chapter shelf and the pages (js/story.js) -->
+  <section id="screen-story" class="screen">
+    <header class="bar">
+      <button class="icon-btn" id="story-back" aria-label="Home" data-i18n-attr="aria-label:home">&#8962;</button>
+      <h2 id="story-title" data-i18n="story.book">Roversa's Big Adventure</h2>
+      <button class="icon-btn btn-voice" type="button" aria-label="Read aloud" title="Read aloud" data-i18n-attr="aria-label:readAloud; title:readAloud">&#128172;</button>
+      <button class="icon-btn btn-sound" type="button" aria-label="Sound on or off" data-i18n-attr="aria-label:sound">&#9835;</button>
+    </header>
+    <main id="story-body" class="story"></main>
   </section>
 
   <!-- Quest setup -->
@@ -186,6 +200,7 @@
   <script src="relay/room.js?v=__BUILD__"></script>
   <script src="js/net.js?v=__BUILD__"></script>
   <script src="js/game.js?v=__BUILD__"></script>
+  <script src="js/story.js?v=__BUILD__"></script>
   <script src="js/pwa.js?v=__BUILD__"></script>
 </body>
 </html>
