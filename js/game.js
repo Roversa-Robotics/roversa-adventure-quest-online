@@ -564,6 +564,7 @@
   // voices on Apple devices). Novelty voices on Macs are skipped.
   const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|deranged|good news|hysterical|jester|organ|superstar|trinoids|whisper|wobble|zarvox|ralph|fred|junior|kathy|grandpa|grandma|rocko|shelley|flo|eddy|reed|sandy/i;
   let voiceCache = { lang: null, voice: null };
+  const badVoices = new Set();
   function bestVoice() {
     if (!('speechSynthesis' in window)) return null;
     const want = I18N.speechLang;
@@ -572,7 +573,7 @@
     let best = null, bestScore = -Infinity;
     speechSynthesis.getVoices().forEach((v) => {
       const lang = (v.lang || '').replace('_', '-');
-      if (lang.split('-')[0].toLowerCase() !== base) return;
+      if (lang.split('-')[0].toLowerCase() !== base || badVoices.has(v.name)) return;
       let score = 0;
       if (lang.toLowerCase() === want.toLowerCase()) score += 2;
       if (/natural|neural/i.test(v.name)) score += 10;
@@ -593,16 +594,48 @@
     speechSynthesis.addEventListener('voiceschanged', () => { voiceCache = { lang: null, voice: null }; });
   }
 
+  // Chrome sometimes drops or hangs speech: right after cancel(), when a voice
+  // fails, or when nothing holds on to the utterance. So we keep a reference,
+  // wake a paused engine, and if speech hasn't started soon, try once more,
+  // then once with the browser's default voice (and stop using that voice).
+  let current = null;
+  function speakUtterance(u, attempt = 0) {
+    current = u;
+    let started = false;
+    const mark = () => { started = true; };
+    u.addEventListener('start', mark);
+    u.addEventListener('boundary', mark);
+    const retry = () => {
+      if (current !== u || started || attempt >= 2) return;
+      const again = new SpeechSynthesisUtterance(u.text);
+      again.rate = u.rate;
+      again.lang = u.lang;
+      if (attempt === 0 && u.voice) again.voice = u.voice;
+      else if (u.voice) { badVoices.add(u.voice.name); voiceCache = { lang: null, voice: null }; }
+      again.onboundary = u.onboundary;
+      again.onend = u.onend;
+      speakUtterance(again, attempt + 1);
+    };
+    u.addEventListener('error', (e) => { if (e.error !== 'interrupted' && e.error !== 'canceled') retry(); });
+    speechSynthesis.cancel();
+    if (speechSynthesis.paused) speechSynthesis.resume();
+    speechSynthesis.speak(u);
+    setTimeout(retry, 3000);
+  }
+  function stopSpeech() {
+    current = null;
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  }
+
   function say(text) {
     if (!voiceOn || !('speechSynthesis' in window)) return;
     try {
-      speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       u.rate = 0.95;
       u.lang = I18N.speechLang;
       const v = bestVoice();
       if (v) u.voice = v;
-      speechSynthesis.speak(u);
+      speakUtterance(u);
     } catch (e) { /* speech unavailable */ }
   }
   voiceBtns.forEach((b) => {
@@ -613,7 +646,7 @@
       syncVoiceBtn();
       SND.tap();
       if (voiceOn) say(tr('msg.readAloudOn'));
-      else if ('speechSynthesis' in window) speechSynthesis.cancel();
+      else stopSpeech();
     });
   });
   syncVoiceBtn();
