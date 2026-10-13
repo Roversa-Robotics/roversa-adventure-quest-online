@@ -2533,10 +2533,11 @@
     if (isAiTurn()) aiTurn();
   }
 
-  // About how long a young reader needs for a message: a little over a second,
-  // plus a third of a second per word.
+  // How long to leave a message up before the AI Opponent moves on: about half
+  // a second, plus a fifth of a second per word (3 seconds for a typical turn
+  // message). With Read aloud on, it also waits for the voice to finish.
   function readingTime(text) {
-    return Math.max(1800, 1200 + text.trim().split(/\s+/).length * 330);
+    return Math.max(1500, 600 + text.trim().split(/\s+/).length * 200);
   }
 
   // The AI Opponent's turn: it rolls, lays out its puzzle pieces one at a time and
