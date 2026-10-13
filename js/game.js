@@ -125,6 +125,42 @@
       '</svg>';
   }
 
+  // The Roversa die, drawn as a rounded cube showing three of its faces: the
+  // Roversa word on top, Forward on the left and Turn Right on the right. Each
+  // face of the printed die has one puzzle piece's picture cut into it. The dice
+  // come in the puzzle piece colors; orange stands out best on the dark
+  // background and on the green New challenge button.
+  const DIE_COLORS = { top: '#ffa461', left: '#ff8529', right: '#d9681a', seam: '#b4520f', cut: '#6e2c04' };
+  function dieSvg(cls) {
+    const id = 'die' + uid();
+    // Maps a piece picture (about 74 units square around 45,30) onto a face whose
+    // corners are a (top left), b (top right) and d (bottom left).
+    const face = (a, b, d, t) => {
+      const k = 74, x0 = 8, y0 = -7;
+      const m = [(b[0] - a[0]) / k, (b[1] - a[1]) / k, (d[0] - a[0]) / k, (d[1] - a[1]) / k];
+      const e = a[0] - x0 * m[0] - y0 * m[2], f = a[1] - x0 * m[1] - y0 * m[3];
+      return '<g transform="matrix(' + m.concat(e, f).map((n) => +n.toFixed(4)).join(' ') + ')">' + iconMarkup(t, id) + '</g>';
+    };
+    const L = [12, 27], T = [50, 7], R = [88, 27], C = [50, 47], BL = [12, 73], BR = [88, 73], B = [50, 93];
+    const poly = (pts, fill) => '<polygon points="' + pts.map((p) => p.join(',')).join(' ') + '" fill="' + fill + '"/>';
+    // The outline with its six corners rounded off, like the printed die.
+    const r = 0.3;
+    const outline = [T, R, BR, B, BL, L].map((p, i, all) => {
+      const prev = all[(i + 5) % 6], next = all[(i + 1) % 6];
+      const at = (q, k) => [p[0] + (q[0] - p[0]) * k, p[1] + (q[1] - p[1]) * k].map((n) => +n.toFixed(2)).join(',');
+      return (i ? 'L' : 'M') + at(prev, r) + ' Q' + p.join(',') + ' ' + at(next, r);
+    }).join(' ') + 'Z';
+    // Thin seams where the faces meet, stopping short of the rounded corners.
+    const seam = (p, q) => '<line x1="' + p[0] + '" y1="' + p[1] + '" x2="' + (p[0] + (q[0] - p[0]) * 0.8) + '" y2="' + (p[1] + (q[1] - p[1]) * 0.8) + '"/>';
+    return '<svg class="' + (cls || 'die-icon') + '" viewBox="0 0 100 100" aria-hidden="true">' +
+      '<defs><path id="' + id + '" d="M33.5,42.6 A15,15 0 1 1 56.5,42.6"/><clipPath id="' + id + 'c"><path d="' + outline + '"/></clipPath></defs>' +
+      '<g clip-path="url(#' + id + 'c)">' +
+      poly([L, T, R, C], DIE_COLORS.top) + poly([L, C, B, BL], DIE_COLORS.left) + poly([C, R, BR, B], DIE_COLORS.right) + '</g>' +
+      '<g stroke="' + DIE_COLORS.seam + '" stroke-width="1.5" stroke-linecap="round">' + seam(C, L) + seam(C, R) + seam(C, B) + '</g>' +
+      '<g fill="' + DIE_COLORS.cut + '" style="color:' + DIE_COLORS.cut + '">' + face(L, T, C, 'P') + face(L, C, BL, 'F') + face(C, R, B, 'R') + '</g>' +
+      '</svg>';
+  }
+
   // The same picture as an image the map can draw, cached per piece and wild choice.
   const pieceImages = {};
   function pieceImage(t, chosen, copies) {
@@ -559,8 +595,9 @@
   // Titles and button words on the game screen that depend on the mode and language.
   function syncGameText() {
     if (game.mode === 'level') {
-      $('#game-title').textContent = game.level.random ? '\u{1F3B2} ' + tr('rand.title.' + game.level.random)
+      $('#game-title').textContent = game.level.random ? tr('rand.title.' + game.level.random)
         : (game.level.stages ? '\u2605' : (game.levelIndex + FIRST_NUM) + '.') + ' ' + I18N.levelText(game.levelIndex, game.level).name;
+      if (game.level.random) $('#game-title').insertAdjacentHTML('afterbegin', dieSvg());
       $('#pool-label').textContent = tr(game.level.algorithms ? 'guess.label' : 'puzzlePieces');
       labelButton('#btn-reset', tr('startOver'), tr('startOver'));
       labelButton('#btn-clear', tr('clear'), tr('clearProgram'));
@@ -720,8 +757,9 @@
 
   function renderRandomCards(grid) {
     const head = document.createElement('h3');
-    head.className = 'level-world';
-    head.textContent = '\u{1F3B2} ' + tr('rand.heading');
+    head.className = 'level-world random-heading';
+    head.textContent = tr('rand.heading');
+    head.insertAdjacentHTML('afterbegin', dieSvg());
     grid.appendChild(head);
     const solved = loadSolved();
     RANDOM.ORDER.forEach((diff) => {
@@ -790,11 +828,11 @@
         '<div class="big-stars">' + [0, 1, 2].map((k) => '<span class="' + (k < stars ? 'on' : '') + '">&#9733;</span>').join('') + '</div>' +
         '<p>' + tr('modal.used', { n: used }) +
         (stars < 3 ? tr('modal.canYou', { n: best }) : tr('modal.fewest')) + '</p>' +
-        '<p class="small">&#127922; ' + tr('rand.count.' + diff, { n: solved }) + '</p>' +
+        '<p class="small random-count">' + dieSvg() + tr('rand.count.' + diff, { n: solved }) + '</p>' +
         '<div class="choices">' +
         '<button class="btn gray" data-act="again">' + tr('modal.tryAgain') + '</button>' +
         (harder ? '<button class="btn blue" data-act="harder">' + tr('rand.try.' + harder) + ' &#9654;</button>' : '') +
-        '<button class="btn big green" data-act="new">&#127922; ' + tr('rand.new') + '</button>' +
+        '<button class="btn big green random-new" data-act="new">' + dieSvg() + tr('rand.new') + '</button>' +
         '</div>'
       );
       modal.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {

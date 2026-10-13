@@ -199,6 +199,11 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 }
 .random-card.busy .random-q { animation: random-roll 0.5s linear infinite; }
 @keyframes random-roll { to { transform: rotate(352deg); } }
+.die-icon { display: inline-block; width: 1.4em; height: 1.4em; vertical-align: middle; margin: -0.3em 0.3em -0.2em 0; flex: none; }
+.random-heading .die-icon { width: 1.7em; height: 1.7em; }
+.random-count .die-icon { width: 2em; height: 2em; }
+.random-new { display: inline-flex; align-items: center; }
+.random-new .die-icon { width: 46px; height: 46px; margin: -10px 10px -10px -4px; }
 .random-solved { font-size: 14px; color: #b9bbd8; margin-top: 6px; }
 .random-solved::first-letter { color: var(--yellow); }
 .stars { font-size: 20px; letter-spacing: 2px; color: #555a80; margin-top: 4px; }
