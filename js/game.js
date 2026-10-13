@@ -699,7 +699,16 @@
       if (speechSynthesis.paused) speechSynthesis.resume();
       speechSynthesis.speak(u);
       setTimeout(retry, 3000);
-      // Some browsers never send 'end'; don't let one line block the rest.
+      // Some browsers never send 'end', so also move on as soon as the browser
+      // says it has stopped talking; otherwise the AI Opponent would wait for
+      // the timeout below before starting its turn.
+      let heard = false;
+      const watch = setInterval(() => {
+        if (current !== u || finished) { clearInterval(watch); return; }
+        if (speechSynthesis.speaking) heard = true;
+        else if ((heard || started) && !speechSynthesis.pending) { clearInterval(watch); done(); }
+      }, 200);
+      // Don't let one line block the rest.
       setTimeout(() => { if (current === u && !finished) { cancelSpeech(); done(); } }, 4000 + u.text.length * 120);
     }, Math.max(0, cancelledAt + 300 - Date.now()));
   }
@@ -2529,10 +2538,11 @@
     if (isAiTurn()) aiTurn();
   }
 
-  // About how long a young reader needs for a message: a little over a second,
-  // plus a third of a second per word.
+  // How long to leave a message up before the AI Opponent moves on: about half
+  // a second, plus a fifth of a second per word (3 seconds for a typical turn
+  // message). With Read aloud on, it also waits for the voice to finish.
   function readingTime(text) {
-    return Math.max(1800, 1200 + text.trim().split(/\s+/).length * 330);
+    return Math.max(1500, 600 + text.trim().split(/\s+/).length * 200);
   }
 
   // The AI Opponent's turn: it rolls, lays out its puzzle pieces one at a time and
