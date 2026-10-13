@@ -140,6 +140,21 @@ node tools/check-levels.js
 to make sure every level can be solved and to see the shortest solution (that
 number is what earns three stars).
 
+## Random Challenges
+
+The Random Challenges after the last world make a fresh map each time, from one
+world's tiles: Easy is Duck Pond, Medium is Roversa Island and Hard is Under the
+Sea. The sizes, obstacles and puzzle pieces for each difficulty are at the top of
+[`js/random.js`](js/random.js). A map is only shown after the solver finds it can
+be won, so after changing them, run
+
+```
+node tools/check-random.js
+```
+
+to make lots of challenges for each difficulty, check them, and see how long
+they take to make.
+
 ## Publishing on GitHub Pages
 
 Settings > Pages > Build and deployment > Source: **GitHub Actions**.
