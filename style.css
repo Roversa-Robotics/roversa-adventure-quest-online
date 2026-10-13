@@ -349,8 +349,10 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .piece.running { animation: pulse 0.4s ease-in-out infinite alternate; z-index: 2; }
 @keyframes pulse { to { transform: translateY(-6px) scale(1.12); filter: drop-shadow(0 0 8px #fff7a8); } }
 .piece.done { opacity: 0.55; }
-/* An empty slot takes up exactly the room a puzzle piece will, so the program
-   row doesn't change size as pieces go in. */
+/* Every empty slot is the same size and sits exactly where the body of a
+   puzzle piece will go, so nothing moves as pieces go in. The first puzzle
+   piece's left tab has nothing to fit into, so the first slot leaves room
+   for it instead of growing wider. */
 .slot {
   width: calc(var(--piece) * 0.83 - 6px);
   height: calc(var(--piece) * 0.7);
@@ -359,7 +361,7 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
   border-radius: 8px;
   flex: 0 0 auto;
 }
-.program .slot:first-child { width: calc(var(--piece) - 6px); }
+.program .slot:first-child { margin-left: calc(var(--piece) * 0.17 + 3px); }
 .caret {
   width: 6px; height: calc(var(--piece) * 0.8);
   background: var(--yellow);
