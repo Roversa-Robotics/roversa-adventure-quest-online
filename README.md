@@ -29,6 +29,10 @@ Once installed (or after one visit), it also works offline.
   repeat, Wild); a level with a new puzzle piece shows what it does first. If an
   algorithm misses, Roversa shows where it stopped, then goes back to the start,
   where every GO begins. Earn up to three stars by using the fewest pieces.
+  Each world ends with a **Find the Square** level: the algorithm is already
+  built, and players tap the square where they think Roversa will stop. A wrong
+  guess shows where Roversa was after each puzzle piece, then moves on to a new
+  algorithm. Three stars for getting the first one right.
 - **Dice Quest**: the classroom game. Roll the Roversa die five times, arrange all
   five pieces, and run them. Roversa stays where it stops. First robot to visit
   all three treasures wins. One or two players on one device (or against the AI

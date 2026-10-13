@@ -376,6 +376,27 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .quest-mode .pool:empty + .roll { margin-top: 0; }
 .tip { color: var(--muted); font-size: 14px; line-height: 1.5; }
 
+/* Find the Square: the algorithm is locked and the player only picks a square */
+.guess-mode #btn-step, .guess-mode #btn-reset, .guess-mode #btn-clear, .guess-mode .controls-col > .tip, .guess-mode #btn-go[hidden] { display: none; }
+.guess-mode .program .piece { cursor: default; }
+.guess-mode .program .piece::after {
+  content: '\1F512'; position: absolute; right: -3px; bottom: -3px;
+  font-size: 12px; line-height: 1; padding: 2px; border-radius: 6px; background: var(--edge);
+}
+.piece .step-num {
+  position: absolute; left: -4px; top: -8px; z-index: 1;
+  min-width: 20px; height: 20px; padding: 0 4px; border-radius: 10px;
+  background: #fff; color: #0e1024; border: 2px solid #0e1024;
+  font: bold 12px/16px var(--body); text-align: center;
+}
+.guess-mode #board { cursor: pointer; }
+.guess-card { width: 100%; }
+.guess-card p { margin: 8px 0 0; line-height: 1.4; }
+.guess-ask { font-weight: 700; font-size: 17px; }
+.guess-note { color: var(--muted); font-size: 14px; }
+.guess-count { display: inline-block; padding: 2px 8px; border-radius: 6px; background: var(--bg2); font-size: 14px; }
+.guess-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
 /* Quest scoreboard */
 .scoreboard { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
 .scoreboard[hidden] { display: none; }

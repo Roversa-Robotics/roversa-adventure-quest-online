@@ -146,7 +146,32 @@
     return null;
   }
 
-  const api = { DX, DY, DIR_NAMES, COMMANDS, parseMap, inBounds, isBlocked, resolve, step, solve };
+  // Turns a written algorithm like 'F P R W:L B' into puzzle pieces.
+  // 'W:L' is a Wild piece already set to Turn Left.
+  function parseAlgorithm(text) {
+    return text.trim().split(/\s+/).map((tok) => (tok[0] === 'W' ? { t: 'W', chosen: tok.split(':')[1] } : { t: tok }));
+  }
+
+  // Runs an algorithm on a level's map from its start square.
+  // Returns where Roversa is after each puzzle piece ({ x, y, dir } per piece),
+  // and the piece number that bumped or drove off the map (or -1 if none).
+  function trace(level, program) {
+    const map = parseMap(level.map);
+    const start = map.starts['1'];
+    let pos = { x: start.x, y: start.y, dir: DIR_NAMES[level.startDir || 'N'] };
+    const after = [];
+    let stopped = -1;
+    resolve(program).forEach((cmd, i) => {
+      if (stopped >= 0) return;
+      const r = step(map.grid, pos, cmd);
+      if (r.result === 'bump' || r.result === 'off') { stopped = i; return; }
+      pos = { x: r.x, y: r.y, dir: r.dir };
+      after.push(pos);
+    });
+    return { after, end: pos, stopped };
+  }
+
+  const api = { DX, DY, DIR_NAMES, COMMANDS, parseMap, inBounds, isBlocked, resolve, step, solve, parseAlgorithm, trace };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.RoversaEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

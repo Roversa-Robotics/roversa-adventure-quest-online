@@ -19,6 +19,7 @@
   const MOVE_MS = 380;
   const TURN_MS = 300;
   const PAUSE_MS = 140;
+  const REPLAY_PAUSE_MS = 650; // Find the Square: the pause between pieces on Watch again
   const STOP_SHOW_MS = 2000; // how long Roversa waits where it stopped before going back
   const HOME_MS = 110; // per square when Roversa slides back to the start
   const DICE_FACES = ['F', 'B', 'L', 'R', 'W', 'P'];
@@ -190,6 +191,7 @@
     guide: null, // the hand guiding the player, see "Guided tutorial" below
     hideGoals: false, // the tutorial's first duck pops up after Roversa is tapped
     stopMark: null, // Adventures: where Roversa stopped on a run that missed { x, y, ang, left }
+    guess: null, // a Find the Square level, see "Find the Square" below
     homing: null, // changes when Roversa going back to the start should stop
     net: null, // a Dice Quest played on several devices, see "Playing on several devices"
     fast: false, // true while catching up on missed moves: no animation or sound
@@ -314,6 +316,7 @@
     });
 
     if (game.stopMark) drawStopMark(g, S, false);
+    if (isGuess()) drawGuessSquares(g, S);
 
     // Robots.
     game.robots.forEach((r, i) => {
@@ -337,6 +340,7 @@
       }
     });
 
+    if (isGuess()) drawGuessMarks(g, S);
     if (game.stopMark) drawStopMark(g, S, true);
     if (game.guide && !game.running) drawGuide(g, S, now);
     if (game.shownPiece) drawShownPiece(g, now, S);
@@ -555,7 +559,7 @@
   function syncGameText() {
     if (game.mode === 'level') {
       $('#game-title').textContent = (game.level.stages ? '\u2605' : (game.levelIndex + FIRST_NUM) + '.') + ' ' + I18N.levelText(game.levelIndex, game.level).name;
-      $('#pool-label').textContent = tr('puzzlePieces');
+      $('#pool-label').textContent = tr(game.level.algorithms ? 'guess.label' : 'puzzlePieces');
       labelButton('#btn-reset', tr('startOver'), tr('startOver'));
       labelButton('#btn-clear', tr('clear'), tr('clearProgram'));
     } else if (game.mode === 'quest') {
@@ -604,6 +608,7 @@
       if (E.isBlocked(game.map.grid, x, y) && !(edge && ch === 'T')) blocked.push(tr('sr.goal', { goal: tr('tileShort.' + ch), where: where(x, y) }));
     }));
     if (blocked.length) parts.push(tr('sr.blocked', { list: blocked.join('; ') }));
+    if (game.guess && game.guess.flag) parts.push(tr('sr.flag', { where: where(game.guess.flag.x, game.guess.flag.y) }));
     board.setAttribute('aria-label', parts.join(' '));
   }
 
@@ -700,6 +705,8 @@
     game.hideGoals = false;
     show('game');
     $('#screen-game').classList.toggle('quest-mode', game.mode === 'quest');
+    $('#screen-game').classList.toggle('guess-mode', isGuess());
+    game.guess = null;
     sizeBoard();
     clearStopMark();
     game.trail = [];
@@ -725,6 +732,7 @@
       return;
     }
     setUpMap(level, i + 1);
+    if (level.algorithms) { loadGuess(0, 1); return; }
     setMessage(levelHint());
     if (level.newPiece && !seen(NEW_PIECE_KEY + level.newPiece)) showNewPiece();
   }
@@ -959,6 +967,8 @@
       else shown++;
       if (i === game.runIndex) el.classList.add('running');
       else if (i <= game.doneUpTo) el.classList.add('done');
+      // After a wrong guess, numbers match the pieces to the numbers on the map.
+      if (game.guess && game.guess.numbered) el.insertAdjacentHTML('beforeend', '<span class="step-num">' + (i + 1) + '</span>');
       el.setAttribute('aria-label', tr('sr.programPiece', { name: el.getAttribute('aria-label'), n: i + 1, total: game.program.length }));
       el.addEventListener('pointerdown', (e) => startDrag(e, 'program', i, el));
       onActivate(el, () => { pendingFocus = { area: 'program', index: i }; tapProgram(i); });
@@ -998,7 +1008,9 @@
 
   function renderPool() {
     poolEl.innerHTML = '';
-    if (game.mode === 'level') {
+    if (isGuess()) {
+      renderGuessCard();
+    } else if (game.mode === 'level') {
       E.COMMANDS.forEach((t) => {
         if (!(t in game.limits)) return;
         const left = game.limits[t] - usedCount(t);
@@ -1109,7 +1121,10 @@
     const busy = game.running || game.rolling || othersTurn();
     const quest = game.quest;
     const goReady = game.program.length > 0 && (!quest || (quest.phase === 'arrange' && game.tray.length === 0));
-    $('#btn-go').disabled = busy || !goReady;
+    const gs = game.guess;
+    $('#btn-go').disabled = busy || !goReady || (!!gs && (gs.phase !== 'pick' || !gs.flag));
+    // After a wrong guess the same algorithm cannot be guessed again: Watch again or Try another.
+    $('#btn-go').hidden = !!gs && gs.phase === 'wrong';
     $('#btn-step').disabled = busy || !goReady;
     $('#btn-reset').disabled = game.running || game.rolling;
     $('#btn-clear').disabled = busy || !game.program.length || (quest && (quest.phase !== 'arrange' || !!game.stepping));
@@ -1132,7 +1147,7 @@
   }
 
   function editable() {
-    if (game.running || game.rolling || othersTurn()) return false;
+    if (game.running || game.rolling || othersTurn() || isGuess()) return false;
     // Once a Dice Quest program starts stepping, the robot has moved, so the turn is locked in.
     return game.mode === 'level' || (game.quest.phase === 'arrange' && !game.stepping);
   }
@@ -1466,8 +1481,9 @@
         setTimeout(() => { if (game.guide === gd) nextGuideStep(); }, 700);
       });
   }
-  board.addEventListener('click', tapRobot);
+  board.addEventListener('click', (e) => (isGuess() ? tapSquare(e) : tapRobot()));
   board.addEventListener('keydown', (e) => {
+    if (isGuess() && guessKey(e)) return;
     if (e.key !== 'Enter' && e.key !== ' ') return;
     e.preventDefault();
     tapRobot();
@@ -1760,6 +1776,7 @@
     if (game.mode === 'level') resetRobot(r);
     game.trail = [{ x: r.x, y: r.y }];
     clearRunMarks();
+    if (game.guess && game.guess.phase === 'pick') game.guess.phase = 'run';
     return { r, steps: E.resolve(game.program), i: 0 };
   }
 
@@ -1833,6 +1850,7 @@
   }
 
   function finishLevelRun(r, outcome) {
+    if (game.guess) { finishGuessRun(r); return; }
     const allDone = game.map.goals.every((g) => r.visited.has(g.id));
     if (allDone) {
       const used = game.program.length;
@@ -1902,6 +1920,235 @@
     sparkle(r.x, r.y);
     renderAll();
     if (then) then();
+  }
+
+  // ---------- Find the Square ----------
+  // The last level of each world gives a ready-made algorithm that cannot be
+  // changed. The player taps the square where they think Roversa will stop,
+  // which plants a flag, then presses GO. A wrong guess shows where Roversa
+  // really stopped, with numbers for where it was after each puzzle piece.
+  // Guessing the same algorithm again would be too easy, so "Try another"
+  // loads the next one. Stars: 3 for the first algorithm, 2 for the second, 1 after.
+
+  function isGuess() {
+    return game.mode === 'level' && !!game.level && !!game.level.algorithms;
+  }
+
+  // k: which of the level's algorithms; tries: how many algorithms the player has seen.
+  function loadGuess(k, tries) {
+    const level = game.level;
+    const program = E.parseAlgorithm(level.algorithms[k]).map((p) => Object.assign({ id: uid() }, p));
+    game.guess = { k, tries, flag: null, phase: 'pick', numbered: false, after: E.trace(level, program).after };
+    game.program = program;
+    game.slots = program.length;
+    const r = game.robots[0];
+    resetRobot(r);
+    clearStopMark();
+    game.trail = [];
+    clearRunMarks();
+    renderAll();
+    setMessage(tries === 1 ? levelHint() : tr('guess.newOne'));
+  }
+
+  function plantFlag(x, y) {
+    game.guess.flag = { x, y };
+    SND.tap();
+    setMessage(tr('guess.planted'));
+    announce(tr('sr.flag', { where: where(x, y) }));
+    describeBoard();
+    renderButtons();
+  }
+
+  const canPlant = (x, y) => E.inBounds(game.map.grid, x, y) && !E.isBlocked(game.map.grid, x, y);
+
+  function tapSquare(e) {
+    const gs = game.guess;
+    if (!gs || gs.phase !== 'pick' || game.running) return;
+    const box = board.getBoundingClientRect();
+    const x = Math.floor(((e.clientX - box.left) / box.width) * game.map.cols);
+    const y = Math.floor(((e.clientY - box.top) / box.height) * game.map.rows);
+    if (canPlant(x, y)) plantFlag(x, y);
+    else SND.bump();
+  }
+
+  // Keyboard: arrow keys move the flag to the next open square, Enter presses GO.
+  function guessKey(e) {
+    const gs = game.guess;
+    if (!gs || gs.phase !== 'pick' || game.running) return false;
+    const d = { ArrowUp: 0, ArrowRight: 1, ArrowDown: 2, ArrowLeft: 3 }[e.key];
+    if (d != null) {
+      e.preventDefault();
+      const r = game.robots[0];
+      let { x, y } = gs.flag || r;
+      if (!gs.flag) { if (canPlant(x, y)) plantFlag(x, y); return true; }
+      for (x += E.DX[d], y += E.DY[d]; E.inBounds(game.map.grid, x, y); x += E.DX[d], y += E.DY[d]) {
+        if (canPlant(x, y)) { plantFlag(x, y); return true; }
+      }
+      SND.bump();
+      return true;
+    }
+    if ((e.key === 'Enter' || e.key === ' ') && gs.flag) {
+      e.preventDefault();
+      run();
+      return true;
+    }
+    return false;
+  }
+
+  function finishGuessRun(r) {
+    const gs = game.guess;
+    if (gs.flag && r.x === gs.flag.x && r.y === gs.flag.y) {
+      gs.phase = 'right';
+      const stars = Math.max(1, 4 - gs.tries);
+      saveStars(game.level.name, stars);
+      setMessage(tr('guess.right'), 'good');
+      renderAll();
+      sparkle(r.x, r.y);
+      setTimeout(() => {
+        SND.win();
+        confetti();
+        const next = game.levelIndex + 1 < LEVELS.length;
+        openModal(
+          '<h3>' + tr('guess.found') + '</h3>' +
+          '<div class="big-stars">' + [0, 1, 2].map((k) => '<span class="' + (k < stars ? 'on' : '') + '">&#9733;</span>').join('') + '</div>' +
+          '<p>' + (gs.tries === 1 ? tr('guess.first') : tr('guess.took', { n: gs.tries })) + '</p>' +
+          '<div class="choices">' +
+          '<button class="btn gray" data-act="again">' + tr('guess.playAgain') + '</button>' +
+          (next ? '<button class="btn big green" data-act="next">' + tr('modal.next') + ' &#9654;</button>' : '<button class="btn big green" data-act="levels">' + tr('modal.allLevels') + '</button>') +
+          '</div>'
+        );
+        modal.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
+          SND.tap();
+          const act = b.dataset.act;
+          closeModal();
+          if (act === 'next') startLevel(game.levelIndex + 1);
+          else if (act === 'levels') show('levels');
+          else startLevel(game.levelIndex);
+        }));
+        const nextBtn = modal.querySelector('.btn.green');
+        if (nextBtn) nextBtn.focus();
+      }, 600);
+      return;
+    }
+    // Roversa stays where it stopped, so the player can compare it with the flag.
+    gs.phase = 'wrong';
+    gs.numbered = true;
+    game.doneUpTo = -1;
+    game.stopMark = { x: r.x, y: r.y, ang: r.ang, left: false };
+    setMessage(tr('guess.wrong'), 'bad');
+    renderAll();
+  }
+
+  // Watch again: the same algorithm, one puzzle piece at a time, with a longer pause.
+  async function replayGuess() {
+    const gs = game.guess;
+    if (!gs || gs.phase !== 'wrong' || game.running) return;
+    gs.phase = 'replay';
+    const st = beginRun();
+    game.running = true;
+    renderAll();
+    setMessage(tr('guess.watching'));
+    while (st.i < st.steps.length) {
+      await runOne(st);
+      await sleep(REPLAY_PAUSE_MS);
+      if (game.guess !== gs) return;
+    }
+    game.runIndex = -1;
+    game.shownPiece = null;
+    game.running = false;
+    game.doneUpTo = -1;
+    gs.phase = 'wrong';
+    game.stopMark = { x: st.r.x, y: st.r.y, ang: st.r.ang, left: false };
+    renderAll();
+    setMessage(tr('guess.wrong'), 'bad');
+  }
+
+  function renderGuessCard() {
+    const gs = game.guess;
+    if (!gs) return;
+    const total = game.level.algorithms.length;
+    const card = document.createElement('div');
+    card.className = 'guess-card';
+    const chip = '<span class="guess-count">' + tr('guess.count', { n: gs.k + 1, total }) + '</span>';
+    if (gs.phase === 'wrong' || gs.phase === 'replay') {
+      const next = Math.max(1, 3 - gs.tries);
+      card.innerHTML = chip + '<p class="guess-ask"></p><div class="guess-acts">' +
+        '<button class="btn blue" type="button" data-act="watch"><span aria-hidden="true">&#8634;</span> ' + tr('guess.watch') + '</button>' +
+        '<button class="btn green" type="button" data-act="another">' + tr('guess.another') + ' &#9654;</button></div>' +
+        '<p class="guess-note"></p>';
+      card.querySelector('.guess-ask').textContent = tr('guess.explain');
+      card.querySelector('.guess-note').textContent = tr(next === 1 ? 'guess.nextOne' : 'guess.next', { n: next });
+      const busy = game.running;
+      card.querySelectorAll('[data-act]').forEach((b) => {
+        b.disabled = busy;
+        b.addEventListener('click', () => {
+          SND.tap();
+          if (b.dataset.act === 'watch') replayGuess();
+          else loadGuess((gs.k + 1) % total, gs.tries + 1);
+        });
+      });
+    } else {
+      card.innerHTML = chip + '<p class="guess-ask"></p><p class="guess-note"><span aria-hidden="true">&#128274;</span> </p>';
+      card.querySelector('.guess-ask').textContent = tr('guess.ask');
+      card.querySelector('.guess-note').append(tr('guess.locked'));
+    }
+    poolEl.appendChild(card);
+  }
+
+  // While the player is choosing, open squares are outlined so they look tappable.
+  function drawGuessSquares(g, S) {
+    const gs = game.guess;
+    if (!gs || gs.phase !== 'pick' || game.running) return;
+    g.save();
+    g.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    g.lineWidth = SCALE;
+    g.setLineDash([SCALE * 2.5, SCALE * 2]);
+    game.map.grid.forEach((row, y) => row.forEach((ch, x) => {
+      if (canPlant(x, y)) g.strokeRect(x * S + SCALE * 2, y * S + SCALE * 2, S - SCALE * 4, S - SCALE * 4);
+    }));
+    g.restore();
+  }
+
+  let guessFlag = null;
+  // The player's flag, and after a wrong guess, numbered squares showing where
+  // Roversa was after each puzzle piece (several numbers when it turned in place).
+  function drawGuessMarks(g, S) {
+    const gs = game.guess;
+    if (!gs) return;
+    if (gs.flag) {
+      if (!guessFlag) guessFlag = SP.flag('yellow');
+      const px = (S * 0.8) / guessFlag.height;
+      const w = guessFlag.width * px, h = guessFlag.height * px;
+      g.drawImage(guessFlag, gs.flag.x * S + (S - w) / 2, gs.flag.y * S + (S - h) / 2, w, h);
+    }
+    if (!gs.numbered) return;
+    const upTo = gs.phase === 'replay' ? game.doneUpTo : gs.after.length - 1;
+    const spots = new Map();
+    gs.after.forEach((p, i) => {
+      if (i > upTo) return;
+      const k = p.x + ',' + p.y;
+      if (!spots.has(k)) spots.set(k, { x: p.x, y: p.y, n: [] });
+      spots.get(k).n.push(i + 1);
+    });
+    // Numbers go in the top corner, or the bottom one when the "Stopped here" tag hangs below the top row.
+    const low = game.stopMark && game.stopMark.y === 0;
+    g.save();
+    g.font = 'bold ' + Math.round(S * 0.2) + 'px ' + getComputedStyle(document.body).getPropertyValue('--body');
+    g.textBaseline = 'middle';
+    const h = S * 0.26;
+    spots.forEach((sp) => {
+      const text = sp.n.join(' ');
+      const w = g.measureText(text).width + S * 0.14;
+      const left = sp.x * S + SCALE * 1.5;
+      const top = low ? (sp.y + 1) * S - h - SCALE * 1.5 : sp.y * S + SCALE * 1.5;
+      g.fillStyle = '#0e1024';
+      g.fillRect(left - SCALE * 0.5, top - SCALE * 0.5, w + SCALE, h + SCALE);
+      g.fillStyle = '#ffffff';
+      g.fillRect(left, top, w, h);
+      g.fillStyle = '#0e1024';
+      g.fillText(text, left + S * 0.07, top + h / 2 + 1);
+    });
+    g.restore();
   }
 
   function clearStopMark() {
