@@ -435,9 +435,8 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 }
 .score.turn { border-color: var(--yellow); box-shadow: 0 0 0 2px var(--yellow); }
 .score canvas { width: 36px; height: 36px; image-rendering: pixelated; }
-.score:has(.ai-badge) { flex-wrap: wrap; row-gap: 4px; }
 .ai-badge {
-  flex-basis: 100%; padding: 3px 6px; text-align: center;
+  padding: 3px 6px; text-align: center;
   font-family: var(--pixel); font-size: 8px; line-height: 1.4; font-weight: 400;
   color: #fff; background: var(--brand-purple); border-radius: 4px;
 }
@@ -581,12 +580,23 @@ button.pic:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px
 .score .you-tag { position: absolute; top: -7px; left: -5px; font-size: 8px; padding: 0 3px; z-index: 1; }
 .score.away { opacity: 0.55; }
 .score .net-note { font-family: var(--mono); font-size: 11px; color: var(--brand-yellow); white-space: nowrap; }
-/* Two players on a phone: the treasures move under the name, so a card never
-   runs wider than half the screen. */
-@media (max-width: 560px) {
-  .scoreboard:not(.many) .score:not(:only-child) { flex-wrap: wrap; align-content: flex-start; row-gap: 4px; padding: 6px 8px; }
-  .scoreboard:not(.many) .score:not(:only-child) .goal-icons { flex-basis: 100%; margin-left: 0; }
+/* One or two players in Dice Quest: the costume on the left, the name above
+   the treasures, and a small AI tag for the AI Opponent. Short enough to keep
+   two cards side by side on a phone. */
+.scoreboard:not(.many) .score.team {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "face name tag" "face gems gems";
+  column-gap: 8px; row-gap: 2px; align-items: center; align-content: center;
 }
+.scoreboard:not(.many) .score.team > canvas:first-child { grid-area: face; width: 40px; height: 40px; }
+.scoreboard:not(.many) .score.team .name { grid-area: name; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scoreboard:not(.many) .score.team .goal-icons { grid-area: gems; margin-left: 0; gap: 3px; }
+.scoreboard:not(.many) .score.team .goal-icons canvas { width: 24px; height: 24px; }
+.scoreboard:not(.many) .score.team .ai-badge { grid-area: tag; padding: 3px 5px; }
+.scoreboard:not(.many) .score.team .net-note { grid-area: gems; }
+.scoreboard:not(.many) .score.team.away .goal-icons { display: none; }
+/* A single player has the whole width, so everything fits on one line. */
+.scoreboard:not(.many) .score.team:only-child { grid-template-areas: "face name gems"; }
 .scoreboard.many { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .scoreboard.many .score { padding: 4px 6px; gap: 4px; font-size: 13px; min-width: 0; }
 .scoreboard.many .score canvas { width: 28px; height: 28px; }

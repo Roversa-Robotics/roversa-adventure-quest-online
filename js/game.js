@@ -1358,12 +1358,16 @@
       icon.width = look.width; icon.height = look.height;
       icon.getContext('2d').drawImage(look, 0, 0);
       box.appendChild(icon);
-      const flagIcon = document.createElement('canvas');
-      flagIcon.className = 'flag';
-      flagIcon.width = r.flag.width; flagIcon.height = r.flag.height;
-      flagIcon.getContext('2d').drawImage(r.flag, 0, 0);
-      box.appendChild(flagIcon);
+      // A Dice Quest card's color already shows the robot's flag.
+      if (game.mode !== 'quest') {
+        const flagIcon = document.createElement('canvas');
+        flagIcon.className = 'flag';
+        flagIcon.width = r.flag.width; flagIcon.height = r.flag.height;
+        flagIcon.getContext('2d').drawImage(r.flag, 0, 0);
+        box.appendChild(flagIcon);
+      }
       const label = document.createElement('span');
+      label.className = 'name';
       label.textContent = r.ai ? r.baseName : r.name;
       if (game.robots.length > 1 && i === game.active) box.setAttribute('aria-label', tr('sr.turn', { team: r.name }));
       box.appendChild(label);
@@ -1398,11 +1402,12 @@
         goals.appendChild(gc);
       });
       box.appendChild(goals);
-      // The AI Opponent gets a banner across the bottom of its box.
+      // The AI Opponent gets a small AI tag by its name; screen readers also hear its level.
       if (r.ai) {
         const badge = document.createElement('span');
         badge.className = 'ai-badge';
-        badge.textContent = tr('ai.badge', { level: tr('ai.level.' + r.ai) });
+        badge.textContent = tr('ai.short');
+        badge.setAttribute('aria-label', tr('ai.badge', { level: tr('ai.level.' + r.ai) }));
         box.appendChild(badge);
       }
       sb.appendChild(box);
