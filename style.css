@@ -437,6 +437,12 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
   color: #fff; background: var(--brand-purple); border-radius: 4px;
 }
 .score canvas.flag { width: 21px; height: 28.5px; margin: 0 -4px 0 -6px; }
+/* Dice Quest: each card is the color of its robot's flag and wheels. The turn
+   ring gets a dark gap so it still shows on the yellow card. */
+.score.team { border-color: var(--team); background: color-mix(in srgb, var(--team) 35%, var(--bg2)); }
+.score.team.turn { border-color: var(--team); box-shadow: 0 0 0 3px var(--edge), 0 0 0 6px var(--yellow); }
+.score.team .goal-icons canvas { opacity: 0.4; }
+.score.team .goal-icons canvas.got { opacity: 1; }
 .score .goal-icons { display: flex; gap: 4px; margin-left: auto; }
 .score .goal-icons canvas { width: 26px; height: 26px; opacity: 0.25; filter: grayscale(1); }
 .score .goal-icons canvas.got { opacity: 1; filter: none; }

@@ -369,13 +369,17 @@
       if (game.mode === 'quest' && game.robots.length > 1 && i === game.active && r.alpha > 0.5) {
         const bob = Math.round(Math.sin(now / 200) * 1.5) * SCALE;
         const cx = (r.rx + 0.5) * S;
-        const top = r.ry * S - SCALE * 2 + bob;
+        // The arrow sits on top of the costume tag when the tag is above the robot.
+        const lift = costumeTags() && placeTag(r) === 0 ? TAG + TAG_GAP : 0;
+        const top = r.ry * S - SCALE * 2 + bob - lift;
         g.fillStyle = '#0e1024';
         g.beginPath(); g.moveTo(cx - SCALE * 4, top - SCALE * 4); g.lineTo(cx + SCALE * 4, top - SCALE * 4); g.lineTo(cx, top + SCALE); g.fill();
         g.fillStyle = '#f2c230';
         g.beginPath(); g.moveTo(cx - SCALE * 3, top - SCALE * 3.5); g.lineTo(cx + SCALE * 3, top - SCALE * 3.5); g.lineTo(cx, top); g.fill();
       }
     });
+
+    if (costumeTags()) game.robots.forEach((r) => drawCostumeTag(g, r, S));
 
     if (isGuess()) drawGuessMarks(g, S);
     if (game.stopMark) drawStopMark(g, S, true);
@@ -428,6 +432,48 @@
     g.fillRect(left, top, w, h);
     g.fillStyle = '#0e1024';
     g.fillText(text, left + pad, top + h / 2 + 1);
+    g.restore();
+  }
+
+  // ---------- Costume tags ----------
+  // In a Dice Quest with several players, a small tag with each player's costume
+  // sits next to their robot, so players can match the robot to its card on top
+  // without relying on color. The tag never covers the robot, so its front stays
+  // easy to see. It goes above the robot when that square is empty, else below,
+  // left or right. When every side is taken it covers a rock or treasure rather
+  // than another robot. It only changes sides while the robot stands still.
+  const TAG = 7 * SCALE, TAG_GAP = SCALE; // board canvas pixels
+  const TAG_SIDES = [[0, -1], [0, 1], [-1, 0], [1, 0]]; // above, below, left, right
+
+  const costumeTags = () => game.mode === 'quest' && game.robots.length > 1;
+
+  // Which side the robot's tag goes on: an index into TAG_SIDES.
+  function placeTag(r) {
+    if (r.tagSide != null && (Math.abs(r.rx - r.x) > 0.01 || Math.abs(r.ry - r.y) > 0.01)) return r.tagSide;
+    const sides = TAG_SIDES.map(([dx, dy], side) => ({ side, x: r.x + dx, y: r.y + dy }))
+      .filter((p) => E.inBounds(game.map.grid, p.x, p.y));
+    const robotAt = (p) => game.robots.some((o) => o !== r && !o.gone && o.x === p.x && o.y === p.y);
+    const thingAt = (p) => E.isBlocked(game.map.grid, p.x, p.y) || game.map.goals.some((q) => q.x === p.x && q.y === p.y);
+    const pick = sides.find((p) => !robotAt(p) && !thingAt(p)) || sides.find((p) => !robotAt(p)) || sides[0];
+    r.tagSide = pick ? pick.side : 0;
+    return r.tagSide;
+  }
+
+  function drawCostumeTag(g, r, S) {
+    if (r.gone || !r.character || r.alpha < 0.05) return;
+    const [dx, dy] = TAG_SIDES[placeTag(r)];
+    const cx = (r.rx + 0.5) * S + r.bump, cy = (r.ry + 0.5) * S;
+    const reach = S / 2 + TAG_GAP + TAG / 2; // from the robot's middle to the tag's middle
+    const x = Math.round(cx + dx * reach - TAG / 2), y = Math.round(cy + dy * reach - TAG / 2);
+    const edge = SCALE / 2;
+    g.save();
+    g.globalAlpha = r.alpha;
+    g.imageSmoothingEnabled = false;
+    g.fillStyle = '#0e1024';
+    g.fillRect(x - edge, y - edge, TAG + edge * 2, TAG + edge * 2);
+    g.fillStyle = r.css;
+    g.fillRect(x, y, TAG, TAG);
+    g.drawImage(r.character, x + SCALE / 4, y + SCALE / 4, TAG - SCALE / 2, TAG - SCALE / 2);
     g.restore();
   }
 
@@ -1305,6 +1351,8 @@
     game.robots.forEach((r, i) => {
       const box = document.createElement('div');
       box.className = 'score' + (i === game.active && game.robots.length > 1 ? ' turn' : '');
+      // In Dice Quest each card is the color of its robot's flag and wheels.
+      if (game.mode === 'quest') { box.classList.add('team'); box.style.setProperty('--team', r.css); }
       const icon = document.createElement('canvas');
       const look = r.character || r.sprite;
       icon.width = look.width; icon.height = look.height;
