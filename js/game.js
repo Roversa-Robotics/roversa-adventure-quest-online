@@ -1076,7 +1076,7 @@
       return;
     }
     setUpMap(level, i + 1);
-    if (level.algorithms) { loadGuess(0, 1); return; }
+    if (level.algorithms) { shuffleGuesses(); loadGuess(1); return; }
     setMessage(levelHint());
     if (level.newPiece && !seen(NEW_PIECE_KEY + level.newPiece)) showNewPiece();
   }
@@ -2304,9 +2304,29 @@
     return game.mode === 'level' && !!game.level && !!game.level.algorithms;
   }
 
-  // k: which of the level's algorithms; tries: how many algorithms the player has seen.
-  function loadGuess(k, tries) {
+  // Each time the level starts its algorithms come in a new shuffled order, and
+  // the first one is never the one shown first last time, so the level changes
+  // every time it is played.
+  function shuffleGuesses() {
     const level = game.level;
+    const key = 'roversa-guess-first-' + level.name;
+    let last = null;
+    try { last = localStorage.getItem(key); } catch (e) { /* storage blocked */ }
+    const order = level.algorithms.map((a, k) => k);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    if (String(order[0]) === last) order.push(order.shift());
+    try { localStorage.setItem(key, String(order[0])); } catch (e) { /* storage blocked */ }
+    game.guessOrder = order;
+  }
+
+  // tries: how many algorithms the player has seen, counting this one.
+  function loadGuess(tries) {
+    const level = game.level;
+    const order = game.guessOrder;
+    const k = order[(tries - 1) % order.length];
     const program = E.parseAlgorithm(level.algorithms[k]).map((p) => Object.assign({ id: uid() }, p));
     game.guess = { k, tries, flag: null, phase: 'pick', numbered: false, after: E.trace(level, program).after };
     game.program = program;
@@ -2439,7 +2459,7 @@
     const total = game.level.algorithms.length;
     const card = document.createElement('div');
     card.className = 'guess-card';
-    const chip = '<span class="guess-count">' + tr('guess.count', { n: gs.k + 1, total }) + '</span>';
+    const chip = '<span class="guess-count">' + tr('guess.count', { n: (gs.tries - 1) % total + 1, total }) + '</span>';
     if (gs.phase === 'wrong' || gs.phase === 'replay') {
       const next = Math.max(1, 3 - gs.tries);
       card.innerHTML = chip + '<p class="guess-ask"></p><div class="guess-acts">' +
@@ -2454,7 +2474,7 @@
         b.addEventListener('click', () => {
           SND.tap();
           if (b.dataset.act === 'watch') replayGuess();
-          else loadGuess((gs.k + 1) % total, gs.tries + 1);
+          else loadGuess(gs.tries + 1);
         });
       });
     } else {
