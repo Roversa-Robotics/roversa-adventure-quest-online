@@ -185,6 +185,17 @@ which publishes the game and replaces each `__BUILD__` in the HTML and
 JavaScript with the commit id. To publish again by hand: Actions > Deploy to
 GitHub Pages > Run workflow.
 
+## Visitor counts
+
+The game counts visits with [Cloudflare Web Analytics](https://www.cloudflare.com/web-analytics/),
+on the same Cloudflare account as the relay. It sets no cookies, stores nothing
+on the device, and doesn't identify or follow anyone. It only reports page views
+with the browser, device type and country. The counting script loads only on
+roversa-robotics.github.io, so PR previews and local copies aren't counted, and
+it skips quietly when an ad blocker or school filter blocks it (the game works
+the same). The numbers are in the Cloudflare dashboard under **Web analytics**.
+The site token is in `index.html`.
+
 ## Updates and the offline copy
 
 [`sw.js`](sw.js) is a small offline helper (service worker). It loads every
