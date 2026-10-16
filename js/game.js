@@ -596,8 +596,40 @@
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === 'screen-' + id));
     window.scrollTo(0, 0);
     if (id === 'levels') { renderCostumeBar(); renderLevelGrid(); }
+    setScreenAddress(id);
     document.dispatchEvent(new CustomEvent('roversa:screen', { detail: id }));
   }
+
+  // Visitor counts: the game is one page, so each screen gets its own address
+  // (for example .../level-3), which Cloudflare Web Analytics counts as a page
+  // view. Only on the real site, where the counter runs. 404.html sends a
+  // refreshed or shared screen address back to the title screen.
+  const SITE_BASE = location.hostname === 'roversa-robotics.github.io'
+    ? location.pathname.replace(/[^/]*$/, '') : null;
+  function screenAddress(id) {
+    if (id === 'levels') return 'adventures';
+    if (id === 'quest-setup') return 'dice-quest';
+    if (id === 'net') return 'dice-quest-devices';
+    if (id === 'game' && game.mode === 'level') {
+      return game.level && game.level.stages ? 'tutorial' : 'level-' + (game.levelIndex + FIRST_NUM);
+    }
+    if (id === 'game') return game.net ? 'dice-quest-devices-play' : 'dice-quest-play';
+    return '';
+  }
+  function setScreenAddress(id) {
+    if (!SITE_BASE) return;
+    const path = SITE_BASE + screenAddress(id);
+    if (path === location.pathname) return;
+    try { history.pushState({ screen: id }, '', path + location.search + location.hash); } catch (e) { /* not allowed here */ }
+  }
+  // The browser's Back button does what the game's own back or Home button does.
+  window.addEventListener('popstate', () => {
+    if (!SITE_BASE) return;
+    const now = document.querySelector('.screen.active');
+    const id = now ? now.id.replace('screen-', '') : 'title';
+    if (id === 'game') $('#btn-back').click();
+    else if (id === 'levels' || id === 'quest-setup') show('title');
+  });
 
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => {
     SND.tap();
@@ -3417,7 +3449,7 @@
 
   function inviteLink(code) {
     const relay = NET.override();
-    return location.origin + location.pathname + (relay ? '?relay=' + encodeURIComponent(relay) : '') + '#join-' + code;
+    return location.origin + (SITE_BASE || location.pathname) + (relay ? '?relay=' + encodeURIComponent(relay) : '') + '#join-' + code;
   }
 
   function inviteText(code) {

@@ -193,7 +193,13 @@ on the device, and doesn't identify or follow anyone. It only reports page views
 with the browser, device type and country. The counting script loads only on
 roversa-robotics.github.io, so PR previews and local copies aren't counted, and
 it skips quietly when an ad blocker or school filter blocks it (the game works
-the same). The numbers are in the Cloudflare dashboard under **Web analytics**.
+the same). The game is one page, so on the real site each screen gets its own
+address (`adventures`, `level-3`, `tutorial`, `dice-quest`, `dice-quest-play`,
+`dice-quest-devices`, `dice-quest-devices-play`) and Cloudflare counts every
+screen change as a page view, listed by path. The browser's Back button works
+like the game's back and Home buttons. Refreshing or sharing one of those
+addresses opens the title screen through `404.html`.
+The numbers are in the Cloudflare dashboard under **Web analytics**.
 The site token is in `index.html`.
 
 ## Updates and the offline copy
