@@ -1461,7 +1461,7 @@
         if (!(t in game.limits)) return;
         const left = game.limits[t] - usedCount(t);
         const el = pieceEl(t);
-        el.insertAdjacentHTML('beforeend', '<span class="count">' + (left === Infinity ? '\u221e' : left) + '</span>');
+        if (left !== Infinity) el.insertAdjacentHTML('beforeend', '<span class="count">' + left + '</span>');
         el.setAttribute('aria-label', left === Infinity ? PIECE_NAMES[t] : tr('sr.poolPiece', { name: PIECE_NAMES[t], n: left }));
         if (left <= 0) el.classList.add('empty');
         el.addEventListener('pointerdown', (e) => startDrag(e, 'pool', t, el));
