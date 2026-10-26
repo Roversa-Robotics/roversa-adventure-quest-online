@@ -105,7 +105,14 @@
       const tx = await service.getCharacteristic(UART_TX);
       tx.addEventListener('characteristicvaluechanged', (e) => onData(e.target.value));
       await tx.startNotifications();
-      const hello = await request('HELLO', (l) => l.startsWith('ROVERSA,'));
+      // A robot that is still starting up can miss the first HELLO, so ask a few times.
+      let hello = null;
+      for (let tries = 0; tries < 3 && !hello; tries++) {
+        const reply = waitFor((l) => l.startsWith('ROVERSA,'), 1500);
+        await send('HELLO');
+        hello = await reply;
+      }
+      if (!hello) throw new Error('no reply to HELLO');
       const parts = hello.split(',');
       info = { name: device.name || 'Roversa', version: parts[1], maxSteps: Number(parts[2]) || 64 };
     } catch (e) {
