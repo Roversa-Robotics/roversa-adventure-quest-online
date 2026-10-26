@@ -123,16 +123,24 @@ The game always calls the directions **Forward**, **Backward**, **Turn Left** an
 
 ## Driving a real Roversa
 
-On a browser with Web Bluetooth (Chrome or Edge on Android, Chromebooks, Windows
-and Mac), the game screen has a Bluetooth button. Tap it and pick the robot's
-**BBC micro:bit**. While it's connected, **GO** and **STEP** send the algorithm
-to the real Roversa too. The robot on the screen waits for the real one to start
-each piece, so they move together, and the game's end-of-run message waits until
-the real robot has finished. The real robot stops before any piece that bumps or
-drives off the map on the screen, so it never drives into an obstacle that only
-exists on the screen. It drives only for players on this device, not for the AI
-Opponent or players on other devices. The button is hidden where Web Bluetooth
-isn't available (Safari on iPhone and iPad).
+**Roversa Robot** on the title screen is for programming a real Roversa. Its
+first screen connects the robot over Web Bluetooth (Chrome or Edge on Android,
+Chromebooks, Windows and Mac) with steps for the device in use, and explains
+what to do where Web Bluetooth isn't available (on iPhone and iPad, the Bluefy
+browser). Then there are two ways to play, both on an open 9x9 field with
+Roversa in the middle facing up:
+
+- **Roll 5 pieces**: roll 5 puzzle pieces, as in Dice Quest, and use them all.
+- **Build anything**: as many Forward, Backward, Turn Left and Turn Right pieces
+  as the robot holds (64).
+
+**GO** and **STEP** send the algorithm to the real Roversa. The robot on the
+screen waits for the real one to start each piece, so they move together, and
+the end-of-run message waits until the real robot has finished. Roversa stays
+where it stopped, like the real robot; **Start over** puts it back in the
+middle. The real robot stops before any piece that would drive off the field on
+the screen. Without a robot connected, only Roversa on the screen drives.
+Adventures and Dice Quest never drive the real robot.
 
 The robot needs firmware that speaks this protocol over the Bluetooth UART
 service. Each message is one line of at most 20 bytes:
