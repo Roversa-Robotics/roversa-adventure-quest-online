@@ -46,7 +46,8 @@
       if (!line) continue;
       const [kind, arg] = line.split(',');
       if (kind === 'STEP') progress.step = Math.max(progress.step, Number(arg));
-      if (kind === 'DONE' || kind === 'STOPPED') progress.ended = true;
+      // An error (such as ERR,BUSY when a settings menu is open) means nothing will run.
+      if (kind === 'DONE' || kind === 'STOPPED' || kind === 'ERR') progress.ended = true;
       const w = waiters.find((x) => x.match(line));
       if (w) {
         waiters = waiters.filter((x) => x !== w);
@@ -125,7 +126,8 @@
     const letters = cmds.filter((c) => STEP_LETTERS.includes(c)).join('');
     if (!letters.length) return 0;
     if (letters.length > info.maxSteps) throw new Error('too many steps');
-    await request('CLR', (l) => l === 'OK,0' || l.startsWith('ERR'));
+    const cleared = await request('CLR', (l) => l === 'OK,0' || l.startsWith('ERR'));
+    if (cleared.startsWith('ERR')) throw new Error(cleared);
     for (let i = 0; i < letters.length; i += ADD_CHUNK) await send('ADD,' + letters.slice(i, i + ADD_CHUNK));
     const ok = await request('END,' + letters.length, (l) => l.startsWith('OK,') || l.startsWith('ERR'));
     if (ok.startsWith('ERR')) throw new Error(ok);
