@@ -100,6 +100,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 
 .icon-btn.off { opacity: 0.45; text-decoration: line-through; }
+/* Bluetooth button: shows a dot while a real Roversa is connected. */
+.btn-robot { position: relative; display: inline-flex; align-items: center; justify-content: center; color: inherit; }
+.btn-robot[hidden] { display: none; }
+.btn-robot.linked { color: var(--green); border-color: var(--green); }
+.btn-robot.linked::after { content: ''; position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
 
 /* Title screen */
 #screen-title { position: relative; }

@@ -11,6 +11,7 @@
   const LEVELS = globalThis.ROVERSA_LEVELS;
   const RANDOM = globalThis.RoversaRandom;
   const I18N = globalThis.RoversaI18n;
+  const ROBOT = globalThis.RoversaRobot;
   const tr = I18N.tr;
   // Name tables that always answer in the current language, e.g. PIECE_NAMES.F.
   const named = (prefix) => new Proxy({}, { get: (o, k) => tr(prefix + String(k)) });
@@ -2208,6 +2209,75 @@
     else finishQuestTurn(st.r, outcome);
   }
 
+  // ---------- A real Roversa over Bluetooth ----------
+
+  // Sends the pieces from st.i up to (not including) end to a connected Roversa and starts it.
+  // The real robot stops before any piece that bumps or drives off the map on the screen,
+  // so it never drives into an obstacle that is only on the screen.
+  // Returns stepOf(i): the robot's step number for piece i (or -1), or null when no robot drives.
+  async function robotStart(st, end) {
+    if (!ROBOT || !ROBOT.connected || othersTurn() || game.fast) return null;
+    const r = st.r;
+    const occupied = (x, y) => game.robots.some((o) => o !== r && o.x === x && o.y === y);
+    let pos = { x: r.x, y: r.y, dir: r.dir };
+    const pieces = [];
+    for (let i = st.i; i < end; i++) {
+      const res = E.step(game.map.grid, pos, st.steps[i], occupied);
+      if (res.result === 'bump' || res.result === 'off') break;
+      if (st.steps[i]) pieces.push(i);
+      pos = res;
+    }
+    if (!pieces.length) return null;
+    try {
+      await ROBOT.start(pieces.map((i) => st.steps[i]));
+    } catch (e) {
+      console.warn('Roversa robot', e);
+      setMessage(tr('robot.failed'));
+      return null;
+    }
+    return (i) => pieces.indexOf(i);
+  }
+
+  // Holds the screen robot until the real one starts the same piece, so both move together.
+  async function robotKeepUp(stepOf, i) {
+    if (!stepOf) return;
+    const k = stepOf(i);
+    if (k >= 0) await ROBOT.waitStep(k);
+  }
+
+  function syncRobotBtn() {
+    const btn = $('#btn-robot');
+    const on = !!ROBOT && ROBOT.connected;
+    btn.hidden = !ROBOT || !ROBOT.supported;
+    btn.classList.toggle('linked', on);
+    const label = on ? tr('robot.disconnect', { name: ROBOT.info.name }) : tr('robot.connect');
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
+  }
+
+  async function toggleRobot() {
+    SND.tap();
+    if (ROBOT.connected) { ROBOT.disconnect(); return; }
+    try {
+      const info = await ROBOT.connect();
+      setMessage(tr('robot.connected', { name: info.name }), 'good');
+    } catch (e) {
+      // Closing the device chooser is not an error worth showing.
+      if (e && e.name !== 'NotFoundError') setMessage(tr('robot.noFirmware'));
+    }
+    syncRobotBtn();
+  }
+
+  if (ROBOT) {
+    $('#btn-robot').addEventListener('click', toggleRobot);
+    ROBOT.on('change', (on) => {
+      syncRobotBtn();
+      if (!on) setMessage(tr('robot.disconnected'));
+    });
+    I18N.onChange(syncRobotBtn);
+    syncRobotBtn();
+  }
+
   // GO runs the whole program, or the rest of it after some Steps.
   async function run(byAi) {
     if (game.running || !game.program.length || (othersTurn() && byAi !== true) || guideBlocks('go')) return;
@@ -2218,12 +2288,15 @@
     game.stepping = null;
     renderAll();
     setMessage(othersTurn() ? tr('msg.drivingNamed', { robot: st.r.name }) : tr('msg.driving'));
+    const stepOf = await robotStart(st, st.steps.length);
     let outcome = { result: 'done' };
     while (st.i < st.steps.length) {
+      await robotKeepUp(stepOf, st.i);
       const res = await runOne(st);
       if (res.result === 'bump' || res.result === 'off') { outcome = res; break; }
       await sleep(PAUSE_MS);
     }
+    if (stepOf) await ROBOT.waitDone();
     endRun(st, outcome);
   }
 
@@ -2235,7 +2308,10 @@
     const st = game.stepping || beginRun();
     game.running = true;
     renderAll();
+    const stepOf = await robotStart(st, st.i + 1);
+    await robotKeepUp(stepOf, st.i);
     const res = await runOne(st);
+    if (stepOf) await ROBOT.waitDone();
     if (res.result === 'bump' || res.result === 'off' || st.i >= st.steps.length) {
       endRun(st, res.result === 'move' || res.result === 'turn' || res.result === 'noop' ? { result: 'done' } : res);
       return;

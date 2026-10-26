@@ -121,6 +121,35 @@ Quest die has the same six faces.
 The game always calls the directions **Forward**, **Backward**, **Turn Left** and
 **Turn Right**.
 
+## Driving a real Roversa
+
+On a browser with Web Bluetooth (Chrome or Edge on Android, Chromebooks, Windows
+and Mac), the game screen has a Bluetooth button. Tap it and pick the robot's
+**BBC micro:bit**. While it's connected, **GO** and **STEP** send the algorithm
+to the real Roversa too. The robot on the screen waits for the real one to start
+each piece, so they move together, and the game's end-of-run message waits until
+the real robot has finished. The real robot stops before any piece that bumps or
+drives off the map on the screen, so it never drives into an obstacle that only
+exists on the screen. It drives only for players on this device, not for the AI
+Opponent or players on other devices. The button is hidden where Web Bluetooth
+isn't available (Safari on iPhone and iPad).
+
+The robot needs firmware that speaks this protocol over the Bluetooth UART
+service. Each message is one line of at most 20 bytes:
+
+| App sends | Robot answers |
+| --- | --- |
+| `HELLO` | `ROVERSA,<version>,<max steps>` |
+| `CLR` (clear the program) | `OK,0` |
+| `ADD,<up to 15 letters>` | nothing |
+| `END,<count>` | `OK,<count>` or `ERR,...` |
+| `RUN` | `RUN,<count>`, then `STEP,<i>` as each step starts (from 0), then `DONE` |
+| `STOP` | `STOPPED` |
+
+The letters are the engine's commands: `F` Forward, `B` Backward, `L` Turn Left,
+`R` Turn Right. Repeat and Wild pieces are turned into these before sending.
+The code is in [`js/robot.js`](js/robot.js).
+
 ## Running it locally
 
 Open `index.html` in a browser, or serve the folder:
