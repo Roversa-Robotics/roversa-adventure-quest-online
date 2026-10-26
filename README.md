@@ -127,8 +127,11 @@ The game always calls the directions **Forward**, **Backward**, **Turn Left** an
 first screen connects the robot over Web Bluetooth (Chrome or Edge on Android,
 Chromebooks, Windows and Mac) with steps for the device in use, and explains
 what to do where Web Bluetooth isn't available (on iPhone and iPad, the Bluefy
-browser). Then there are two ways to play, both on an open 9x9 field with
-Roversa in the middle facing up:
+browser). Then there are two ways to play, both on an **open floor**: an
+endless grid with no edges or obstacles, since the real robot may be driving
+down a hallway. Roversa starts on the start square facing up, draws its route
+as a dashed line with a dot where each piece ended, and the view zooms out to
+keep the whole route in sight. A step counter and a compass sit on top.
 
 - **Roll 5 pieces**: roll 5 puzzle pieces, as in Dice Quest, and use them all.
 - **Build anything**: as many Forward, Backward, Turn Left and Turn Right pieces
@@ -137,9 +140,8 @@ Roversa in the middle facing up:
 **GO** and **STEP** send the algorithm to the real Roversa. The robot on the
 screen waits for the real one to start each piece, so they move together, and
 the end-of-run message waits until the real robot has finished. Roversa stays
-where it stopped, like the real robot; **Start over** puts it back in the
-middle. The real robot stops before any piece that would drive off the field on
-the screen. Without a robot connected, only Roversa on the screen drives.
+where it stopped, like the real robot, and the route keeps growing until
+**Start over** clears it and puts Roversa back on the start. Without a robot connected, only Roversa on the screen drives.
 Adventures and Dice Quest never drive the real robot.
 
 The robot needs firmware that speaks this protocol over the Bluetooth UART

@@ -206,6 +206,7 @@
   const game = {
     mode: null, // 'level', 'quest' or 'robot' (Roversa Robot, driving a real Roversa)
     robotPlay: null, // robot mode: 'roll' (5 rolled pieces) or 'free' (any basic pieces)
+    floor: null, // robot mode: the open floor, see "Roversa Robot: the open floor"
     aiLevel: null, // 'easy', 'medium' or 'hard' when playing the Dice Quest AI Opponent
     aiToken: 0, // changes whenever an AI Opponent turn should stop
     levelIndex: 0,
@@ -323,6 +324,7 @@
     const S = T * SCALE;
     const g = bctx;
     g.imageSmoothingEnabled = false;
+    if (game.mode === 'robot') { drawFloor(g, now, S); return; }
     g.drawImage(v.bg, 0, 0, board.width, board.height);
     const frame = Math.floor(now / 600) % 2;
     v.water.forEach((w) => g.drawImage(w.frames[frame], w.x * S, w.y * S, S, S));
@@ -400,6 +402,149 @@
       g.fillStyle = p.color;
       g.fillRect(p.x, p.y, SCALE * 2, SCALE * 2);
     });
+  }
+
+  // ---------- Roversa Robot: the open floor ----------
+  // The real robot may be driving down a hallway, so the screen shows no map:
+  // an endless grid (one square for each Forward or Backward), the route
+  // Roversa has driven since Start over with a dot where each piece ended,
+  // and a camera that zooms out to keep the whole route in view.
+
+  const FLOOR_MIN = 7; // squares across the view at its closest
+  const FLOOR_PAD = 1.5; // squares kept around the route
+
+  function newFloor() {
+    return { path: [{ x: 0, y: 0 }], dots: [], cam: { x: 0.5, y: 0.5, span: FLOOR_MIN } };
+  }
+
+  // Like E.step, but nothing blocks the robot and there is no edge.
+  function fieldStep(pos, cmd, occupied) {
+    if (game.mode !== 'robot') return E.step(game.map.grid, pos, cmd, occupied);
+    if (cmd !== 'F' && cmd !== 'B') return E.step([['.']], pos, cmd);
+    const d = cmd === 'F' ? pos.dir : (pos.dir + 2) % 4;
+    return { x: pos.x + E.DX[d], y: pos.y + E.DY[d], dir: pos.dir, result: 'move' };
+  }
+
+  // Where the camera wants to be: the route and Roversa, with some room around.
+  function floorTarget(r) {
+    const pts = game.floor.path.concat([{ x: r.rx, y: r.ry }]);
+    const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+    // One extra square on top leaves room for the step counter and compass.
+    const x0 = Math.min(...xs), x1 = Math.max(...xs) + 1, y0 = Math.min(...ys) - 1, y1 = Math.max(...ys) + 1;
+    const span = Math.max(FLOOR_MIN, x1 - x0 + FLOOR_PAD * 2, y1 - y0 + FLOOR_PAD * 2);
+    return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, span };
+  }
+
+  function drawFloor(g, now, S) {
+    const f = game.floor;
+    const r = game.robots[0];
+    if (!f || !r) return;
+    const W = board.width, H = board.height;
+    // Ease the camera toward its target, so zooming out is smooth.
+    const to = floorTarget(r), cam = f.cam;
+    const ease = game.fast ? 1 : 0.08;
+    cam.x += (to.x - cam.x) * ease;
+    cam.y += (to.y - cam.y) * ease;
+    cam.span += (to.span - cam.span) * ease;
+    const k = W / cam.span / S; // board pixels per sprite-scaled pixel
+    const ox = W / 2 - cam.x * S * k, oy = H / 2 - cam.y * S * k;
+
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#3d8b3d';
+    g.fillRect(0, 0, W, H);
+    g.setTransform(k, 0, 0, k, ox, oy);
+
+    // Grid lines over the part of the floor in view.
+    const left = Math.floor(-ox / k / S) - 1, right = Math.ceil((W - ox) / k / S) + 1;
+    const top = Math.floor(-oy / k / S) - 1, bottom = Math.ceil((H - oy) / k / S) + 1;
+    const line = Math.max(2, 1.5 / k);
+    g.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    for (let x = left; x <= right; x++) g.fillRect(x * S - line / 2, top * S, line, (bottom - top) * S);
+    for (let y = top; y <= bottom; y++) g.fillRect(left * S, y * S - line / 2, (right - left) * S, line);
+
+    // The start square.
+    g.drawImage(f.startPad, 0, 0, S, S);
+
+    // The route: a dashed line through every square driven, out to where Roversa is now.
+    const c = (v) => (v + 0.5) * S;
+    g.save();
+    g.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    g.lineWidth = S * 0.08;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.setLineDash([S * 0.16, S * 0.14]);
+    g.beginPath();
+    f.path.forEach((p, i) => (i ? g.lineTo(c(p.x), c(p.y)) : g.moveTo(c(p.x), c(p.y))));
+    g.lineTo(c(r.rx), c(r.ry));
+    g.stroke();
+    g.restore();
+    f.dots.forEach((p, i) => {
+      const last = i === f.dots.length - 1;
+      g.fillStyle = last ? '#fbbd27' : '#ffffff';
+      g.beginPath();
+      g.arc(c(p.x), c(p.y), S * (last ? 0.12 : 0.09), 0, Math.PI * 2);
+      g.fill();
+    });
+
+    g.save();
+    g.translate(c(r.rx) + r.bump, c(r.ry));
+    g.rotate(r.ang);
+    g.scale(r.scale, r.scale);
+    g.drawImage(r.sprite, -S / 2, -S / 2, S, S);
+    g.restore();
+    if (game.shownPiece) drawShownPiece(g, now, S);
+
+    // Sparkles, in the same floor coordinates as the robot.
+    game.particles = game.particles.filter((p) => p.life > 0);
+    game.particles.forEach((p) => {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life--;
+      g.fillStyle = p.color;
+      g.fillRect(p.x, p.y, SCALE * 2, SCALE * 2);
+    });
+
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    drawFloorReadouts(g, r, W);
+  }
+
+  // A step counter at the top left and a compass at the top right, drawn on the board.
+  function drawFloorReadouts(g, r, W) {
+    const u = W / 144; // the board is 144 sprite pixels across
+    const n = game.program.length;
+    const at = game.runIndex >= 0 ? game.runIndex + 1 : game.doneUpTo >= 0 ? game.doneUpTo + 1 : 0;
+    if (n && at) {
+      const text = tr('rplay.stepOf', { n: at, total: n });
+      g.font = (6 * u) + 'px "Press Start 2P", monospace';
+      const w = g.measureText(text).width;
+      g.fillStyle = 'rgba(14, 16, 36, 0.75)';
+      g.fillRect(4 * u, 4 * u, w + 8 * u, 14 * u);
+      g.fillStyle = '#f4f1e6';
+      g.textBaseline = 'middle';
+      g.fillText(text, 8 * u, 11.5 * u);
+    }
+    // Compass: a ring with N on top and an arrow the way Roversa faces.
+    const R = 11 * u, cx = W - R - 5 * u, cy = R + 5 * u;
+    g.fillStyle = 'rgba(14, 16, 36, 0.75)';
+    g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#b9bbd6';
+    g.font = (4 * u) + 'px "Press Start 2P", monospace';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(tr('compassN'), cx, cy - R + 4 * u);
+    g.textAlign = 'start';
+    g.save();
+    g.translate(cx, cy + u);
+    g.rotate(r.ang);
+    g.fillStyle = '#fbbd27';
+    g.beginPath(); g.moveTo(0, -6 * u); g.lineTo(4 * u, 4 * u); g.lineTo(0, 2 * u); g.lineTo(-4 * u, 4 * u); g.closePath(); g.fill();
+    g.restore();
+  }
+
+  // Where the robot is on the open floor, for screen readers: "2 up and 1 right of the start".
+  function floorWhere(x, y) {
+    const parts = [];
+    if (y) parts.push(tr(y < 0 ? 'floor.up' : 'floor.down', { n: Math.abs(y) }));
+    if (x) parts.push(tr(x > 0 ? 'floor.right' : 'floor.left', { n: Math.abs(x) }));
+    return parts.length ? tr('floor.from', { list: parts.join(tr('and')) }) : tr('floor.start');
   }
 
   // Where Roversa stopped on a run that missed: a dashed yellow square with a
@@ -861,11 +1006,16 @@
   }
 
   const DIR_WORDS = named('dir.');
-  const where = (x, y) => tr('where', { x: x + 1, y: y + 1 });
+  const where = (x, y) => (game.mode === 'robot' ? floorWhere(x, y) : tr('where', { x: x + 1, y: y + 1 }));
 
   // Text version of the map for screen readers.
   function describeBoard() {
     if (!game.map) return;
+    if (game.mode === 'robot') {
+      const r = game.robots[0];
+      board.setAttribute('aria-label', tr('sr.floor') + ' ' + tr('sr.robot', { who: 'Roversa', where: where(r.x, r.y), dir: DIR_WORDS[r.dir] }));
+      return;
+    }
     const parts = [tr('sr.map', { cols: game.map.cols, rows: game.map.rows })];
     game.robots.forEach((r) => {
       if (r.gone) return;
@@ -1039,6 +1189,7 @@
 
   function startRandom(level) {
     game.mode = 'level';
+    game.floor = null;
     game.levelIndex = -1;
     game.level = level;
     game.quest = null;
@@ -1107,6 +1258,7 @@
 
   function startLevel(i) {
     const level = LEVELS[i];
+    game.floor = null;
     game.mode = 'level';
     game.levelIndex = i;
     game.level = level;
@@ -1280,6 +1432,7 @@
   // `rows` is the map when it comes from another device; otherwise a new one is made.
   function startQuest(players, rows) {
     game.mode = 'quest';
+    game.floor = null;
     game.level = null;
     game.map = E.parseMap(rows || questMap(players));
     // Every device draws the same grass and flowers for a shared map.
@@ -1311,29 +1464,17 @@
     setMessage(tr('msg.pressRoll', { who }));
   }
 
-  // Roversa Robot: an open field the size of a play mat, with Roversa in the
-  // middle facing up. Nothing on it blocks the robot; only the edge does.
-  const ROBOT_FIELD = 9;
-  function robotField() {
-    const N = ROBOT_FIELD, mid = Math.floor(N / 2);
-    const rows = [];
-    for (let y = 0; y < N; y++) rows.push(new Array(N).fill('.'));
-    for (let i = 0; i < 8; i++) {
-      const x = Math.floor(Math.random() * N), y = Math.floor(Math.random() * N);
-      if (x !== mid || y !== mid) rows[y][x] = 'f';
-    }
-    rows[mid][mid] = 'S';
-    return rows.map((r) => r.join(''));
-  }
-
   // `play` is 'roll' (roll 5 pieces, like Dice Quest) or 'free' (as many
   // Forward, Backward, Left and Right pieces as the robot can hold).
   function startRobot(play) {
     game.mode = 'robot';
     game.robotPlay = play;
     game.level = null;
-    game.map = E.parseMap(robotField());
-    game.view = buildView(game.map, Math.floor(Math.random() * 1000));
+    // The open floor has no map; Roversa starts at square 0,0 facing up.
+    game.map = E.parseMap(['S']);
+    game.view = { cols: 9, rows: 9 };
+    game.floor = newFloor();
+    game.floor.startPad = SP.startPad(Math.floor(Math.random() * 1000));
     game.robots = [makeRobot(game.map.starts['1'], 0, 0)];
     game.active = 0;
     game.tray = [];
@@ -1358,13 +1499,13 @@
     setMessage(tr('rplay.hint.' + game.robotPlay) + (real ? '' : ' ' + tr('rplay.screenOnly')));
   }
 
-  function finishRobotRun(outcome) {
-    const text = outcome.result === 'bump' ? tr('rplay.edge') : tr('rplay.done.' + game.robotPlay);
+  function finishRobotRun() {
+    const text = tr('rplay.done.' + game.robotPlay);
     if (game.quest) {
       game.quest.phase = 'roll';
       game.tray = [];
     }
-    setMessage(text, outcome.result === 'bump' ? 'bad' : '');
+    setMessage(text);
     renderAll();
   }
 
@@ -2178,7 +2319,7 @@
 
   async function doStep(r, cmd) {
     const occupied = (x, y) => game.robots.some((o) => o !== r && o.x === x && o.y === y);
-    const res = E.step(game.map.grid, r, cmd, occupied);
+    const res = fieldStep(r, cmd, occupied);
     if (res.result === 'turn') {
       SND.turn();
       await tween(r, { ang: r.ang + (cmd === 'L' ? -1 : 1) * (Math.PI / 2) }, TURN_MS);
@@ -2193,6 +2334,7 @@
       r.x = res.x;
       r.y = res.y;
       game.trail.push({ x: r.x, y: r.y });
+      if (game.floor) game.floor.path.push({ x: r.x, y: r.y });
       const goal = game.map.goals.find((g) => g.x === r.x && g.y === r.y);
       if (goal && !r.visited.has(goal.id)) {
         r.visited.add(goal.id);
@@ -2266,6 +2408,7 @@
     announce(tr('sr.ran', { n: st.i + 1, what, told }));
     describeBoard();
     game.doneUpTo = st.i;
+    if (game.floor) game.floor.dots.push({ x: st.r.x, y: st.r.y });
     res.index = st.i;
     st.i++;
     return res;
@@ -2279,7 +2422,7 @@
     renderProgram();
     if (game.mode === 'level' && game.level.stages) finishTutorialRun(st.r, outcome);
     else if (game.mode === 'level') finishLevelRun(st.r, outcome);
-    else if (game.mode === 'robot') finishRobotRun(outcome);
+    else if (game.mode === 'robot') finishRobotRun();
     else finishQuestTurn(st.r, outcome);
   }
 
@@ -2296,7 +2439,7 @@
     let pos = { x: r.x, y: r.y, dir: r.dir };
     const pieces = [];
     for (let i = st.i; i < end; i++) {
-      const res = E.step(game.map.grid, pos, st.steps[i], occupied);
+      const res = fieldStep(pos, st.steps[i], occupied);
       if (res.result === 'bump' || res.result === 'off') break;
       if (st.steps[i]) pieces.push(i);
       pos = res;
@@ -2971,6 +3114,7 @@
       const r = game.robots[0];
       if (ROBOT && ROBOT.connected) ROBOT.stop();
       resetRobot(r);
+      game.floor = Object.assign(newFloor(), { startPad: game.floor.startPad });
       if (usesTray()) { game.quest.phase = 'roll'; game.tray = []; }
       game.program = [];
       game.trail = [];
