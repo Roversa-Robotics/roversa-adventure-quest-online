@@ -44,6 +44,7 @@
       const line = buffer.slice(0, nl).trim();
       buffer = buffer.slice(nl + 1);
       if (!line) continue;
+      console.debug('Roversa robot <-', line);
       const [kind, arg] = line.split(',');
       if (kind === 'STEP') progress.step = Math.max(progress.step, Number(arg));
       // An error (such as ERR,BUSY when a settings menu is open) means nothing will run.
@@ -60,8 +61,9 @@
 
   // GATT takes one write at a time, so writes queue up behind each other.
   function send(line) {
+    console.debug('Roversa robot ->', line);
     const bytes = new TextEncoder().encode(line + '\n');
-    writes = writes.catch(() => {}).then(() => (rx ? rx.writeValue(bytes) : Promise.reject(new Error('not connected'))));
+    writes = writes.catch(() => {}).then(() => (rx ? (rx.writeValueWithResponse ? rx.writeValueWithResponse(bytes) : rx.writeValue(bytes)) : Promise.reject(new Error('not connected'))));
     return writes;
   }
 
@@ -107,6 +109,7 @@
       const parts = hello.split(',');
       info = { name: device.name || 'Roversa', version: parts[1], maxSteps: Number(parts[2]) || 64 };
     } catch (e) {
+      console.warn('Roversa robot: connect failed', e);
       // A micro:bit without the Roversa Bluetooth firmware has no UART service or never says hello.
       if (device.gatt.connected) device.gatt.disconnect();
       rx = null;
