@@ -146,6 +146,37 @@
     return null;
   }
 
+  // Dice Quest: the fewest Forward, Backward, Turn Right and Turn Left puzzle
+  // pieces a robot at start, facing dir, needs to reach its nearest
+  // destination and to reach all of them (in any order). Obstacles count, other
+  // robots don't. Returns { nearest, all }, or null if a destination can't be reached.
+  function routes(grid, goals, start, dir) {
+    const full = (1 << goals.length) - 1;
+    const goalBit = (x, y) => goals.reduce((m, g, i) => (g.x === x && g.y === y ? m | (1 << i) : m), 0);
+    let frontier = [{ x: start.x, y: start.y, dir, mask: goalBit(start.x, start.y) }];
+    const seen = new Set([[start.x, start.y, dir, frontier[0].mask].join()]);
+    let nearest = frontier[0].mask ? 0 : null;
+    if (frontier[0].mask === full) return { nearest: 0, all: 0 };
+    for (let depth = 1; frontier.length; depth++) {
+      const next = [];
+      for (const s of frontier) {
+        for (const cmd of 'FBLR') {
+          const r = step(grid, s, cmd);
+          if (r.result === 'bump' || r.result === 'off') continue;
+          const mask = s.mask | goalBit(r.x, r.y);
+          if (mask && nearest === null) nearest = depth;
+          if (mask === full) return { nearest, all: depth };
+          const k = [r.x, r.y, r.dir, mask].join();
+          if (seen.has(k)) continue;
+          seen.add(k);
+          next.push({ x: r.x, y: r.y, dir: r.dir, mask });
+        }
+      }
+      frontier = next;
+    }
+    return null;
+  }
+
   // Turns a written algorithm like 'F P R W:L B' into puzzle pieces.
   // 'W:L' is a Wild piece already set to Turn Left.
   function parseAlgorithm(text) {
@@ -191,7 +222,7 @@
     return robot.stay >= STAY_LIMIT;
   }
 
-  const api = { DX, DY, DIR_NAMES, COMMANDS, STAY_LIMIT, parseMap, inBounds, isBlocked, resolve, step, solve, parseAlgorithm, trace, staysAfter, countStay };
+  const api = { DX, DY, DIR_NAMES, COMMANDS, STAY_LIMIT, parseMap, inBounds, isBlocked, resolve, step, solve, routes, parseAlgorithm, trace, staysAfter, countStay };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.RoversaEngine = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

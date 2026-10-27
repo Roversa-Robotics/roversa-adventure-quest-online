@@ -1,4 +1,5 @@
-// Random Challenges: fresh Adventure maps made from one world's tiles.
+// Random Challenges: fresh Adventure maps made from one world's tiles,
+// and the random Dice Quest maps.
 // No drawing or DOM code, so tools/check-random.js can test it in Node.
 //
 // Each difficulty belongs to a world. A challenge is made by scattering that
@@ -140,7 +141,71 @@
     })();
   }
 
-  const api = { DIFFICULTIES, ORDER, layout, generate, generateSoon };
+  // Dice Quest
+  // Where each player starts: corners, facing into the map.
+  const QUEST_STARTS = [{ x: 0, y: 7, dir: 0 }, { x: 7, y: 0, dir: 2 }, { x: 7, y: 7, dir: 0 }, { x: 0, y: 0, dir: 2 }];
+  // How many more puzzle pieces one robot may need than another, both to its
+  // nearest treasure and to all three, so no robot gets a head start.
+  const QUEST_FAIR = 3;
+
+  // How unfair a quest map is: the biggest difference between two robots in
+  // puzzle pieces needed (see Engine.routes). Infinity if a robot can't reach
+  // every treasure.
+  function questGap(rows, players) {
+    const map = E.parseMap(rows);
+    const r = QUEST_STARTS.slice(0, players).map((s, i) => E.routes(map.grid, map.goals, map.starts[String(i + 1)], s.dir));
+    if (r.some((x) => !x)) return Infinity;
+    const spread = (k) => Math.max(...r.map((x) => x[k])) - Math.min(...r.map((x) => x[k]));
+    return Math.max(spread('nearest'), spread('all'));
+  }
+
+  // Builds a random 8x8 quest map with the three treasures, as rows of text
+  // (the same text goes to every device in a game on several devices).
+  // Everything is placed at random; a map is only used if every robot can reach
+  // every treasure and no robot is more than QUEST_FAIR puzzle pieces closer.
+  function questMap(players, random) {
+    random = random || Math.random;
+    const N = 8;
+    let fairest = null, fairestGap = Infinity;
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const rows = [];
+      for (let y = 0; y < N; y++) rows.push(new Array(N).fill('.'));
+      const starts = QUEST_STARTS.slice(0, players);
+      const near = (x, y, pts, d) => pts.some((p) => Math.abs(p.x - x) + Math.abs(p.y - y) < d);
+      const free = (x, y) => rows[y][x] === '.' && !near(x, y, starts, 2);
+      const rand = (n) => Math.floor(random() * n);
+      for (let i = 0; i < 5; i++) {
+        const x = rand(N), y = rand(N);
+        if (free(x, y)) rows[y][x] = random() < 0.5 ? 'T' : 'R';
+      }
+      const px = rand(N - 1), py = rand(N);
+      if (free(px, py) && free(px + 1, py)) { rows[py][px] = 'W'; rows[py][px + 1] = 'W'; }
+      for (let i = 0; i < 6; i++) {
+        const x = rand(N), y = rand(N);
+        if (free(x, y)) rows[y][x] = 'f';
+      }
+      const goals = [];
+      for (let tries = 0; goals.length < 3 && tries < 200; tries++) {
+        const x = rand(N), y = rand(N);
+        if (rows[y][x] === 'f' || rows[y][x] === '.') {
+          if (near(x, y, starts, 4) || near(x, y, goals, 3)) continue;
+          goals.push({ x, y });
+        }
+      }
+      if (goals.length < 3) continue;
+      goals.forEach((g, i) => { rows[g.y][g.x] = 'ABC'[i]; });
+      starts.forEach((s, i) => { rows[s.y][s.x] = String(i + 1); });
+      const strs = rows.map((r) => r.join(''));
+      const gap = questGap(strs, players);
+      if (gap <= QUEST_FAIR) return strs;
+      if (gap < fairestGap) { fairest = strs; fairestGap = gap; }
+    }
+    if (fairest) return fairest;
+    return ['4......2', 'A.......', '........', '...B....', '........', '......C.', '........', '1......3']
+      .map((row) => row.replace(/[1-4]/g, (n) => (Number(n) <= players ? n : '.')));
+  }
+
+  const api = { DIFFICULTIES, ORDER, layout, generate, generateSoon, QUEST_STARTS, QUEST_FAIR, questGap, questMap };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   root.RoversaRandom = api;
 })(typeof globalThis !== 'undefined' ? globalThis : this);
