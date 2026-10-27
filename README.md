@@ -142,7 +142,7 @@ screen waits for the real one to start each piece, so they move together, and
 the end-of-run message waits until the real robot has finished. Roversa stays
 where it stopped, like the real robot, and the route keeps growing until
 **Start over** clears it and puts Roversa back on the start. In **Build
-anything**, a green marker in the algorithm row sits after the last piece that
+anything**, a green play marker (▶) in the algorithm row sits after the last piece that
 ran, and GO and STEP carry on from there, so adding a Turn Left and pressing GO
 runs just that piece. Drag the marker back (or use the arrow keys on it) to run
 pieces again from that point. Without a robot connected, only Roversa on the screen drives.

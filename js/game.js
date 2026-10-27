@@ -1583,11 +1583,11 @@
 
   // ---------- Build anything: the marker ----------
   // The real robot stays where a run stopped, so GO and STEP carry on from
-  // there: from the green marker, which sits after the last piece that ran.
+  // there: from the green play marker, which sits after the last piece that ran.
   // Pieces added after it run next. Dragging it back (or the arrow keys)
   // replays pieces from that point, starting where Roversa is now.
 
-  const showMarker = () => freeBuild() && game.resumeAt > 0;
+  const showMarker = () => freeBuild() && game.program.length > 0;
 
   function addMarker() {
     const m = document.createElement('div');
