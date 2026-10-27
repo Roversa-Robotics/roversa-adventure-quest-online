@@ -207,6 +207,7 @@
     mode: null, // 'level', 'quest' or 'robot' (Roversa Robot, driving a real Roversa)
     robotPlay: null, // robot mode: 'roll' (5 rolled pieces) or 'free' (any basic pieces)
     floor: null, // robot mode: the open floor, see "Roversa Robot: the open floor"
+    resumeAt: 0, // Build anything: the piece GO and STEP start from (the marker in the row)
     aiLevel: null, // 'easy', 'medium' or 'hard' when playing the Dice Quest AI Opponent
     aiToken: 0, // changes whenever an AI Opponent turn should stop
     levelIndex: 0,
@@ -429,7 +430,7 @@
   function floorTarget(r) {
     const pts = game.floor.path.concat([{ x: r.rx, y: r.ry }]);
     const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
-    // One extra square on top leaves room for the step counter and compass.
+    // One extra square on top leaves room for the step counter.
     const x0 = Math.min(...xs), x1 = Math.max(...xs) + 1, y0 = Math.min(...ys) - 1, y1 = Math.max(...ys) + 1;
     const span = Math.max(FLOOR_MIN, x1 - x0 + FLOOR_PAD * 2, y1 - y0 + FLOOR_PAD * 2);
     return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, span };
@@ -503,11 +504,11 @@
     });
 
     g.setTransform(1, 0, 0, 1, 0, 0);
-    drawFloorReadouts(g, r, W);
+    drawFloorReadouts(g, W);
   }
 
-  // A step counter at the top left and a compass at the top right, drawn on the board.
-  function drawFloorReadouts(g, r, W) {
+  // A step counter at the top left of the board.
+  function drawFloorReadouts(g, W) {
     const u = W / 144; // the board is 144 sprite pixels across
     const n = game.program.length;
     const at = game.runIndex >= 0 ? game.runIndex + 1 : game.doneUpTo >= 0 ? game.doneUpTo + 1 : 0;
@@ -521,22 +522,6 @@
       g.textBaseline = 'middle';
       g.fillText(text, 8 * u, 11.5 * u);
     }
-    // Compass: a ring with N on top and an arrow the way Roversa faces.
-    const R = 11 * u, cx = W - R - 5 * u, cy = R + 5 * u;
-    g.fillStyle = 'rgba(14, 16, 36, 0.75)';
-    g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#b9bbd6';
-    g.font = (4 * u) + 'px "Press Start 2P", monospace';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(tr('compassN'), cx, cy - R + 4 * u);
-    g.textAlign = 'start';
-    g.save();
-    g.translate(cx, cy + u);
-    g.rotate(r.ang);
-    g.fillStyle = '#fbbd27';
-    g.beginPath(); g.moveTo(0, -6 * u); g.lineTo(4 * u, 4 * u); g.lineTo(0, 2 * u); g.lineTo(-4 * u, 4 * u); g.closePath(); g.fill();
-    g.restore();
   }
 
   // Where the robot is on the open floor, for screen readers: "2 up and 1 right of the start".
@@ -1474,6 +1459,7 @@
     game.map = E.parseMap(['S']);
     game.view = { cols: 9, rows: 9 };
     game.floor = newFloor();
+    game.resumeAt = 0;
     game.floor.startPad = SP.startPad(Math.floor(Math.random() * 1000));
     game.robots = [makeRobot(game.map.starts['1'], 0, 0)];
     game.active = 0;
@@ -1545,6 +1531,7 @@
     programEl.innerHTML = '';
     let shown = 0;
     game.program.forEach((p, i) => {
+      if (i === game.resumeAt && showMarker()) addMarker();
       if (caretAt != null && shown === caretAt && i !== hideIndex) addCaret();
       const el = pieceEl(p.t, p.chosen, p.t === 'P' ? repeatCopies(game.program, i) : null);
       el.dataset.index = i;
@@ -1576,6 +1563,7 @@
       programEl.appendChild(el);
     });
     if (caretAt != null && shown === caretAt) addCaret();
+    if (game.resumeAt >= game.program.length && showMarker()) addMarker();
     // Building freely, the row shows a few empty slots rather than all of them.
     const slots = freeBuild() ? Math.min(game.slots, Math.max(10, game.program.length + 1)) : game.slots;
     for (let i = game.program.length; i < slots; i++) {
@@ -1591,6 +1579,65 @@
     const c = document.createElement('div');
     c.className = 'caret';
     programEl.appendChild(c);
+  }
+
+  // ---------- Build anything: the marker ----------
+  // The real robot stays where a run stopped, so GO and STEP carry on from
+  // there: from the green marker, which sits after the last piece that ran.
+  // Pieces added after it run next. Dragging it back (or the arrow keys)
+  // replays pieces from that point, starting where Roversa is now.
+
+  const showMarker = () => freeBuild() && game.resumeAt > 0;
+
+  function addMarker() {
+    const m = document.createElement('div');
+    m.className = 'resume';
+    m.tabIndex = 0;
+    m.setAttribute('role', 'slider');
+    m.setAttribute('aria-valuemin', '0');
+    m.setAttribute('aria-valuemax', String(game.program.length));
+    m.setAttribute('aria-valuenow', String(game.resumeAt));
+    m.setAttribute('aria-label', tr('marker.label'));
+    m.title = tr('marker.label');
+    m.addEventListener('pointerdown', startMarkerDrag);
+    m.addEventListener('keydown', (e) => {
+      if (!editable()) return;
+      const by = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : 0;
+      if (!by && e.key !== 'Home') return;
+      e.preventDefault();
+      moveMarker(e.key === 'Home' ? 0 : game.resumeAt + by);
+      const again = programEl.querySelector('.resume');
+      if (again) again.focus();
+    });
+    programEl.appendChild(m);
+  }
+
+  function moveMarker(at) {
+    at = Math.max(0, Math.min(game.program.length, at));
+    if (at === game.resumeAt) return;
+    game.resumeAt = at;
+    clearRunMarks();
+    renderAll();
+  }
+
+  function startMarkerDrag(e) {
+    if (!editable() || (e.button != null && e.button > 0)) return;
+    e.preventDefault();
+    const onMove = (ev) => {
+      const at = insertionIndex(ev);
+      if (at !== game.resumeAt) moveMarker(at);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      programEl.classList.remove('marker-drag');
+      if (game.resumeAt < game.program.length) setMessage(tr('marker.moved', { n: game.resumeAt + 1 }));
+    };
+    programEl.classList.add('marker-drag');
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   }
 
   function renderPool() {
@@ -1718,7 +1765,8 @@
   function renderButtons() {
     const busy = game.running || game.rolling || othersTurn();
     const quest = game.quest;
-    const goReady = game.program.length > 0 && (!quest || (quest.phase === 'arrange' && game.tray.length === 0));
+    const goReady = game.program.length > 0 && (!quest || (quest.phase === 'arrange' && game.tray.length === 0)) &&
+      (!freeBuild() || game.resumeAt < game.program.length);
     const gs = game.guess;
     $('#btn-go').disabled = busy || !goReady || (!!gs && (gs.phase !== 'pick' || !gs.flag));
     // After a wrong guess the same algorithm cannot be guessed again: Watch again or Try another.
@@ -1753,7 +1801,8 @@
   // After a run, editing the program clears the old run's marks.
   function clearRunMarks() {
     game.runIndex = -1;
-    game.doneUpTo = -1;
+    // Building freely, the pieces before the marker have already run.
+    game.doneUpTo = freeBuild() ? game.resumeAt - 1 : -1;
     game.stepping = null;
     game.shownPiece = null;
     if (game.guide) game.guide.bad = null;
@@ -1784,8 +1833,10 @@
       }
       game.tray.splice(game.tray.findIndex((p) => p.id === key), 1);
     }
-    clearRunMarks();
     if (at == null || at > game.program.length) at = game.program.length;
+    // A piece put in before the marker joins the pieces that already ran.
+    if (freeBuild() && at < game.resumeAt) game.resumeAt++;
+    clearRunMarks();
     game.program.splice(at, 0, piece);
     SND.drop();
     say(PIECE_NAMES[piece.chosen || piece.t]);
@@ -1797,6 +1848,7 @@
     if (!editable() || guideBlocks('remove')) return;
     const [p] = game.program.splice(i, 1);
     if (usesTray()) game.tray.push({ id: p.id, t: p.t });
+    if (freeBuild() && i < game.resumeAt) game.resumeAt--;
     clearRunMarks();
     SND.remove();
     renderAll();
@@ -2393,7 +2445,7 @@
     game.trail = [{ x: r.x, y: r.y }];
     clearRunMarks();
     if (game.guess && game.guess.phase === 'pick') game.guess.phase = 'run';
-    return { r, steps: E.resolve(game.program), i: 0 };
+    return { r, steps: E.resolve(game.program), i: freeBuild() ? game.resumeAt : 0 };
   }
 
   async function runOne(st) {
@@ -2411,6 +2463,7 @@
     if (game.floor) game.floor.dots.push({ x: st.r.x, y: st.r.y });
     res.index = st.i;
     st.i++;
+    if (freeBuild()) game.resumeAt = st.i;
     return res;
   }
 
@@ -2574,6 +2627,7 @@
   // GO runs the whole program, or the rest of it after some Steps.
   async function run(byAi) {
     if (game.running || !game.program.length || (othersTurn() && byAi !== true) || guideBlocks('go')) return;
+    if (freeBuild() && game.resumeAt >= game.program.length) return;
     if (byAi !== true && !game.stepping && !netSendGo()) return;
     closeModal();
     const st = game.stepping || beginRun();
@@ -2596,6 +2650,7 @@
   // Step runs just the next piece, so players can watch where the program goes wrong.
   async function step() {
     if (game.running || !game.program.length || othersTurn() || guideBlocks('step')) return;
+    if (freeBuild() && game.resumeAt >= game.program.length) return;
     if (!game.stepping && !netSendGo()) return;
     closeModal();
     const st = game.stepping || beginRun();
@@ -3099,6 +3154,7 @@
     if (!editable() || !game.program.length || guideBlocks('clear')) return;
     if (usesTray()) game.program.forEach((p) => game.tray.push({ id: p.id, t: p.t }));
     game.program = [];
+    game.resumeAt = 0;
     clearRunMarks();
     if (game.mode === 'level') clearStopMark();
     SND.remove();
@@ -3115,6 +3171,7 @@
       if (ROBOT && ROBOT.connected) ROBOT.stop();
       resetRobot(r);
       game.floor = Object.assign(newFloor(), { startPad: game.floor.startPad });
+      game.resumeAt = 0;
       if (usesTray()) { game.quest.phase = 'roll'; game.tray = []; }
       game.program = [];
       game.trail = [];

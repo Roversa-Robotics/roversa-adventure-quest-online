@@ -383,6 +383,27 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
   margin: 0 4px;
   flex: 0 0 auto;
 }
+/* Build anything: GO and STEP start at this green marker. */
+.resume {
+  position: relative;
+  width: 8px; height: calc(var(--piece) * 0.8);
+  margin: 0 8px 0 4px;
+  background: var(--brand-green);
+  border: 2px solid var(--edge);
+  border-radius: 3px;
+  flex: 0 0 auto;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.resume::before {
+  content: ''; position: absolute; top: -4px; left: 4px;
+  border-left: 14px solid var(--brand-green);
+  border-top: 8px solid transparent; border-bottom: 8px solid transparent;
+  filter: drop-shadow(1px 1px 0 var(--edge));
+}
+.resume::after { content: ''; position: absolute; inset: -8px -14px; } /* a bigger target for fingers */
+.resume + .piece { margin-left: 0; }
+.program.marker-drag, .program.marker-drag * { cursor: ew-resize; }
 .drag-ghost {
   position: fixed; z-index: 50; pointer-events: none;
   transform: translate(-50%, -50%) scale(1.15);
