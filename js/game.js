@@ -1127,65 +1127,6 @@
     enterGame();
   }
 
-  // Where each player starts in Dice Quest: corners, facing into the map.
-  const QUEST_STARTS = [{ x: 0, y: 7, dir: 0 }, { x: 7, y: 0, dir: 2 }, { x: 7, y: 7, dir: 0 }, { x: 0, y: 0, dir: 2 }];
-
-  // Builds a random 8x8 quest map with the three treasures, as rows of text
-  // (the same text goes to every device in a game on several devices).
-  function questMap(players) {
-    const N = 8;
-    for (let attempt = 0; attempt < 200; attempt++) {
-      const rows = [];
-      for (let y = 0; y < N; y++) rows.push(new Array(N).fill('.'));
-      const starts = QUEST_STARTS.slice(0, players);
-      const near = (x, y, pts, d) => pts.some((p) => Math.abs(p.x - x) + Math.abs(p.y - y) < d);
-      const free = (x, y) => rows[y][x] === '.' && !near(x, y, starts, 2);
-      const rand = (n) => Math.floor(Math.random() * n);
-      for (let i = 0; i < 5; i++) {
-        const x = rand(N), y = rand(N);
-        if (free(x, y)) rows[y][x] = Math.random() < 0.5 ? 'T' : 'R';
-      }
-      const px = rand(N - 1), py = rand(N);
-      if (free(px, py) && free(px + 1, py)) { rows[py][px] = 'W'; rows[py][px + 1] = 'W'; }
-      for (let i = 0; i < 6; i++) {
-        const x = rand(N), y = rand(N);
-        if (free(x, y)) rows[y][x] = 'f';
-      }
-      const goals = [];
-      for (let tries = 0; goals.length < 3 && tries < 200; tries++) {
-        const x = rand(N), y = rand(N);
-        if (rows[y][x] === 'f' || rows[y][x] === '.') {
-          if (near(x, y, starts, 4) || near(x, y, goals, 3)) continue;
-          goals.push({ x, y });
-        }
-      }
-      if (goals.length < 3) continue;
-      goals.forEach((g, i) => { rows[g.y][g.x] = 'ABC'[i]; });
-      starts.forEach((s, i) => { rows[s.y][s.x] = String(i + 1); });
-      const strs = rows.map((r) => r.join(''));
-      const map = E.parseMap(strs);
-      // Every destination must be reachable from every start.
-      const ok = starts.every((s) => {
-        const seen = new Set([s.x + ',' + s.y]);
-        const queue = [s];
-        while (queue.length) {
-          const p = queue.shift();
-          for (let d = 0; d < 4; d++) {
-            const nx = p.x + E.DX[d], ny = p.y + E.DY[d];
-            const k = nx + ',' + ny;
-            if (!E.inBounds(map.grid, nx, ny) || E.isBlocked(map.grid, nx, ny) || seen.has(k)) continue;
-            seen.add(k);
-            queue.push({ x: nx, y: ny });
-          }
-        }
-        return map.goals.every((g) => seen.has(g.x + ',' + g.y));
-      });
-      if (ok) return strs;
-    }
-    return ['4......2', 'A.......', '........', '...B....', '........', '......C.', '........', '1......3']
-      .map((row) => row.replace(/[1-4]/g, (n) => (Number(n) <= players ? n : '.')));
-  }
-
   // The costume picker: a pop-up with every costume. Costumes in taken can't be
   // picked. Resolves to the picked costume, or undefined if the pop-up was closed.
   function pickCostume(title, sub, taken, current) {
@@ -1270,12 +1211,12 @@
   function startQuest(players, rows) {
     game.mode = 'quest';
     game.level = null;
-    game.map = E.parseMap(rows || questMap(players));
+    game.map = E.parseMap(rows || RANDOM.questMap(players));
     // Every device draws the same grass and flowers for a shared map.
     const seed = rows ? rows.join('').split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 997, 7) : Math.floor(Math.random() * 1000);
     game.view = buildView(game.map, seed);
     game.robots = [];
-    for (let i = 0; i < players; i++) game.robots.push(makeRobot(game.map.starts[String(i + 1)], QUEST_STARTS[i].dir, i, true));
+    for (let i = 0; i < players; i++) game.robots.push(makeRobot(game.map.starts[String(i + 1)], RANDOM.QUEST_STARTS[i].dir, i, true));
     (game.characters || []).forEach((ch, i) => { if (game.robots[i]) wearCostume(game.robots[i], ch); });
     if (game.aiLevel && game.robots[1]) game.robots[1].ai = game.aiLevel;
     game.aiToken++;
@@ -3383,7 +3324,7 @@
     const players = net.seats.filter((p) => !p.left && p.costume).length;
     if (players < 2) { net.restart = null; closeModal(); netAlone(); return; }
     net.restart.at = Date.now();
-    net.conn.send({ t: 'start', map: questMap(players) });
+    net.conn.send({ t: 'start', map: RANDOM.questMap(players) });
   }
 
   function netConfirmLeave() {
@@ -3438,7 +3379,7 @@
     if (start) start.addEventListener('click', () => {
       SND.tap();
       const n = net.seats.filter((p) => !p.left && p.costume).length;
-      if (n >= 2) net.conn.send({ t: 'start', map: questMap(n) });
+      if (n >= 2) net.conn.send({ t: 'start', map: RANDOM.questMap(n) });
     });
     if (me && !me.costume && !net.opts.costume && modal.hidden) netPickCostume(net);
   }
