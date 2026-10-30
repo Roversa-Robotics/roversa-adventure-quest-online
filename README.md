@@ -154,7 +154,7 @@ at most 20 bytes; the robot's HELLO reply is longer and arrives in pieces.
 
 | App sends | Robot answers |
 | --- | --- |
-| `HELLO` | `ROVERSA,fw=<version>,proto=<n>,max=<max steps>,caps=prog` |
+| `HELLO` | `ROVERSA,fw=<version>,proto=<n>,cmdmax=<max steps>,caps=prog` |
 | `CLR` (clear the program) | `OK,0` |
 | `ADD,<up to 15 letters>` | nothing |
 | `END,<count>` | `OK,<count>` or `ERR,...` |

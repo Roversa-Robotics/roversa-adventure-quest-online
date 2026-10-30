@@ -5,7 +5,7 @@
 // Lines the app sends are at most 20 bytes; the robot's HELLO reply is longer
 // and arrives in pieces, which onData joins up to the newline.
 //   app -> robot   HELLO, CLR, ADD,<letters>, END,<count>, RUN, STOP
-//   robot -> app   ROVERSA,fw=<version>,proto=<n>,max=<max steps>,caps=<a>+<b>
+//   robot -> app   ROVERSA,fw=<version>,proto=<n>,cmdmax=<max steps>,caps=<a>+<b>
 //                  OK,<n>  ERR,...  RUN,<n>  STEP,<i>  DONE  STOPPED
 // HELLO fields after ROVERSA are key=value in any order (firmware 3.2.0 on).
 // Fields and capabilities we don't know are ignored, so newer firmware can add them.
@@ -95,7 +95,7 @@
     emit('change', false);
   }
 
-  // "ROVERSA,fw=3.2.0,proto=1,max=64,caps=prog" -> what the app needs to know.
+  // "ROVERSA,fw=3.2.0,proto=1,cmdmax=64,caps=prog" -> what the app needs to know.
   function parseHello(line, name) {
     const fields = {};
     line.split(',').slice(1).forEach((f) => {
@@ -106,7 +106,7 @@
       name,
       version: fields.fw || '',
       proto: Number(fields.proto) || 0,
-      maxSteps: Number(fields.max) || 64,
+      maxSteps: Number(fields.cmdmax) || 64,
       caps: fields.caps ? fields.caps.split('+') : [],
     };
   }
