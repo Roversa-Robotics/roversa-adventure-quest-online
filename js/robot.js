@@ -113,7 +113,9 @@
 
   async function connect() {
     device = await navigator.bluetooth.requestDevice({
-      filters: [{ namePrefix: 'BBC micro:bit' }],
+      // Roversa firmware advertises as "Roversa [XXX]" (XXX is the robot's
+      // 3-letter name); older builds still show up as "BBC micro:bit [xxxxx]".
+      filters: [{ namePrefix: 'Roversa' }, { namePrefix: 'BBC micro:bit' }],
       optionalServices: [UART_SERVICE],
     });
     device.addEventListener('gattserverdisconnected', dropped);
