@@ -11,6 +11,7 @@
   const LEVELS = globalThis.ROVERSA_LEVELS;
   const RANDOM = globalThis.RoversaRandom;
   const I18N = globalThis.RoversaI18n;
+  const ROBOT = globalThis.RoversaRobot;
   const tr = I18N.tr;
   // Name tables that always answer in the current language, e.g. PIECE_NAMES.F.
   const named = (prefix) => new Proxy({}, { get: (o, k) => tr(prefix + String(k)) });
@@ -203,7 +204,10 @@
   // ---------- Game state ----------
 
   const game = {
-    mode: null, // 'level' or 'quest'
+    mode: null, // 'level', 'quest' or 'robot' (Roversa Robot, driving a real Roversa)
+    robotPlay: null, // robot mode: 'roll' (5 rolled pieces) or 'free' (any basic pieces)
+    floor: null, // robot mode: the open floor, see "Roversa Robot: the open floor"
+    resumeAt: 0, // Build anything: the piece GO and STEP start from (the marker in the row)
     aiLevel: null, // 'easy', 'medium' or 'hard' when playing the Dice Quest AI Opponent
     aiToken: 0, // changes whenever an AI Opponent turn should stop
     levelIndex: 0,
@@ -321,6 +325,7 @@
     const S = T * SCALE;
     const g = bctx;
     g.imageSmoothingEnabled = false;
+    if (game.mode === 'robot') { drawFloor(g, now, S); return; }
     g.drawImage(v.bg, 0, 0, board.width, board.height);
     const frame = Math.floor(now / 600) % 2;
     v.water.forEach((w) => g.drawImage(w.frames[frame], w.x * S, w.y * S, S, S));
@@ -398,6 +403,133 @@
       g.fillStyle = p.color;
       g.fillRect(p.x, p.y, SCALE * 2, SCALE * 2);
     });
+  }
+
+  // ---------- Roversa Robot: the open floor ----------
+  // The real robot may be driving down a hallway, so the screen shows no map:
+  // an endless grid (one square for each Forward or Backward), the route
+  // Roversa has driven since Start over with a dot where each piece ended,
+  // and a camera that zooms out to keep the whole route in view.
+
+  const FLOOR_MIN = 7; // squares across the view at its closest
+  const FLOOR_PAD = 1.5; // squares kept around the route
+
+  function newFloor() {
+    return { path: [{ x: 0, y: 0 }], dots: [], cam: { x: 0.5, y: 0.5, span: FLOOR_MIN } };
+  }
+
+  // Like E.step, but nothing blocks the robot and there is no edge.
+  function fieldStep(pos, cmd, occupied) {
+    if (game.mode !== 'robot') return E.step(game.map.grid, pos, cmd, occupied);
+    if (cmd !== 'F' && cmd !== 'B') return E.step([['.']], pos, cmd);
+    const d = cmd === 'F' ? pos.dir : (pos.dir + 2) % 4;
+    return { x: pos.x + E.DX[d], y: pos.y + E.DY[d], dir: pos.dir, result: 'move' };
+  }
+
+  // Where the camera wants to be: the route and Roversa, with some room around.
+  function floorTarget(r) {
+    const pts = game.floor.path.concat([{ x: r.rx, y: r.ry }]);
+    const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+    // One extra square on top leaves room for the step counter.
+    const x0 = Math.min(...xs), x1 = Math.max(...xs) + 1, y0 = Math.min(...ys) - 1, y1 = Math.max(...ys) + 1;
+    const span = Math.max(FLOOR_MIN, x1 - x0 + FLOOR_PAD * 2, y1 - y0 + FLOOR_PAD * 2);
+    return { x: (x0 + x1) / 2, y: (y0 + y1) / 2, span };
+  }
+
+  function drawFloor(g, now, S) {
+    const f = game.floor;
+    const r = game.robots[0];
+    if (!f || !r) return;
+    const W = board.width, H = board.height;
+    // Ease the camera toward its target, so zooming out is smooth.
+    const to = floorTarget(r), cam = f.cam;
+    const ease = game.fast ? 1 : 0.08;
+    cam.x += (to.x - cam.x) * ease;
+    cam.y += (to.y - cam.y) * ease;
+    cam.span += (to.span - cam.span) * ease;
+    const k = W / cam.span / S; // board pixels per sprite-scaled pixel
+    const ox = W / 2 - cam.x * S * k, oy = H / 2 - cam.y * S * k;
+
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.fillStyle = '#3d8b3d';
+    g.fillRect(0, 0, W, H);
+    g.setTransform(k, 0, 0, k, ox, oy);
+
+    // Grid lines over the part of the floor in view.
+    const left = Math.floor(-ox / k / S) - 1, right = Math.ceil((W - ox) / k / S) + 1;
+    const top = Math.floor(-oy / k / S) - 1, bottom = Math.ceil((H - oy) / k / S) + 1;
+    const line = Math.max(2, 1.5 / k);
+    g.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    for (let x = left; x <= right; x++) g.fillRect(x * S - line / 2, top * S, line, (bottom - top) * S);
+    for (let y = top; y <= bottom; y++) g.fillRect(left * S, y * S - line / 2, (right - left) * S, line);
+
+    // The start square.
+    g.drawImage(f.startPad, 0, 0, S, S);
+
+    // The route: a dashed line through every square driven, out to where Roversa is now.
+    const c = (v) => (v + 0.5) * S;
+    g.save();
+    g.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    g.lineWidth = S * 0.08;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.setLineDash([S * 0.16, S * 0.14]);
+    g.beginPath();
+    f.path.forEach((p, i) => (i ? g.lineTo(c(p.x), c(p.y)) : g.moveTo(c(p.x), c(p.y))));
+    g.lineTo(c(r.rx), c(r.ry));
+    g.stroke();
+    g.restore();
+    f.dots.forEach((p, i) => {
+      const last = i === f.dots.length - 1;
+      g.fillStyle = last ? '#fbbd27' : '#ffffff';
+      g.beginPath();
+      g.arc(c(p.x), c(p.y), S * (last ? 0.12 : 0.09), 0, Math.PI * 2);
+      g.fill();
+    });
+
+    g.save();
+    g.translate(c(r.rx) + r.bump, c(r.ry));
+    g.rotate(r.ang);
+    g.scale(r.scale, r.scale);
+    g.drawImage(r.sprite, -S / 2, -S / 2, S, S);
+    g.restore();
+    if (game.shownPiece) drawShownPiece(g, now, S);
+
+    // Sparkles, in the same floor coordinates as the robot.
+    game.particles = game.particles.filter((p) => p.life > 0);
+    game.particles.forEach((p) => {
+      p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life--;
+      g.fillStyle = p.color;
+      g.fillRect(p.x, p.y, SCALE * 2, SCALE * 2);
+    });
+
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    drawFloorReadouts(g, W);
+  }
+
+  // A step counter at the top left of the board.
+  function drawFloorReadouts(g, W) {
+    const u = W / 144; // the board is 144 sprite pixels across
+    const n = game.program.length;
+    const at = game.runIndex >= 0 ? game.runIndex + 1 : game.doneUpTo >= 0 ? game.doneUpTo + 1 : 0;
+    if (n && at) {
+      const text = tr('rplay.stepOf', { n: at, total: n });
+      g.font = (6 * u) + 'px "Press Start 2P", monospace';
+      const w = g.measureText(text).width;
+      g.fillStyle = 'rgba(14, 16, 36, 0.75)';
+      g.fillRect(4 * u, 4 * u, w + 8 * u, 14 * u);
+      g.fillStyle = '#f4f1e6';
+      g.textBaseline = 'middle';
+      g.fillText(text, 8 * u, 11.5 * u);
+    }
+  }
+
+  // Where the robot is on the open floor, for screen readers: "2 up and 1 right of the start".
+  function floorWhere(x, y) {
+    const parts = [];
+    if (y) parts.push(tr(y < 0 ? 'floor.up' : 'floor.down', { n: Math.abs(y) }));
+    if (x) parts.push(tr(x > 0 ? 'floor.right' : 'floor.left', { n: Math.abs(x) }));
+    return parts.length ? tr('floor.from', { list: parts.join(tr('and')) }) : tr('floor.start');
   }
 
   // Where Roversa stopped on a run that missed: a dashed yellow square with a
@@ -596,6 +728,7 @@
     document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === 'screen-' + id));
     window.scrollTo(0, 0);
     if (id === 'levels') { renderCostumeBar(); renderLevelGrid(); }
+    if (id === 'robot') renderRobotSetup();
     setScreenAddress(id);
     document.dispatchEvent(new CustomEvent('roversa:screen', { detail: id }));
   }
@@ -610,6 +743,8 @@
     if (id === 'levels') return 'adventures';
     if (id === 'quest-setup') return 'dice-quest';
     if (id === 'net') return 'dice-quest-devices';
+    if (id === 'robot') return 'roversa-robot';
+    if (id === 'game' && game.mode === 'robot') return 'roversa-robot-' + game.robotPlay;
     if (id === 'game' && game.mode === 'level') {
       return game.level && game.level.stages ? 'tutorial' : 'level-' + (game.levelIndex + FIRST_NUM);
     }
@@ -628,7 +763,7 @@
     const now = document.querySelector('.screen.active');
     const id = now ? now.id.replace('screen-', '') : 'title';
     if (id === 'game') $('#btn-back').click();
-    else if (id === 'levels' || id === 'quest-setup') show('title');
+    else if (id === 'levels' || id === 'quest-setup' || id === 'robot') show('title');
   });
 
   document.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => {
@@ -647,7 +782,7 @@
     closeModal();
     game.guide = null;
     hand.hidden = true;
-    show(game.mode === 'level' ? 'levels' : 'quest-setup');
+    show(game.mode === 'level' ? 'levels' : game.mode === 'robot' ? 'robot' : 'quest-setup');
   });
 
   // Sound and read-aloud buttons sit on every screen and share one setting each.
@@ -833,6 +968,11 @@
       $('#pool-label').textContent = tr('yourRoll');
       labelButton('#btn-reset', tr('newGame'), tr('newGame'));
       labelButton('#btn-clear', tr('resetShort'), tr('resetPieces'));
+    } else if (game.mode === 'robot') {
+      $('#game-title').textContent = tr(game.robotPlay === 'roll' ? 'rplay.roll' : 'rplay.free');
+      $('#pool-label').textContent = tr(game.robotPlay === 'roll' ? 'yourRoll' : 'puzzlePieces');
+      labelButton('#btn-reset', tr('startOver'), tr('startOver'));
+      labelButton('#btn-clear', tr(game.robotPlay === 'roll' ? 'resetShort' : 'clear'), tr(game.robotPlay === 'roll' ? 'resetPieces' : 'clearProgram'));
     }
   }
 
@@ -851,11 +991,16 @@
   }
 
   const DIR_WORDS = named('dir.');
-  const where = (x, y) => tr('where', { x: x + 1, y: y + 1 });
+  const where = (x, y) => (game.mode === 'robot' ? floorWhere(x, y) : tr('where', { x: x + 1, y: y + 1 }));
 
   // Text version of the map for screen readers.
   function describeBoard() {
     if (!game.map) return;
+    if (game.mode === 'robot') {
+      const r = game.robots[0];
+      board.setAttribute('aria-label', tr('sr.floor') + ' ' + tr('sr.robot', { who: 'Roversa', where: where(r.x, r.y), dir: DIR_WORDS[r.dir] }));
+      return;
+    }
     const parts = [tr('sr.map', { cols: game.map.cols, rows: game.map.rows })];
     game.robots.forEach((r) => {
       if (r.gone) return;
@@ -1029,6 +1174,7 @@
 
   function startRandom(level) {
     game.mode = 'level';
+    game.floor = null;
     game.levelIndex = -1;
     game.level = level;
     game.quest = null;
@@ -1080,7 +1226,8 @@
     game.guide = null;
     game.hideGoals = false;
     show('game');
-    $('#screen-game').classList.toggle('quest-mode', game.mode === 'quest');
+    $('#screen-game').classList.toggle('quest-mode', usesTray());
+    syncRobotBtn();
     $('#screen-game').classList.toggle('guess-mode', isGuess());
     game.guess = null;
     sizeBoard();
@@ -1096,6 +1243,7 @@
 
   function startLevel(i) {
     const level = LEVELS[i];
+    game.floor = null;
     game.mode = 'level';
     game.levelIndex = i;
     game.level = level;
@@ -1210,6 +1358,7 @@
   // `rows` is the map when it comes from another device; otherwise a new one is made.
   function startQuest(players, rows) {
     game.mode = 'quest';
+    game.floor = null;
     game.level = null;
     game.map = E.parseMap(rows || RANDOM.questMap(players));
     // Every device draws the same grass and flowers for a shared map.
@@ -1239,6 +1388,52 @@
     }
     const who = game.robots.length > 1 ? tr('msg.whoPrefix', { robot: r.name }) : '';
     setMessage(tr('msg.pressRoll', { who }));
+  }
+
+  // `play` is 'roll' (roll 5 pieces, like Dice Quest) or 'free' (as many
+  // Forward, Backward, Left and Right pieces as the robot can hold).
+  function startRobot(play) {
+    game.mode = 'robot';
+    game.robotPlay = play;
+    game.level = null;
+    // The open floor has no map; Roversa starts at square 0,0 facing up.
+    game.map = E.parseMap(['S']);
+    game.view = { cols: 9, rows: 9 };
+    game.floor = newFloor();
+    game.resumeAt = 0;
+    game.floor.startPad = SP.startPad(Math.floor(Math.random() * 1000));
+    game.robots = [makeRobot(game.map.starts['1'], 0, 0)];
+    game.active = 0;
+    game.tray = [];
+    if (play === 'roll') {
+      game.limits = {};
+      game.slots = 5;
+      game.quest = { phase: 'roll' };
+    } else {
+      game.limits = { F: Infinity, B: Infinity, L: Infinity, R: Infinity };
+      game.slots = (ROBOT && ROBOT.info && ROBOT.info.maxSteps) || 64;
+      game.quest = null;
+    }
+    $('#scoreboard').hidden = true;
+    $('#btn-roll').hidden = play !== 'roll';
+    syncGameText();
+    enterGame();
+    robotHint();
+  }
+
+  function robotHint() {
+    const real = ROBOT && ROBOT.connected;
+    setMessage(tr('rplay.hint.' + game.robotPlay) + (real ? '' : ' ' + tr('rplay.screenOnly')));
+  }
+
+  function finishRobotRun() {
+    const text = tr('rplay.done.' + game.robotPlay);
+    if (game.quest) {
+      game.quest.phase = 'roll';
+      game.tray = [];
+    }
+    setMessage(text);
+    renderAll();
   }
 
   // ---------- Program and pieces ----------
@@ -1277,6 +1472,7 @@
     programEl.innerHTML = '';
     let shown = 0;
     game.program.forEach((p, i) => {
+      if (i === game.resumeAt && showMarker()) addMarker();
       if (caretAt != null && shown === caretAt && i !== hideIndex) addCaret();
       const el = pieceEl(p.t, p.chosen, p.t === 'P' ? repeatCopies(game.program, i) : null);
       el.dataset.index = i;
@@ -1308,7 +1504,10 @@
       programEl.appendChild(el);
     });
     if (caretAt != null && shown === caretAt) addCaret();
-    for (let i = game.program.length; i < game.slots; i++) {
+    if (game.resumeAt >= game.program.length && showMarker()) addMarker();
+    // Building freely, the row shows a few empty slots rather than all of them.
+    const slots = freeBuild() ? Math.min(game.slots, Math.max(10, game.program.length + 1)) : game.slots;
+    for (let i = game.program.length; i < slots; i++) {
       const s = document.createElement('div');
       s.className = 'slot';
       programEl.appendChild(s);
@@ -1323,17 +1522,76 @@
     programEl.appendChild(c);
   }
 
+  // ---------- Build anything: the marker ----------
+  // The real robot stays where a run stopped, so GO and STEP carry on from
+  // there: from the green play marker, which sits after the last piece that ran.
+  // Pieces added after it run next. Dragging it back (or the arrow keys)
+  // replays pieces from that point, starting where Roversa is now.
+
+  const showMarker = () => freeBuild() && game.program.length > 0;
+
+  function addMarker() {
+    const m = document.createElement('div');
+    m.className = 'resume';
+    m.tabIndex = 0;
+    m.setAttribute('role', 'slider');
+    m.setAttribute('aria-valuemin', '0');
+    m.setAttribute('aria-valuemax', String(game.program.length));
+    m.setAttribute('aria-valuenow', String(game.resumeAt));
+    m.setAttribute('aria-label', tr('marker.label'));
+    m.title = tr('marker.label');
+    m.addEventListener('pointerdown', startMarkerDrag);
+    m.addEventListener('keydown', (e) => {
+      if (!editable()) return;
+      const by = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : 0;
+      if (!by && e.key !== 'Home') return;
+      e.preventDefault();
+      moveMarker(e.key === 'Home' ? 0 : game.resumeAt + by);
+      const again = programEl.querySelector('.resume');
+      if (again) again.focus();
+    });
+    programEl.appendChild(m);
+  }
+
+  function moveMarker(at) {
+    at = Math.max(0, Math.min(game.program.length, at));
+    if (at === game.resumeAt) return;
+    game.resumeAt = at;
+    clearRunMarks();
+    renderAll();
+  }
+
+  function startMarkerDrag(e) {
+    if (!editable() || (e.button != null && e.button > 0)) return;
+    e.preventDefault();
+    const onMove = (ev) => {
+      const at = insertionIndex(ev);
+      if (at !== game.resumeAt) moveMarker(at);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      programEl.classList.remove('marker-drag');
+      if (game.resumeAt < game.program.length) setMessage(tr('marker.moved', { n: game.resumeAt + 1 }));
+    };
+    programEl.classList.add('marker-drag');
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
   function renderPool() {
     poolEl.innerHTML = '';
     if (isGuess()) {
       renderGuessCard();
-    } else if (game.mode === 'level') {
+    } else if (game.mode === 'level' || freeBuild()) {
       E.COMMANDS.forEach((t) => {
         if (!(t in game.limits)) return;
         const left = game.limits[t] - usedCount(t);
         const el = pieceEl(t);
-        el.insertAdjacentHTML('beforeend', '<span class="count">' + left + '</span>');
-        el.setAttribute('aria-label', tr('sr.poolPiece', { name: PIECE_NAMES[t], n: left }));
+        if (left !== Infinity) el.insertAdjacentHTML('beforeend', '<span class="count">' + left + '</span>');
+        el.setAttribute('aria-label', left === Infinity ? PIECE_NAMES[t] : tr('sr.poolPiece', { name: PIECE_NAMES[t], n: left }));
         if (left <= 0) el.classList.add('empty');
         el.addEventListener('pointerdown', (e) => startDrag(e, 'pool', t, el));
         onActivate(el, () => { pendingFocus = { area: 'pool', t }; addPiece(t); });
@@ -1441,10 +1699,15 @@
     return isAiTurn() || (game.mode === 'quest' && !!game.net && !myTurn());
   }
 
+  // Roversa Robot: building with any basic pieces, or with 5 rolled ones like Dice Quest.
+  function freeBuild() { return game.mode === 'robot' && game.robotPlay === 'free'; }
+  function usesTray() { return game.mode === 'quest' || (game.mode === 'robot' && game.robotPlay === 'roll'); }
+
   function renderButtons() {
     const busy = game.running || game.rolling || othersTurn();
     const quest = game.quest;
-    const goReady = game.program.length > 0 && (!quest || (quest.phase === 'arrange' && game.tray.length === 0));
+    const goReady = game.program.length > 0 && (!quest || (quest.phase === 'arrange' && game.tray.length === 0)) &&
+      (!freeBuild() || game.resumeAt < game.program.length);
     const gs = game.guess;
     $('#btn-go').disabled = busy || !goReady || (!!gs && (gs.phase !== 'pick' || !gs.flag));
     // After a wrong guess the same algorithm cannot be guessed again: Watch again or Try another.
@@ -1473,13 +1736,14 @@
   function editable() {
     if (game.running || game.rolling || othersTurn() || isGuess()) return false;
     // Once a Dice Quest program starts stepping, the robot has moved, so the turn is locked in.
-    return game.mode === 'level' || (game.quest.phase === 'arrange' && !game.stepping);
+    return !game.quest || (game.quest.phase === 'arrange' && !game.stepping);
   }
 
   // After a run, editing the program clears the old run's marks.
   function clearRunMarks() {
     game.runIndex = -1;
-    game.doneUpTo = -1;
+    // Building freely, the pieces before the marker have already run.
+    game.doneUpTo = freeBuild() ? game.resumeAt - 1 : -1;
     game.stepping = null;
     game.shownPiece = null;
     if (game.guide) game.guide.bad = null;
@@ -1493,7 +1757,7 @@
       return;
     }
     let piece;
-    if (game.mode === 'level') {
+    if (game.mode === 'level' || freeBuild()) {
       if (game.limits[key] - usedCount(key) <= 0) { SND.bump(); return; }
       piece = { id: uid(), t: key };
       if (key === 'W') {
@@ -1510,8 +1774,10 @@
       }
       game.tray.splice(game.tray.findIndex((p) => p.id === key), 1);
     }
-    clearRunMarks();
     if (at == null || at > game.program.length) at = game.program.length;
+    // A piece put in before the marker joins the pieces that already ran.
+    if (freeBuild() && at < game.resumeAt) game.resumeAt++;
+    clearRunMarks();
     game.program.splice(at, 0, piece);
     SND.drop();
     say(PIECE_NAMES[piece.chosen || piece.t]);
@@ -1522,7 +1788,8 @@
   function removePiece(i) {
     if (!editable() || guideBlocks('remove')) return;
     const [p] = game.program.splice(i, 1);
-    if (game.mode === 'quest') game.tray.push({ id: p.id, t: p.t });
+    if (usesTray()) game.tray.push({ id: p.id, t: p.t });
+    if (freeBuild() && i < game.resumeAt) game.resumeAt--;
     clearRunMarks();
     SND.remove();
     renderAll();
@@ -2045,7 +2312,7 @@
 
   async function doStep(r, cmd) {
     const occupied = (x, y) => game.robots.some((o) => o !== r && o.x === x && o.y === y);
-    const res = E.step(game.map.grid, r, cmd, occupied);
+    const res = fieldStep(r, cmd, occupied);
     if (res.result === 'turn') {
       SND.turn();
       await tween(r, { ang: r.ang + (cmd === 'L' ? -1 : 1) * (Math.PI / 2) }, TURN_MS);
@@ -2060,6 +2327,7 @@
       r.x = res.x;
       r.y = res.y;
       game.trail.push({ x: r.x, y: r.y });
+      if (game.floor) game.floor.path.push({ x: r.x, y: r.y });
       const goal = game.map.goals.find((g) => g.x === r.x && g.y === r.y);
       if (goal && !r.visited.has(goal.id)) {
         r.visited.add(goal.id);
@@ -2068,7 +2336,7 @@
         setMessage(tr('msg.reached', { goal: goalTo(goal.id) }), 'good');
         renderScoreboard();
       }
-    } else if (res.result === 'bump' || (res.result === 'off' && game.mode === 'level')) {
+    } else if (res.result === 'bump' || (res.result === 'off' && game.mode !== 'quest')) {
       SND.bump();
       const dx = (res.tx - r.x) * 0.3, dy = (res.ty - r.y) * 0.3;
       await tween(r, { rx: r.x + dx, ry: r.y + dy }, 130);
@@ -2118,7 +2386,7 @@
     game.trail = [{ x: r.x, y: r.y }];
     clearRunMarks();
     if (game.guess && game.guess.phase === 'pick') game.guess.phase = 'run';
-    return { r, steps: E.resolve(game.program), i: 0 };
+    return { r, steps: E.resolve(game.program), i: freeBuild() ? game.resumeAt : 0 };
   }
 
   async function runOne(st) {
@@ -2133,8 +2401,10 @@
     announce(tr('sr.ran', { n: st.i + 1, what, told }));
     describeBoard();
     game.doneUpTo = st.i;
+    if (game.floor) game.floor.dots.push({ x: st.r.x, y: st.r.y });
     res.index = st.i;
     st.i++;
+    if (freeBuild()) game.resumeAt = st.i;
     return res;
   }
 
@@ -2146,12 +2416,159 @@
     renderProgram();
     if (game.mode === 'level' && game.level.stages) finishTutorialRun(st.r, outcome);
     else if (game.mode === 'level') finishLevelRun(st.r, outcome);
+    else if (game.mode === 'robot') finishRobotRun();
     else finishQuestTurn(st.r, outcome);
+  }
+
+  // ---------- A real Roversa over Bluetooth ----------
+
+  // Sends the pieces from st.i up to (not including) end to a connected Roversa and starts it.
+  // The real robot stops before any piece that bumps or drives off the map on the screen,
+  // so it never drives into an obstacle that is only on the screen.
+  // Returns stepOf(i): the robot's step number for piece i (or -1), or null when no robot drives.
+  async function robotStart(st, end) {
+    if (game.mode !== 'robot' || !ROBOT || !ROBOT.connected || game.fast) return null;
+    const r = st.r;
+    const occupied = (x, y) => game.robots.some((o) => o !== r && o.x === x && o.y === y);
+    let pos = { x: r.x, y: r.y, dir: r.dir };
+    const pieces = [];
+    for (let i = st.i; i < end; i++) {
+      const res = fieldStep(pos, st.steps[i], occupied);
+      if (res.result === 'bump' || res.result === 'off') break;
+      if (st.steps[i]) pieces.push(i);
+      pos = res;
+    }
+    if (!pieces.length) return null;
+    try {
+      await ROBOT.start(pieces.map((i) => st.steps[i]));
+    } catch (e) {
+      console.warn('Roversa robot', e);
+      setMessage(tr('robot.failed'));
+      return null;
+    }
+    return (i) => pieces.indexOf(i);
+  }
+
+  // Holds the screen robot until the real one starts the same piece, so both move together.
+  async function robotKeepUp(stepOf, i) {
+    if (!stepOf) return;
+    const k = stepOf(i);
+    if (k >= 0) await ROBOT.waitStep(k);
+  }
+
+  function syncRobotBtn() {
+    const btn = $('#btn-robot');
+    const on = !!ROBOT && ROBOT.connected;
+    btn.hidden = !ROBOT || !ROBOT.supported || game.mode !== 'robot';
+    btn.classList.toggle('linked', on);
+    const label = on ? tr('robot.disconnect', { name: ROBOT.info.name }) : tr('robot.connect');
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
+  }
+
+  // Opens the browser's device chooser. Resolves to the text to show: the
+  // robot it connected to, why it couldn't, or null when the chooser was closed.
+  async function connectRobot() {
+    try {
+      const info = await ROBOT.connect();
+      if (freeBuild()) { game.slots = info.maxSteps; renderProgram(); }
+      return { ok: true, text: tr('robot.connected', { name: info.name }) };
+    } catch (e) {
+      // Closing the device chooser is not an error worth showing.
+      if (e && e.name === 'NotFoundError') return null;
+      return { ok: false, text: tr('robot.noFirmware') };
+    }
+  }
+
+  async function toggleRobot() {
+    SND.tap();
+    if (ROBOT.connected) { ROBOT.disconnect(); return; }
+    if (game.running) return;
+    const res = await connectRobot();
+    if (res) setMessage(res.text, res.ok ? 'good' : 'bad');
+    syncRobotBtn();
+  }
+
+  // ---------- Roversa Robot setup screen ----------
+  // How to connect, worded for the device in use, and the two ways to play.
+
+  function deviceKind() {
+    const ua = navigator.userAgent || '';
+    if (/iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+    if (/Android/.test(ua)) return 'android';
+    if (/CrOS/.test(ua)) return 'chromebook';
+    if (/Macintosh|Mac OS X/.test(ua)) return 'mac';
+    if (/Windows/.test(ua)) return 'windows';
+    return 'other';
+  }
+
+  const BT_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="vertical-align:middle"><path d="M7 7l10 10-5 5V2l5 5L7 17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  let robotSetupNote = null; // { ok, text } from the last connect attempt
+  function renderRobotSetup() {
+    const kind = deviceKind();
+    const box = $('#robot-connect');
+    const steps = $('#robot-steps');
+    const on = !!ROBOT && ROBOT.connected;
+    box.innerHTML = '';
+    steps.innerHTML = '';
+    if (!ROBOT || !ROBOT.supported) {
+      const p = document.createElement('p');
+      p.className = 'robot-warn';
+      p.innerHTML = tr(kind === 'ios' ? 'rsetup.noBt.ios' : !window.isSecureContext ? 'rsetup.noBt.https' : 'rsetup.noBt.browser');
+      box.appendChild(p);
+    } else if (on) {
+      box.innerHTML = '<p class="robot-linked"><span class="dot" aria-hidden="true"></span></p>' +
+        '<button class="btn gray" type="button" id="btn-robot-off"></button>';
+      box.querySelector('.robot-linked').append(tr('rsetup.linked', { name: ROBOT.info.name }));
+      box.querySelector('#btn-robot-off').textContent = tr('rsetup.disconnect');
+      box.querySelector('#btn-robot-off').addEventListener('click', () => { SND.tap(); robotSetupNote = null; ROBOT.disconnect(); });
+    } else {
+      box.innerHTML = '<button class="btn big blue" type="button" id="btn-robot-on"></button>';
+      const b = box.querySelector('#btn-robot-on');
+      b.innerHTML = BT_ICON + ' <span></span>';
+      b.lastChild.textContent = tr('rsetup.connect');
+      b.addEventListener('click', async () => {
+        SND.tap();
+        b.disabled = true;
+        robotSetupNote = await connectRobot();
+        renderRobotSetup();
+      });
+      if (robotSetupNote && !robotSetupNote.ok) {
+        const p = document.createElement('p');
+        p.className = 'robot-warn';
+        p.textContent = robotSetupNote.text;
+        box.appendChild(p);
+      }
+    }
+    if (ROBOT && ROBOT.supported && !on) {
+      const keys = ['rsetup.step.on', 'rsetup.step.bt.' + (['android', 'mac', 'windows', 'chromebook', 'ios'].includes(kind) ? kind : 'other'), 'rsetup.step.pick'];
+      keys.forEach((k) => {
+        const li = document.createElement('li');
+        li.innerHTML = tr(k);
+        steps.appendChild(li);
+      });
+    }
+    steps.hidden = !steps.children.length;
+    $('#robot-steps-title').hidden = steps.hidden;
+  }
+
+  document.querySelectorAll('[data-robot-play]').forEach((b) => b.addEventListener('click', () => { SND.tap(); startRobot(b.dataset.robotPlay); }));
+
+  if (ROBOT) {
+    $('#btn-robot').addEventListener('click', toggleRobot);
+    ROBOT.on('change', (on) => {
+      syncRobotBtn();
+      if ($('#screen-robot').classList.contains('active')) renderRobotSetup();
+      if (!on && game.mode === 'robot' && $('#screen-game').classList.contains('active')) setMessage(tr('robot.disconnected'), 'bad');
+    });
+    I18N.onChange(() => { syncRobotBtn(); if ($('#screen-robot').classList.contains('active')) renderRobotSetup(); });
+    syncRobotBtn();
   }
 
   // GO runs the whole program, or the rest of it after some Steps.
   async function run(byAi) {
     if (game.running || !game.program.length || (othersTurn() && byAi !== true) || guideBlocks('go')) return;
+    if (freeBuild() && game.resumeAt >= game.program.length) return;
     if (byAi !== true && !game.stepping && !netSendGo()) return;
     closeModal();
     const st = game.stepping || beginRun();
@@ -2159,24 +2576,31 @@
     game.stepping = null;
     renderAll();
     setMessage(othersTurn() ? tr('msg.drivingNamed', { robot: st.r.name }) : tr('msg.driving'));
+    const stepOf = await robotStart(st, st.steps.length);
     let outcome = { result: 'done' };
     while (st.i < st.steps.length) {
+      await robotKeepUp(stepOf, st.i);
       const res = await runOne(st);
       if (res.result === 'bump' || res.result === 'off') { outcome = res; break; }
       await sleep(PAUSE_MS);
     }
+    if (stepOf) await ROBOT.waitDone();
     endRun(st, outcome);
   }
 
   // Step runs just the next piece, so players can watch where the program goes wrong.
   async function step() {
     if (game.running || !game.program.length || othersTurn() || guideBlocks('step')) return;
+    if (freeBuild() && game.resumeAt >= game.program.length) return;
     if (!game.stepping && !netSendGo()) return;
     closeModal();
     const st = game.stepping || beginRun();
     game.running = true;
     renderAll();
+    const stepOf = await robotStart(st, st.i + 1);
+    await robotKeepUp(stepOf, st.i);
     const res = await runOne(st);
+    if (stepOf) await ROBOT.waitDone();
     if (res.result === 'bump' || res.result === 'off' || st.i >= st.steps.length) {
       endRun(st, res.result === 'move' || res.result === 'turn' || res.result === 'noop' ? { result: 'done' } : res);
       return;
@@ -2669,8 +3093,9 @@
 
   $('#btn-clear').addEventListener('click', () => {
     if (!editable() || !game.program.length || guideBlocks('clear')) return;
-    if (game.mode === 'quest') game.program.forEach((p) => game.tray.push({ id: p.id, t: p.t }));
+    if (usesTray()) game.program.forEach((p) => game.tray.push({ id: p.id, t: p.t }));
     game.program = [];
+    game.resumeAt = 0;
     clearRunMarks();
     if (game.mode === 'level') clearStopMark();
     SND.remove();
@@ -2680,6 +3105,23 @@
   $('#btn-reset').addEventListener('click', () => {
     if (game.running || game.rolling || guideBlocks('reset')) return;
     SND.tap();
+    if (game.mode === 'robot') {
+      // Roversa goes back to the middle of the field: the player puts the real
+      // robot back on its start too.
+      const r = game.robots[0];
+      if (ROBOT && ROBOT.connected) ROBOT.stop();
+      resetRobot(r);
+      game.floor = Object.assign(newFloor(), { startPad: game.floor.startPad });
+      game.resumeAt = 0;
+      if (usesTray()) { game.quest.phase = 'roll'; game.tray = []; }
+      game.program = [];
+      game.trail = [];
+      clearRunMarks();
+      renderAll();
+      sparkle(r.x, r.y);
+      setMessage(tr('rplay.restart'));
+      return;
+    }
     if (game.mode === 'level') {
       // Start the level fresh: Roversa back on the start, an empty program row
       // and a clean map, with a sparkle so the restart is easy to see.

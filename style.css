@@ -100,6 +100,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 
 .icon-btn.off { opacity: 0.45; text-decoration: line-through; }
+/* Bluetooth button: shows a dot while a real Roversa is connected. */
+.btn-robot { position: relative; display: inline-flex; align-items: center; justify-content: center; color: inherit; }
+.btn-robot[hidden] { display: none; }
+.btn-robot.linked { color: var(--green); border-color: var(--green); }
+.btn-robot.linked::after { content: ''; position: absolute; top: 4px; right: 4px; width: 9px; height: 9px; border-radius: 50%; background: var(--green); }
 
 /* Title screen */
 #screen-title { position: relative; }
@@ -220,6 +225,15 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .setup h3 { font-family: var(--heading); font-weight: 400; font-size: 20px; margin-top: 28px; }
 .setup .quest-tagline { font-family: var(--heading); font-size: clamp(18px, 4.6vw, 22px); color: var(--yellow); margin-bottom: 8px; }
 .setup h4 { font-size: 17px; margin: 22px 0 8px; }
+.robot-connect { margin: 22px auto 6px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.robot-connect .btn.big { display: inline-flex; align-items: center; gap: 8px; }
+.robot-linked { display: inline-flex; align-items: center; gap: 10px; margin: 0; font-weight: 700; color: var(--green); }
+.robot-linked .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--green); flex: none; }
+.robot-warn { margin: 0; padding: 12px 14px; border: 3px solid var(--edge); border-radius: 6px; background: var(--bg2); font-size: 16px; line-height: 1.5; }
+.robot-steps { text-align: left; max-width: 30em; margin: 0 auto; padding-left: 1.6em; font-size: 16px; line-height: 1.5; }
+.robot-steps li { margin-bottom: 8px; }
+.robot-steps[hidden], #robot-steps-title[hidden] { display: none; }
+.robot-setup .play-desc { margin: -8px 0 6px; }
 .special-pieces { list-style: none; padding: 0; margin: 0 auto; display: inline-flex; flex-direction: column; gap: 10px; text-align: left; }
 .special-pieces li { display: flex; align-items: center; gap: 12px; font-size: 16px; }
 .special-pieces .piece-pic { flex: none; width: 58px; height: 48px; }
@@ -369,6 +383,22 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
   margin: 0 4px;
   flex: 0 0 auto;
 }
+/* Build anything: GO and STEP start at this green play marker. */
+.resume {
+  position: relative;
+  width: 0; height: 0;
+  margin: 0 6px 0 4px;
+  border-left: 20px solid var(--brand-green);
+  border-top: 13px solid transparent; border-bottom: 13px solid transparent;
+  filter: drop-shadow(0 0 0 var(--edge)) drop-shadow(1.5px 0 0 var(--edge)) drop-shadow(-1.5px 0 0 var(--edge)) drop-shadow(0 1.5px 0 var(--edge)) drop-shadow(0 -1.5px 0 var(--edge));
+  flex: 0 0 auto;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.resume:focus-visible { outline: none; filter: drop-shadow(0 0 3px var(--yellow)) drop-shadow(0 0 3px var(--yellow)); }
+.resume::after { content: ''; position: absolute; left: -32px; top: -26px; width: 44px; height: 52px; } /* a bigger target for fingers */
+.resume + .piece { margin-left: 0; }
+.program.marker-drag, .program.marker-drag * { cursor: ew-resize; }
 .drag-ghost {
   position: fixed; z-index: 50; pointer-events: none;
   transform: translate(-50%, -50%) scale(1.15);

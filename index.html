@@ -54,6 +54,9 @@
         <button class="btn big blue" data-go="quest-setup">
           <span class="btn-icon" aria-hidden="true">&#9856;</span> <span data-i18n="menu.quest">Dice Quest</span>
         </button>
+        <button class="btn big purple" data-go="robot">
+          <span class="btn-icon" aria-hidden="true">&#129302;</span> <span data-i18n="menu.robot">Roversa Robot</span>
+        </button>
       </div>
       <button id="btn-install" class="btn install-btn" type="button" hidden>
         <span class="btn-icon" aria-hidden="true">&#11015;</span> <span data-i18n="install.button">Install app</span>
@@ -124,6 +127,34 @@
     </div>
   </section>
 
+  <!-- Roversa Robot: connect a real Roversa over Bluetooth and program it -->
+  <section id="screen-robot" class="screen">
+    <header class="bar">
+      <button class="icon-btn" data-go="title" aria-label="Home">&#8962;</button>
+      <h2 data-i18n="menu.robot">Roversa Robot</h2>
+      <button class="icon-btn btn-voice" type="button" aria-label="Read aloud" title="Read aloud" data-i18n-attr="aria-label:readAloud; title:readAloud">&#128172;</button>
+      <button class="icon-btn btn-sound" type="button" aria-label="Sound on or off" data-i18n-attr="aria-label:sound">&#9835;</button>
+    </header>
+    <div class="setup robot-setup">
+      <p class="quest-tagline" data-i18n="rsetup.tagline">Program a real Roversa with puzzle pieces!</p>
+      <p class="small" data-i18n="rsetup.intro">Connect your Roversa over Bluetooth. Your algorithm drives the real robot anywhere, even down a hallway, and Roversa on the screen draws the route as it goes.</p>
+      <div id="robot-connect" class="robot-connect" aria-live="polite"></div>
+      <h4 id="robot-steps-title" data-i18n="rsetup.stepsTitle">How to connect</h4>
+      <ol id="robot-steps" class="robot-steps"></ol>
+      <h3 data-i18n="rsetup.howPlay">How do you want to play?</h3>
+      <div class="menu">
+        <button class="btn big blue" type="button" data-robot-play="roll">
+          <span class="btn-icon" aria-hidden="true">&#9856;</span> <span data-i18n="rplay.roll">Roll 5 pieces</span>
+        </button>
+        <p class="small play-desc" data-i18n="rsetup.rollDesc">Roll 5 puzzle pieces, like in Dice Quest, and put them in any order.</p>
+        <button class="btn big green" type="button" data-robot-play="free">
+          <span class="btn-icon" aria-hidden="true">&#10010;</span> <span data-i18n="rplay.free">Build anything</span>
+        </button>
+        <p class="small play-desc" data-i18n="rsetup.freeDesc">Use as many Forward, Backward, Turn Left and Turn Right pieces as you like.</p>
+      </div>
+    </div>
+  </section>
+
   <!-- Dice Quest on several devices: the game's pictures, who is in, joining -->
   <section id="screen-net" class="screen">
     <header class="bar">
@@ -140,6 +171,7 @@
     <header class="bar">
       <button class="icon-btn" id="btn-back" aria-label="Back" data-i18n-attr="aria-label:back">&#9664;</button>
       <h2 id="game-title">Level</h2>
+      <button class="icon-btn btn-robot" id="btn-robot" type="button" hidden aria-label="Connect a real Roversa" title="Connect a real Roversa" data-i18n-attr="aria-label:robot.connect; title:robot.connect"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M7 7l10 10-5 5V2l5 5L7 17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <button class="icon-btn btn-voice" type="button" aria-label="Read aloud" title="Read aloud" data-i18n-attr="aria-label:readAloud; title:readAloud">&#128172;</button>
       <button class="icon-btn btn-sound" type="button" aria-label="Sound on or off" data-i18n-attr="aria-label:sound">&#9835;</button>
     </header>
@@ -198,6 +230,7 @@
   <script src="js/ai.js?v=__BUILD__"></script>
   <script src="relay/room.js?v=__BUILD__"></script>
   <script src="js/net.js?v=__BUILD__"></script>
+  <script src="js/robot.js?v=__BUILD__"></script>
   <script src="js/game.js?v=__BUILD__"></script>
   <script src="js/pwa.js?v=__BUILD__"></script>
 </body>
