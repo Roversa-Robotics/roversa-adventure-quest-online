@@ -1,11 +1,14 @@
 // Sends algorithms to a real Roversa robot over Bluetooth (Web Bluetooth),
 // so it drives the same puzzle pieces as the robot on the screen.
 //
-// The robot listens on the Bluetooth UART service. Each message is one line of
-// at most 20 bytes:
+// The robot listens on the Bluetooth UART service. Each message is one line.
+// Lines the app sends are at most 20 bytes; the robot's HELLO reply is longer
+// and arrives in pieces, which onData joins up to the newline.
 //   app -> robot   HELLO, CLR, ADD,<letters>, END,<count>, RUN, STOP
-//   robot -> app   ROVERSA,<version>,<max steps>  OK,<n>  ERR,...
-//                  RUN,<n>  STEP,<i>  DONE  STOPPED
+//   robot -> app   ROVERSA,fw=<version>,proto=<n>,max=<max steps>,caps=<a>+<b>
+//                  OK,<n>  ERR,...  RUN,<n>  STEP,<i>  DONE  STOPPED
+// HELLO fields after ROVERSA are key=value in any order (firmware 3.2.0 on).
+// Fields and capabilities we don't know are ignored, so newer firmware can add them.
 // Letters are the engine's commands: F Forward, B Backward, L Turn Left, R Turn Right.
 // See "Driving a real Roversa" in the README.
 (function (root) {
@@ -92,6 +95,22 @@
     emit('change', false);
   }
 
+  // "ROVERSA,fw=3.2.0,proto=1,max=64,caps=prog" -> what the app needs to know.
+  function parseHello(line, name) {
+    const fields = {};
+    line.split(',').slice(1).forEach((f) => {
+      const eq = f.indexOf('=');
+      if (eq > 0) fields[f.slice(0, eq)] = f.slice(eq + 1);
+    });
+    return {
+      name,
+      version: fields.fw || '',
+      proto: Number(fields.proto) || 0,
+      maxSteps: Number(fields.max) || 64,
+      caps: fields.caps ? fields.caps.split('+') : [],
+    };
+  }
+
   async function connect() {
     device = await navigator.bluetooth.requestDevice({
       filters: [{ namePrefix: 'BBC micro:bit' }],
@@ -113,8 +132,9 @@
         hello = await reply;
       }
       if (!hello) throw new Error('no reply to HELLO');
-      const parts = hello.split(',');
-      info = { name: device.name || 'Roversa', version: parts[1], maxSteps: Number(parts[2]) || 64 };
+      info = parseHello(hello, device.name || 'Roversa');
+      // This app only uploads programs; a robot without that capability can't play.
+      if (!info.caps.includes('prog')) throw new Error('robot has no program upload');
     } catch (e) {
       console.warn('Roversa robot: connect failed', e);
       // A micro:bit without the Roversa Bluetooth firmware has no UART service or never says hello.
@@ -173,5 +193,6 @@
     waitStep,
     waitDone,
     on(type, fn) { listeners[type].push(fn); },
+    parseHello,
   };
 })(globalThis);

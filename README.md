@@ -148,17 +148,23 @@ runs just that piece. Drag the marker back (or use the arrow keys on it) to run
 pieces again from that point. Without a robot connected, only Roversa on the screen drives.
 Adventures and Dice Quest never drive the real robot.
 
-The robot needs firmware that speaks this protocol over the Bluetooth UART
-service. Each message is one line of at most 20 bytes:
+The robot needs Roversa firmware 3.2.0 or later, which speaks this protocol
+over the Bluetooth UART service. Each message is one line. The app's lines are
+at most 20 bytes; the robot's HELLO reply is longer and arrives in pieces.
 
 | App sends | Robot answers |
 | --- | --- |
-| `HELLO` | `ROVERSA,<version>,<max steps>` |
+| `HELLO` | `ROVERSA,fw=<version>,proto=<n>,max=<max steps>,caps=prog` |
 | `CLR` (clear the program) | `OK,0` |
 | `ADD,<up to 15 letters>` | nothing |
 | `END,<count>` | `OK,<count>` or `ERR,...` |
 | `RUN` | `RUN,<count>`, then `STEP,<i>` as each step starts (from 0), then `DONE` |
 | `STOP` | `STOPPED` |
+
+After `ROVERSA`, the HELLO fields are `key=value` in any order, and `caps`
+lists the robot's features joined by `+`. The app needs `prog` (program
+upload) and ignores fields and features it doesn't know, so newer firmware can
+add them. A command the robot doesn't have gets `ERR,UNKNOWN,<command>`.
 
 The letters are the engine's commands: `F` Forward, `B` Backward, `L` Turn Left,
 `R` Turn Right. Repeat and Wild pieces are turned into these before sending.
