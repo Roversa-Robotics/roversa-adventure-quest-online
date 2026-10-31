@@ -2520,7 +2520,7 @@
     const on = !!ROBOT && ROBOT.connected;
     btn.hidden = !ROBOT || !ROBOT.supported || game.mode !== 'robot';
     btn.classList.toggle('linked', on);
-    const label = on ? tr('robot.disconnect', { name: ROBOT.info.name }) : tr('robot.connect');
+    const label = on ? tr('robot.disconnect', { name: ROBOT.info.name }) : (ROBOT && ROBOT.waiting) ? tr('rsetup.lock.cancel') : tr('robot.connect');
     btn.setAttribute('aria-label', label);
     btn.title = label;
   }
@@ -2533,14 +2533,19 @@
       if (freeBuild()) { game.slots = info.maxSteps; renderProgram(); }
       return { ok: true, text: tr('robot.connected', { name: info.name }) };
     } catch (e) {
-      // Closing the device chooser is not an error worth showing.
-      if (e && e.name === 'NotFoundError') return null;
+      // Closing the device chooser, or Cancel while a Locked robot waited, is not an error worth showing.
+      if (e && (e.name === 'NotFoundError' || e.code === 'cancelled')) return null;
+      // A Locked robot that didn't get its Play press.
+      if (e && (e.code === 'refused' || e.code === 'timeout' || e.code === 'lost')) {
+        return { ok: false, text: tr('robot.lock.' + e.code) };
+      }
       return { ok: false, text: tr('robot.noFirmware') };
     }
   }
 
   async function toggleRobot() {
     SND.tap();
+    if (ROBOT.waiting) { ROBOT.cancel(); return; }
     if (ROBOT.connected) { ROBOT.disconnect(); return; }
     if (game.running) return;
     const res = await connectRobot();
@@ -2561,6 +2566,13 @@
     return 'other';
   }
 
+  // The robot's 5x5 lights, for showing what it displays. Rows of 0/1.
+  function ledsHtml(rows) {
+    return '<span class="leds" aria-hidden="true">' + rows.join('').split('').map((c) => '<i' + (c === '1' ? ' class="on"' : '') + '></i>').join('') + '</span>';
+  }
+  const LEDS_BT = ['00110', '10101', '01110', '10101', '00110'];
+  const LEDS_PLAY = ['01000', '01100', '01110', '01100', '01000'];
+
   const BT_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" style="vertical-align:middle"><path d="M7 7l10 10-5 5V2l5 5L7 17" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   let robotSetupNote = null; // { ok, text } from the last connect attempt
   function renderRobotSetup() {
@@ -2575,6 +2587,15 @@
       p.className = 'robot-warn';
       p.innerHTML = tr(kind === 'ios' ? 'rsetup.noBt.ios' : !window.isSecureContext ? 'rsetup.noBt.https' : 'rsetup.noBt.browser');
       box.appendChild(p);
+    } else if (ROBOT.waiting) {
+      // A Locked robot: someone at it presses Play to accept this device.
+      box.innerHTML = '<div class="robot-lock"><h4></h4><p class="robot-lock-body"></p>' +
+        '<p class="robot-lock-leds">' + ledsHtml(LEDS_BT) + '<span class="arr">→</span>' + ledsHtml(LEDS_PLAY) + '<span class="arr">×3</span></p></div>' +
+        '<button class="btn gray" type="button" id="btn-robot-cancel"></button>';
+      box.querySelector('h4').textContent = tr('rsetup.lock.title', { name: ROBOT.waiting.name });
+      box.querySelector('.robot-lock-body').innerHTML = tr('rsetup.lock.body');
+      box.querySelector('#btn-robot-cancel').textContent = tr('rsetup.lock.cancel');
+      box.querySelector('#btn-robot-cancel').addEventListener('click', () => { SND.tap(); ROBOT.cancel(); });
     } else if (on) {
       box.innerHTML = '<p class="robot-linked"><span class="dot" aria-hidden="true"></span></p>' +
         '<button class="btn gray" type="button" id="btn-robot-off"></button>';
@@ -2599,8 +2620,8 @@
         box.appendChild(p);
       }
     }
-    if (ROBOT && ROBOT.supported && !on) {
-      const keys = ['rsetup.step.on', 'rsetup.step.bt.' + (['android', 'mac', 'windows', 'chromebook', 'ios'].includes(kind) ? kind : 'other'), 'rsetup.step.pick'];
+    if (ROBOT && ROBOT.supported && !on && !ROBOT.waiting) {
+      const keys = ['rsetup.step.on', 'rsetup.step.bt.' + (['android', 'mac', 'windows', 'chromebook', 'ios'].includes(kind) ? kind : 'other'), 'rsetup.step.pick', 'rsetup.step.locked'];
       keys.forEach((k) => {
         const li = document.createElement('li');
         li.innerHTML = tr(k);
@@ -2615,6 +2636,11 @@
 
   if (ROBOT) {
     $('#btn-robot').addEventListener('click', toggleRobot);
+    ROBOT.on('lock', (ev) => {
+      if ($('#screen-robot').classList.contains('active')) renderRobotSetup();
+      syncRobotBtn();
+      if (ev.state === 'wait' && $('#screen-game').classList.contains('active')) setMessage(tr('robot.lock.press', { name: ev.name }));
+    });
     ROBOT.on('change', (on) => {
       syncRobotBtn();
       if ($('#screen-robot').classList.contains('active')) renderRobotSetup();
