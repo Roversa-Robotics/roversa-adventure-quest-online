@@ -121,6 +121,71 @@ Quest die has the same six faces.
 The game always calls the directions **Forward**, **Backward**, **Turn Left** and
 **Turn Right**.
 
+## Driving a real Roversa
+
+**Roversa Robot** on the title screen is for programming a real Roversa. Its
+first screen connects the robot over Web Bluetooth (Chrome or Edge on Android,
+Chromebooks, Windows and Mac) with steps for the device in use, and explains
+what to do where Web Bluetooth isn't available (on iPhone and iPad, the Bluefy
+browser). Then there are two ways to play, both on an **open floor**: an
+endless grid with no edges or obstacles, since the real robot may be driving
+down a hallway. Roversa starts on the start square facing up, draws its route
+as a dashed line with a dot where each piece ended, and the view zooms out to
+keep the whole route in sight. A step counter sits on top.
+
+- **Roll 5 pieces**: roll 5 puzzle pieces, as in Dice Quest, and use them all.
+- **Build anything**: as many Forward, Backward, Turn Left and Turn Right pieces
+  as the robot holds (64).
+
+**GO** and **STEP** send the algorithm to the real Roversa. The robot on the
+screen waits for the real one to start each piece, so they move together, and
+the end-of-run message waits until the real robot has finished. Roversa stays
+where it stopped, like the real robot, and the route keeps growing until
+**Start over** clears it and puts Roversa back on the start. In **Build
+anything**, a green play marker (▶) in the algorithm row sits after the last piece that
+ran, and GO and STEP carry on from there, so adding a Turn Left and pressing GO
+runs just that piece. Drag the marker back (or use the arrow keys on it) to run
+pieces again from that point. Without a robot connected, only Roversa on the screen drives.
+Adventures and Dice Quest never drive the real robot.
+
+The robot needs Roversa firmware 3.2.0 or later, which speaks this protocol
+over the Bluetooth UART service. Each message is one line. The app's lines are
+at most 20 bytes; the robot's HELLO reply is longer and arrives in pieces.
+
+| App sends | Robot answers |
+| --- | --- |
+| `HELLO` | `ROVERSA,fw=<version>,proto=<n>,cmdmax=<max steps>,caps=prog+lock,name=<XXX>,mode=open\|locked,lock=wait\|ok` |
+| `CLR` (clear the program) | `OK,0` |
+| `ADD,<up to 15 letters>` | nothing |
+| `END,<count>` | `OK,<count>` or `ERR,...` |
+| `RUN` | `RUN,<count>`, then `STEP,<i>` as each step starts (from 0), then `DONE` |
+| `STOP` | `STOPPED` |
+
+After `ROVERSA`, the HELLO fields are `key=value` in any order, and `caps`
+lists the robot's features joined by `+`. The app needs `prog` (program
+upload) and ignores fields and features it doesn't know, so newer firmware can
+add them. A command the robot doesn't have gets `ERR,UNKNOWN,<command>`.
+
+**Locked robots.** The robot's Bluetooth menu can be Open (the default),
+Locked or Off. A Locked robot answers HELLO with `lock=wait`: someone at the
+robot has to press **Play** before it takes any other command (until then it
+answers `ERR,LOCKED`, except `STOP`). The app then shows "Press ▶ on Roversa
+[XXX]" with a Cancel button, and waits for the robot to send one of:
+
+| Robot sends | Meaning | The app |
+| --- | --- | --- |
+| `LOCK,OK` | Play was pressed | Connects as usual |
+| `LOCK,NO` | Stop was pressed; the robot drops the link | Says Stop was pressed, try again |
+| `LOCK,TIMEOUT` | Nobody answered in 15 s; the robot drops the link | Says nobody pressed Play in time |
+
+Firmware without the Bluetooth menu has no `mode` or `lock` fields and is
+treated as Open. `node tools/check-robot.js` checks all of this against a
+pretend robot.
+
+The letters are the engine's commands: `F` Forward, `B` Backward, `L` Turn Left,
+`R` Turn Right. Repeat and Wild pieces are turned into these before sending.
+The code is in [`js/robot.js`](js/robot.js).
+
 ## Running it locally
 
 Open `index.html` in a browser, or serve the folder:
