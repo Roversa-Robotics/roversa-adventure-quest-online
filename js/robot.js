@@ -5,8 +5,14 @@
 // Lines the app sends are at most 20 bytes; the robot's HELLO reply is longer
 // and arrives in pieces, which onData joins up to the newline.
 //   app -> robot   HELLO, CLR, ADD,<letters>, END,<count>, RUN, STOP
-//   robot -> app   ROVERSA,fw=<version>,proto=<n>,cmdmax=<max steps>,caps=<a>+<b>
+//   robot -> app   ROVERSA,fw=<version>,proto=<n>,cmdmax=<max steps>,caps=<a>+<b>,
+//                    name=<XXX>,mode=open|locked,lock=wait|ok
 //                  OK,<n>  ERR,...  RUN,<n>  STEP,<i>  DONE  STOPPED
+//                  LOCK,OK  LOCK,NO  LOCK,TIMEOUT
+// A robot whose Bluetooth menu is set to Locked answers HELLO with lock=wait:
+// someone at the robot must press Play before it takes any other command
+// (they get ERR,LOCKED). It then sends LOCK,OK (Play), LOCK,NO (Stop) or
+// LOCK,TIMEOUT (nobody pressed anything) and drops the link after the last two.
 // HELLO fields after ROVERSA are key=value in any order (firmware 3.2.0 on).
 // Fields and capabilities we don't know are ignored, so newer firmware can add them.
 // Letters are the engine's commands: F Forward, B Backward, L Turn Left, R Turn Right.
@@ -30,7 +36,13 @@
   let waiters = [];
   // Progress of the run started last: the highest STEP seen, and whether it ended.
   let progress = { step: -1, ended: false };
-  const listeners = { change: [], message: [] };
+  // While a Locked robot waits for its Play press: { name } of that robot.
+  let waiting = null;
+  const listeners = { change: [], message: [], lock: [] };
+  // How long to wait for the Play press. The robot gives up after 15 s once
+  // it shows the prompt, but holds the prompt while a menu is open, so this
+  // only catches a robot that never answers.
+  const LOCK_WAIT_MS = 120000;
 
   function emit(type, detail) {
     listeners[type].forEach((fn) => { try { fn(detail); } catch (e) { console.error(e); } });
@@ -108,7 +120,39 @@
       proto: Number(fields.proto) || 0,
       maxSteps: Number(fields.cmdmax) || 64,
       caps: fields.caps ? fields.caps.split('+') : [],
+      // Firmware before the Bluetooth menu has none of these: it acts as Open.
+      mode: fields.mode || 'open',
+      lock: fields.lock || 'ok',
     };
+  }
+
+  function lockError(code) {
+    const e = new Error('lock ' + code);
+    e.code = code;
+    return e;
+  }
+
+  // Locked robot: waits for the Play press. Throws with code 'refused'
+  // (Stop pressed), 'timeout' (nobody answered), 'lost' (the link dropped
+  // first) or 'cancelled' (cancel() was called).
+  async function waitForPlay(name) {
+    waiting = { name, cancelled: false };
+    const w = waiting;
+    emit('lock', { state: 'wait', name });
+    let got = null;
+    try {
+      got = await waitFor((l) => l.startsWith('LOCK,'), LOCK_WAIT_MS);
+    } finally {
+      waiting = null;
+    }
+    let result;
+    if (got === 'LOCK,OK') result = 'ok';
+    else if (got === 'LOCK,NO') result = 'refused';
+    else if (w.cancelled) result = 'cancelled';
+    else if (got === 'LOCK,TIMEOUT' || (device && device.gatt.connected)) result = 'timeout';
+    else result = 'lost';
+    emit('lock', { state: result, name });
+    if (result !== 'ok') throw lockError(result);
   }
 
   async function connect() {
@@ -134,9 +178,14 @@
         hello = await reply;
       }
       if (!hello) throw new Error('no reply to HELLO');
-      info = parseHello(hello, device.name || 'Roversa');
+      const got = parseHello(hello, device.name || 'Roversa');
       // This app only uploads programs; a robot without that capability can't play.
-      if (!info.caps.includes('prog')) throw new Error('robot has no program upload');
+      if (!got.caps.includes('prog')) throw new Error('robot has no program upload');
+      if (got.lock === 'wait') {
+        await waitForPlay(got.name);
+        got.lock = 'ok';
+      }
+      info = got;
     } catch (e) {
       console.warn('Roversa robot: connect failed', e);
       // A micro:bit without the Roversa Bluetooth firmware has no UART service or never says hello.
@@ -151,6 +200,13 @@
 
   function disconnect() {
     if (device && device.gatt.connected) device.gatt.disconnect();
+  }
+
+  // Gives up waiting for the Play press (the robot then times out by itself).
+  function cancel() {
+    if (!waiting) return;
+    waiting.cancelled = true;
+    disconnect();
   }
 
   // Loads a list of commands into the robot and starts it.
@@ -188,8 +244,11 @@
     get supported() { return !!(root.navigator && root.navigator.bluetooth); },
     get connected() { return connected(); },
     get info() { return info; },
+    // { name } while a Locked robot waits for its Play press, else null.
+    get waiting() { return waiting && { name: waiting.name }; },
     connect,
     disconnect,
+    cancel,
     start,
     stop,
     waitStep,

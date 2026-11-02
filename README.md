@@ -154,7 +154,7 @@ at most 20 bytes; the robot's HELLO reply is longer and arrives in pieces.
 
 | App sends | Robot answers |
 | --- | --- |
-| `HELLO` | `ROVERSA,fw=<version>,proto=<n>,cmdmax=<max steps>,caps=prog` |
+| `HELLO` | `ROVERSA,fw=<version>,proto=<n>,cmdmax=<max steps>,caps=prog+lock,name=<XXX>,mode=open\|locked,lock=wait\|ok` |
 | `CLR` (clear the program) | `OK,0` |
 | `ADD,<up to 15 letters>` | nothing |
 | `END,<count>` | `OK,<count>` or `ERR,...` |
@@ -165,6 +165,22 @@ After `ROVERSA`, the HELLO fields are `key=value` in any order, and `caps`
 lists the robot's features joined by `+`. The app needs `prog` (program
 upload) and ignores fields and features it doesn't know, so newer firmware can
 add them. A command the robot doesn't have gets `ERR,UNKNOWN,<command>`.
+
+**Locked robots.** The robot's Bluetooth menu can be Open (the default),
+Locked or Off. A Locked robot answers HELLO with `lock=wait`: someone at the
+robot has to press **Play** before it takes any other command (until then it
+answers `ERR,LOCKED`, except `STOP`). The app then shows "Press ▶ on Roversa
+[XXX]" with a Cancel button, and waits for the robot to send one of:
+
+| Robot sends | Meaning | The app |
+| --- | --- | --- |
+| `LOCK,OK` | Play was pressed | Connects as usual |
+| `LOCK,NO` | Stop was pressed; the robot drops the link | Says Stop was pressed, try again |
+| `LOCK,TIMEOUT` | Nobody answered in 15 s; the robot drops the link | Says nobody pressed Play in time |
+
+Firmware without the Bluetooth menu has no `mode` or `lock` fields and is
+treated as Open. `node tools/check-robot.js` checks all of this against a
+pretend robot.
 
 The letters are the engine's commands: `F` Forward, `B` Backward, `L` Turn Left,
 `R` Turn Right. Repeat and Wild pieces are turned into these before sending.

@@ -230,6 +230,17 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .robot-linked { display: inline-flex; align-items: center; gap: 10px; margin: 0; font-weight: 700; color: var(--green); }
 .robot-linked .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--green); flex: none; }
 .robot-warn { margin: 0; padding: 12px 14px; border: 3px solid var(--edge); border-radius: 6px; background: var(--bg2); font-size: 16px; line-height: 1.5; }
+.robot-lock { text-align: center; padding: 14px 16px; border: 3px solid var(--edge); border-radius: 6px; background: var(--bg2); max-width: 460px; }
+.robot-lock h4 { margin: 0 0 8px; color: var(--yellow); }
+.robot-lock-body { margin: 0 0 12px; font-size: 16px; line-height: 1.5; }
+.robot-lock-leds { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; }
+.robot-lock-leds .arr { opacity: .7; font-weight: 700; }
+.leds { display: inline-grid; grid-template-columns: repeat(5, 8px); gap: 2px; padding: 5px; background: #0b0b10; border: 2px solid #000; border-radius: 5px; }
+.leds i { width: 8px; height: 8px; border-radius: 2px; background: #2a1515; }
+.leds i.on { background: #ff3b2f; box-shadow: 0 0 4px #ff3b2f; }
+.robot-lock .leds { animation: robot-lock-pulse 1s steps(2, jump-none) infinite; }
+@media (prefers-reduced-motion: reduce) { .robot-lock .leds { animation: none; } }
+@keyframes robot-lock-pulse { 50% { opacity: .35; } }
 .robot-steps { text-align: left; max-width: 30em; margin: 0 auto; padding-left: 1.6em; font-size: 16px; line-height: 1.5; }
 .robot-steps li { margin-bottom: 8px; }
 .robot-steps[hidden], #robot-steps-title[hidden] { display: none; }
