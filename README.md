@@ -22,6 +22,15 @@ Once installed (or after one visit), it also works offline.
 
 ## Ways to play
 
+- **Storybook**: a picture book for the youngest players, *Roversa's Big
+  Adventure*. In three short chapters (Duck Pond, Roversa Island, Under the Sea)
+  Roversa drives along one dotted path through each world, finds each puzzle
+  piece and meets the characters. The child taps the one glowing thing: a puzzle
+  piece pops up big and Roversa does what it says. Every move joins the
+  **Algorithm** row under the map, so by the end of a world the row shows exactly
+  how Roversa got there. Storybook offers read-aloud when it opens (it stays off
+  unless the player says yes). The last page leads into Meet Roversa. The pages
+  live in [`js/story.js`](js/story.js) (`#story=5` opens page 5 for testing).
 - **Adventures**: starts with **Meet Roversa**, a guided tutorial where a pointing
   hand shows which end is Roversa's front and how puzzle pieces line up into an
   algorithm. It opens on its own the first time. Then ten short levels introduce
