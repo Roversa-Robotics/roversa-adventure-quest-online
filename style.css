@@ -607,6 +607,11 @@ button.pic:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px
 .net-setup .note { font-size: 14px; color: var(--muted); }
 .invite { margin-top: 18px; padding-top: 12px; border-top: 2px dashed var(--edge); }
 .invite .menu.row { gap: 8px; }
+.qr-box { display: flex; justify-content: center; margin: 8px 0; }
+.qr-box .qr {
+  width: min(260px, 70vw); height: auto; image-rendering: pixelated;
+  border: 3px solid var(--edge); border-radius: 8px;
+}
 .invite-text {
   width: 100%; margin-top: 8px; padding: 8px; font-family: var(--mono); font-size: 12px;
   background: var(--panel); color: inherit; border: 3px solid var(--edge); border-radius: 8px; resize: none;

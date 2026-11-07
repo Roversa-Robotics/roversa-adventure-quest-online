@@ -3876,6 +3876,8 @@
       '<span class="btn-icon" aria-hidden="true">&#128203;</span> <span>' + tr('net.copyInvite') + '</span></button>' +
       (navigator.share ? '<button class="btn purple" id="btn-net-share" type="button">' +
         '<span class="btn-icon" aria-hidden="true">&#128228;</span> <span>' + tr('net.shareInvite') + '</span></button>' : '') +
+      (window.qrcode ? '<button class="btn gray" id="btn-net-qr" type="button">' +
+        '<span class="btn-icon" aria-hidden="true">&#9638;</span> <span>' + tr('net.showQr') + '</span></button>' : '') +
       '</div><p class="note invite-done" role="status" aria-live="polite"></p>' +
       '<textarea class="invite-text" readonly hidden rows="5" aria-label="' + tr('net.copyInvite') + '"></textarea></div>';
   }
@@ -3920,6 +3922,37 @@
       // Closing the share sheet is fine; a browser that refuses to share copies instead.
       navigator.share({ text: inviteText(net.code) }).catch((e) => { if (!e || e.name !== 'AbortError') copyInvite(); });
     });
+    const qr = $('#btn-net-qr');
+    if (qr) qr.addEventListener('click', () => { SND.tap(); netShowQr(net); });
+  }
+
+  // The invite link as a QR code, drawn with one canvas pixel per square so it
+  // stays sharp at any size. A camera that reads it opens the invite link.
+  function qrCanvas(text) {
+    const qr = window.qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    const n = qr.getModuleCount(), quiet = 4;
+    const c = document.createElement('canvas');
+    c.width = c.height = n + quiet * 2;
+    const g = c.getContext('2d');
+    g.fillStyle = '#ffffff';
+    g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = '#000000';
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (qr.isDark(y, x)) g.fillRect(x + quiet, y + quiet, 1, 1);
+    c.className = 'qr';
+    c.setAttribute('role', 'img');
+    c.setAttribute('aria-label', tr('net.qrLabel'));
+    return c;
+  }
+
+  function netShowQr(net) {
+    netModal({
+      title: tr('net.qrTitle'),
+      html: '<p>' + tr('net.qrText') + '</p><div class="qr-box"></div>' + '<p class="note">' + tr('net.qrPics') + '</p>' + codeHtml(net.code),
+      buttons: [{ act: 'ok', color: 'blue', label: tr('net.qrDone') }],
+    });
+    $('#modal-body .qr-box').appendChild(qrCanvas(inviteLink(net.code)));
   }
 
   // Opened from an invite link: join that game.
