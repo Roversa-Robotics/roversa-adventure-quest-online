@@ -3968,6 +3968,8 @@
   // ---------- Start ----------
 
   const titleRobot = $('#title-robot');
+  // The home screen buttons show the game's own art: the duck, the die and Roversa.
+  $('#menu-die').innerHTML = dieSvg('die-icon');
   requestAnimationFrame(drawFrame);
 
   // Handy for testing: index.html#level=3 or #quest=2 jumps straight in (#level=0 is the tutorial).
@@ -3991,6 +3993,7 @@
   window.addEventListener('hashchange', openFromHash);
   SP.ready.then(() => {
     titleRobot.getContext('2d').drawImage(SP.smileyRobot(), 0, 0);
+    $('#menu-robot').getContext('2d').drawImage(SP.smileyRobot(), 0, 0);
     const linked = openFromHash();
     // A page refreshed during a game on several devices rejoins it.
     const saved = !linked && NET.available() && !location.hash && NET.saved();
