@@ -49,13 +49,13 @@
       <p class="tagline" data-i18n="title.tagline">Choose a game. Create algorithms. Guide Roversa on a treasure-filled adventure!</p>
       <div class="menu">
         <button class="btn big green" data-go="levels">
-          <span class="btn-icon" aria-hidden="true">&#9733;</span> <span data-i18n="menu.adventures">Adventures</span>
+          <img class="menu-icon" src="assets/sprites/goal-duck.png?v=__BUILD__" alt="" width="32" height="32"> <span data-i18n="menu.adventures">Adventures</span>
         </button>
         <button class="btn big blue" data-go="quest-setup">
-          <span class="btn-icon" aria-hidden="true">&#9856;</span> <span data-i18n="menu.quest">Dice Quest</span>
+          <span id="menu-die" class="menu-icon" aria-hidden="true"></span> <span data-i18n="menu.quest">Dice Quest</span>
         </button>
         <button class="btn big purple" data-go="robot">
-          <span class="btn-icon" aria-hidden="true">&#129302;</span> <span data-i18n="menu.robot">Roversa Robot</span>
+          <canvas id="menu-robot" class="menu-icon" width="32" height="32" aria-hidden="true"></canvas> <span data-i18n="menu.robot">Roversa Robot</span>
         </button>
       </div>
       <button id="btn-install" class="btn install-btn" type="button" hidden>

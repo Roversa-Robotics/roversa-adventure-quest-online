@@ -133,6 +133,10 @@ h1 .logo { width: min(420px, 86vw); height: auto; }
 h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .tagline { font-size: 18px; color: var(--muted); line-height: 1.5; }
 .menu { display: flex; flex-direction: column; gap: 16px; margin: 28px auto; max-width: 320px; }
+.title-wrap > .menu { max-width: 360px; }
+.title-wrap > .menu > .btn.big { padding-left: 12px; padding-right: 12px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.menu-icon { display: block; width: 40px; height: 40px; margin: -8px 0; flex: none; image-rendering: pixelated; }
+.menu-icon .die-icon { display: block; width: 100%; height: 100%; margin: 0; }
 .menu.row { flex-direction: row; flex-wrap: wrap; justify-content: center; max-width: none; }
 .explore { font-size: 16px; line-height: 1.5; color: var(--muted); max-width: 34em; margin: 16px auto 6px; }
 /* Bright and bold: the one link on this screen that leaves the game. */
@@ -525,6 +529,8 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 @media (max-width: 420px) {
   :root { --piece: 54px; }
   .btn.big { font-size: 14px; padding: 14px 16px; }
+  .title-wrap > .menu > .btn.big { padding-left: 10px; padding-right: 10px; gap: 8px; }
+  .menu-icon { width: 36px; height: 36px; }
   .message { font-size: 16px; }
 }
 
