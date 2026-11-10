@@ -194,6 +194,14 @@ Open `index.html` in a browser, or serve the folder:
 python3 -m http.server 8000
 ```
 
+Links to the three main screens: `#adventures`, `#dice-quest` and
+`#roversa-robot` (for example
+https://roversa-robotics.github.io/roversa-adventure-quest-online/#roversa-robot)
+open that screen, the same as tapping its button on the title screen. The
+screen addresses work too (`.../adventures`, `.../dice-quest`,
+`.../roversa-robot`): `404.html` sends them to the matching `#` link.
+roversa.com links to these.
+
 Shortcuts for testing: `index.html#level=3` opens level 3, `index.html#quest=2`
 starts a two-player Dice Quest, `index.html?relay=local` turns on
 **Play on 2-4 devices** between tabs of one browser, and `index.html#join-0123`

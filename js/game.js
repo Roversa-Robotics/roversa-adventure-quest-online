@@ -4007,6 +4007,9 @@
 
   // Handy for testing: index.html#level=3 or #quest=2 jumps straight in (#level=0 is the tutorial).
   // An invite link (#join-0123) joins that game. Returns true for one.
+  // Links from roversa.com: #adventures, #dice-quest and #roversa-robot open
+  // those three screens, the same as tapping their buttons on the title screen.
+  // 404.html turns the screen addresses (.../adventures etc.) into these.
   function openFromHash() {
     const join = /^#join-([0-7]{4})$/.exec(location.hash);
     if (join) {
@@ -4022,6 +4025,9 @@
     closeModal();
     if (hash.has('level')) startLevel(Math.max(0, Math.min(LEVELS.length - 1, Number(hash.get('level')) - FIRST_NUM)));
     else if (hash.has('quest')) startQuest(hash.get('quest') === '2' ? 2 : 1);
+    else if (hash.has('adventures')) { if (firstVisit()) startLevel(0); else show('levels'); }
+    else if (hash.has('dice-quest')) show('quest-setup');
+    else if (hash.has('roversa-robot')) show('robot');
   }
   window.addEventListener('hashchange', openFromHash);
   SP.ready.then(() => {
