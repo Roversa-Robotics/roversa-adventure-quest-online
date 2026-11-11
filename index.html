@@ -21,10 +21,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Bevan&family=Open+Sans:wght@400;600;700&family=Press+Start+2P&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=__BUILD__">
   <!-- Cloudflare Web Analytics: counts visits with no cookies and no personal
-       data (see README). Only on the real site, so previews and local copies
+       data (see README). Only on the real site (play.roversa.com, and the old
+       github.io address until it redirects), so previews and local copies
        aren't counted. -->
   <script>
-    if (location.hostname === 'roversa-robotics.github.io') {
+    if (['play.roversa.com', 'roversa-robotics.github.io'].indexOf(location.hostname) >= 0) {
       var cf = document.createElement('script');
       cf.defer = true;
       cf.src = 'https://static.cloudflareinsights.com/beacon.min.js';

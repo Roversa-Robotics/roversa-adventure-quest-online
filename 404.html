@@ -6,15 +6,19 @@
   <!-- Each game screen has its own address for visitor counts (see README).
        Refreshing or sharing one lands here. The three main screens
        (adventures, dice-quest, roversa-robot) reopen that screen; any other
-       address goes back to the game's start. -->
+       address goes back to the game's start.
+       On play.roversa.com the game is at the root (/level-3); on GitHub Pages
+       it is in a folder (/roversa-adventure-quest-online/level-3). -->
   <script>
     var parts = location.pathname.split('/');
-    var screen = parts[2] || '';
+    var inFolder = /\.github\.io$/.test(location.hostname);
+    var base = inFolder ? '/' + parts[1] + '/' : '/';
+    var screen = (inFolder ? parts[2] : parts[1]) || '';
     var main = ['adventures', 'dice-quest', 'roversa-robot'].indexOf(screen) >= 0;
-    location.replace('/' + parts[1] + '/' + location.search + (main && !location.hash ? '#' + screen : location.hash));
+    location.replace(base + location.search + (main && !location.hash ? '#' + screen : location.hash));
   </script>
 </head>
 <body>
-  <p><a href="/roversa-adventure-quest-online/">Roversa Adventure Quest</a></p>
+  <p><a href="./">Roversa Adventure Quest</a></p>
 </body>
 </html>
