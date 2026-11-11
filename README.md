@@ -81,8 +81,11 @@ All on Cloudflare's free plan, with no credit card:
 3. In this repository, Settings > Secrets and variables > Actions:
    - Secrets: `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID`
      (from the Cloudflare dashboard).
-   - Variables: `RELAY_URL`, the relay's address, like
-     `https://roversa-quest-relay.<your-name>.workers.dev`.
+   - Variables: `RELAY_URL`, the relay's address: `https://relay.roversa.com`.
+     [`relay/wrangler.toml`](relay/wrangler.toml) gives the relay that address
+     (roversa.com must be on the same Cloudflare account), because school
+     networks that block GitHub may block `workers.dev` too. The relay's
+     `workers.dev` address also keeps working.
 4. Run Actions > **Dice Quest relay** > Run workflow (it also runs on every merge
    that changes `relay/`), then Actions > **Deploy to GitHub Pages** > Run
    workflow, so the game picks up `RELAY_URL`.
