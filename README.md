@@ -274,6 +274,26 @@ The roversa.com site links to the game through `www.roversa.com/play/`
 (`public/_redirects` in the website repository), so the game's address is in
 one place there.
 
+### Moving players from the old address
+
+Saved progress (stars, costume, language, sound) is kept separately for each
+address, and an installed app stays tied to the address it was installed from.
+So on the old github.io address, [`js/move.js`](js/move.js) shows a note at the
+top of the title screen: "Roversa Quest has a new home". Its **Take me there**
+button opens play.roversa.com with the player's progress in the link (after
+the `#`, so it never reaches a server), and the new address saves it, keeping
+the best stars from both. Players who installed the app can then install it
+again from play.roversa.com and remove the old one.
+
+Two steps, set by `RETIRED` in `js/move.js`:
+
+1. `RETIRED = false` (now): the old address still runs the game, with a note
+   players can close.
+2. `RETIRED = true` (after a few weeks): visitors with nothing saved go
+   straight to play.roversa.com, keeping the screen they asked for. Players
+   with saved progress, and the installed app, get the note with no close
+   button, so they can bring their progress along.
+
 ### GitHub Pages (old address)
 
 Settings > Pages > Build and deployment > Source: **GitHub Actions**.
