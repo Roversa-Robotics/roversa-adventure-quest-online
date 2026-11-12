@@ -1,6 +1,6 @@
 // Telling players about the new address.
 //
-// The game moved from roversa-robotics.github.io to play.roversa.com because
+// The game moved from roversa-robotics.github.io to quest.roversa.com because
 // many school networks block GitHub. An installed app stays tied to the
 // address it was installed from, so on the old address a note at the top of
 // the title screen says where the game is now and how to install it again.
@@ -15,7 +15,7 @@
   'use strict';
 
   const RETIRED = false;
-  const NEW_ORIGIN = 'https://play.roversa.com';
+  const NEW_ORIGIN = 'https://quest.roversa.com';
   const OLD_HOST = 'roversa-robotics.github.io';
   const CLOSED_KEY = 'roversa-moved-note-closed';
 

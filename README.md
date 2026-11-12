@@ -282,7 +282,7 @@ one place there.
 An installed app stays tied to the address it was installed from, and saved
 progress (stars, settings) stays with it too. So on the old github.io address,
 [`js/move.js`](js/move.js) shows a note at the top of the title screen:
-"Roversa Quest has moved to play.roversa.com. Installed the app? Open the new
+"Roversa Quest has moved to quest.roversa.com. Installed the app? Open the new
 address and install it again." Progress doesn't move with them.
 
 Two steps, set by `RETIRED` in `js/move.js`:
@@ -290,7 +290,7 @@ Two steps, set by `RETIRED` in `js/move.js`:
 1. `RETIRED = false` (now): the old address still runs the game, with a note
    players can close.
 2. `RETIRED = true` (after a few weeks): browser visitors go straight to
-   play.roversa.com, keeping the screen they asked for. The installed app
+   quest.roversa.com, keeping the screen they asked for. The installed app
    shows the note with no close button.
 
 ### GitHub Pages (old address)
