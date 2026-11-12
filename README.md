@@ -4,7 +4,7 @@ A browser game for all ages, based on the Roversa Adventure Quest classroom game
 from [Roversa Robotics](https://roversa.com). Line up Roversa puzzle pieces to build an
 algorithm, press **GO**, and watch the robot drive to every destination.
 
-**[▶ Play it now](https://play.roversa.com/)** at https://play.roversa.com
+**[▶ Play it now](https://quest.roversa.com/)** at https://quest.roversa.com
 
 Works on computers, tablets and phones. No build step: it is plain HTML, CSS
 and JavaScript.
@@ -199,7 +199,7 @@ python3 -m http.server 8000
 
 Links to the three main screens: `#adventures`, `#dice-quest` and
 `#roversa-robot` (for example
-https://play.roversa.com/#roversa-robot)
+https://quest.roversa.com/#roversa-robot)
 open that screen, the same as tapping its button on the title screen. The
 screen addresses work too (`.../adventures`, `.../dice-quest`,
 `.../roversa-robot`): `404.html` sends them to the matching `#` link.
@@ -254,13 +254,13 @@ the AI Opponent, so a stuck robot can never stop the game.
 
 ## Publishing
 
-The game's home is **https://play.roversa.com**, on Cloudflare Pages. It moved
+The game's home is **https://quest.roversa.com**, on Cloudflare Pages. It moved
 there from `roversa-robotics.github.io` because many school networks block
 GitHub. [`tools/build.sh`](tools/build.sh) builds it into `_site/`: it copies
 the files, replaces each `__BUILD__` in the HTML and JavaScript with the commit
 id, and fills in the relay address from `RELAY_URL`.
 
-### Cloudflare Pages (play.roversa.com)
+### Cloudflare Pages (quest.roversa.com)
 
 Every merge to `main` publishes the game, and every pull request gets its own
 preview address (Cloudflare posts it on the PR). The Pages project settings:
@@ -270,7 +270,7 @@ preview address (Cloudflare posts it on the PR). The Pages project settings:
 - Build command: `bash tools/build.sh`. Build output directory: `_site`.
 - Environment variable (Production and Preview): `RELAY_URL`, the same relay
   address as the GitHub variable below.
-- Custom domains: `play.roversa.com`.
+- Custom domains: `quest.roversa.com`.
 
 [`_headers`](_headers) keeps the `*.pages.dev` copies out of search engines.
 The roversa.com site links to the game through `www.roversa.com/play/`
@@ -291,7 +291,7 @@ The game counts visits with [Cloudflare Web Analytics](https://www.cloudflare.co
 on the same Cloudflare account as the relay. It sets no cookies, stores nothing
 on the device, and doesn't identify or follow anyone. It only reports page views
 with the browser, device type and country. The counting script loads only on
-play.roversa.com (and the old github.io address), so PR previews and local
+quest.roversa.com (and the old github.io address), so PR previews and local
 copies aren't counted, and
 it skips quietly when an ad blocker or school filter blocks it (the game works
 the same). The game is one page, so on the real site each screen gets its own
