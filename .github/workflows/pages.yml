@@ -1,7 +1,7 @@
 # Publishes the game to GitHub Pages on every merge to main.
 # tools/build.sh stamps the commit id into the files (replacing __BUILD__), so
 # each release loads matching files and installed apps notice the update. The
-# same script builds the Cloudflare Pages copy at play.roversa.com. See README.
+# same script builds the Cloudflare Pages copy at quest.roversa.com. See README.
 name: Deploy to GitHub Pages
 
 on:
