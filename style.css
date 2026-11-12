@@ -171,7 +171,7 @@ h1 span { color: var(--yellow); text-shadow: 3px 3px 0 var(--edge); }
 .update-banner > span:first-child { font-family: system-ui, sans-serif; font-size: 18px; }
 .moved-note { margin-bottom: 16px; }
 .moved-note[hidden] { display: none; }
-.moved-go { display: inline-block; margin-top: 8px; padding: 10px 14px; font-size: 11px; line-height: 1.4; color: #fff; text-decoration: none; background: var(--brand-purple); }
+.moved-go { display: block; width: fit-content; margin-top: 8px; padding: 10px 14px; font-size: 11px; line-height: 1.4; color: #fff; text-decoration: none; background: var(--brand-purple); }
 .share-icon { vertical-align: -3px; margin: 0 2px; color: var(--yellow); }
 
 /* Top bar */
