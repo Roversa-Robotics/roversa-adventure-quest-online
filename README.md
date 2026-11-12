@@ -4,7 +4,7 @@ A browser game for all ages, based on the Roversa Adventure Quest classroom game
 from [Roversa Robotics](https://roversa.com). Line up Roversa puzzle pieces to build an
 algorithm, press **GO**, and watch the robot drive to every destination.
 
-**[▶ Play it now](https://roversa-robotics.github.io/roversa-adventure-quest-online/)** at https://roversa-robotics.github.io/roversa-adventure-quest-online/
+**[▶ Play it now](https://quest.roversa.com/)** at https://quest.roversa.com
 
 Works on computers, tablets and phones. No build step: it is plain HTML, CSS
 and JavaScript.
@@ -81,8 +81,11 @@ All on Cloudflare's free plan, with no credit card:
 3. In this repository, Settings > Secrets and variables > Actions:
    - Secrets: `CLOUDFLARE_API_TOKEN` (the token) and `CLOUDFLARE_ACCOUNT_ID`
      (from the Cloudflare dashboard).
-   - Variables: `RELAY_URL`, the relay's address, like
-     `https://roversa-quest-relay.<your-name>.workers.dev`.
+   - Variables: `RELAY_URL`, the relay's address: `https://relay.roversa.com`.
+     [`relay/wrangler.toml`](relay/wrangler.toml) gives the relay that address
+     (roversa.com must be on the same Cloudflare account), because school
+     networks that block GitHub may block `workers.dev` too. The relay's
+     `workers.dev` address also keeps working.
 4. Run Actions > **Dice Quest relay** > Run workflow (it also runs on every merge
    that changes `relay/`), then Actions > **Deploy to GitHub Pages** > Run
    workflow, so the game picks up `RELAY_URL`.
@@ -196,7 +199,7 @@ python3 -m http.server 8000
 
 Links to the three main screens: `#adventures`, `#dice-quest` and
 `#roversa-robot` (for example
-https://roversa-robotics.github.io/roversa-adventure-quest-online/#roversa-robot)
+https://quest.roversa.com/#roversa-robot)
 open that screen, the same as tapping its button on the title screen. The
 screen addresses work too (`.../adventures`, `.../dice-quest`,
 `.../roversa-robot`): `404.html` sends them to the matching `#` link.
@@ -249,14 +252,38 @@ robot that ends 3 turns in a row on the same square goes back to its start
 (`STAY_LIMIT` in [`js/engine.js`](js/engine.js)); the same rule holds for players and
 the AI Opponent, so a stuck robot can never stop the game.
 
-## Publishing on GitHub Pages
+## Publishing
+
+The game's home is **https://quest.roversa.com**, on Cloudflare Pages. It moved
+there from `roversa-robotics.github.io` because many school networks block
+GitHub. [`tools/build.sh`](tools/build.sh) builds it into `_site/`: it copies
+the files, replaces each `__BUILD__` in the HTML and JavaScript with the commit
+id, and fills in the relay address from `RELAY_URL`.
+
+### Cloudflare Pages (quest.roversa.com)
+
+Every merge to `main` publishes the game, and every pull request gets its own
+preview address (Cloudflare posts it on the PR). The Pages project settings:
+
+- Workers & Pages > Create > Pages > **Connect to Git**, this repository.
+- Production branch: `main`.
+- Build command: `bash tools/build.sh`. Build output directory: `_site`.
+- Environment variable (Production and Preview): `RELAY_URL`, the same relay
+  address as the GitHub variable below.
+- Custom domains: `quest.roversa.com`.
+
+[`_headers`](_headers) keeps the `*.pages.dev` copies out of search engines.
+The roversa.com site links to the game through `www.roversa.com/play/`
+(`public/_redirects` in the website repository), so the game's address is in
+one place there.
+
+### GitHub Pages (old address)
 
 Settings > Pages > Build and deployment > Source: **GitHub Actions**.
 
 Every merge to `main` runs [`.github/workflows/pages.yml`](.github/workflows/pages.yml),
-which publishes the game and replaces each `__BUILD__` in the HTML and
-JavaScript with the commit id. To publish again by hand: Actions > Deploy to
-GitHub Pages > Run workflow.
+which runs the same build and publishes it at the old github.io address. To
+publish again by hand: Actions > Deploy to GitHub Pages > Run workflow.
 
 ## Visitor counts
 
@@ -264,7 +291,8 @@ The game counts visits with [Cloudflare Web Analytics](https://www.cloudflare.co
 on the same Cloudflare account as the relay. It sets no cookies, stores nothing
 on the device, and doesn't identify or follow anyone. It only reports page views
 with the browser, device type and country. The counting script loads only on
-roversa-robotics.github.io, so PR previews and local copies aren't counted, and
+quest.roversa.com (and the old github.io address), so PR previews and local
+copies aren't counted, and
 it skips quietly when an ad blocker or school filter blocks it (the game works
 the same). The game is one page, so on the real site each screen gets its own
 address (`adventures`, `level-3`, `tutorial`, `dice-quest`, `dice-quest-play`,

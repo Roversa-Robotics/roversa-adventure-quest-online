@@ -4,9 +4,18 @@ name = "roversa-quest-relay"
 main = "worker.js"
 compatibility_date = "2025-09-01"
 
+# The relay's address: relay.roversa.com (roversa.com is on this Cloudflare
+# account), because school networks that block GitHub may block workers.dev
+# too. Deploying creates the address. The workers.dev address keeps working,
+# so games opened before the switch aren't cut off.
+workers_dev = true
+routes = [
+  { pattern = "relay.roversa.com", custom_domain = true }
+]
+
 # Only the game's own pages may open games (anyone else gets 403).
 [vars]
-ALLOWED_ORIGINS = "https://roversa-robotics.github.io,http://localhost:8000,http://127.0.0.1:8000"
+ALLOWED_ORIGINS = "https://quest.roversa.com,https://roversa-robotics.github.io,http://localhost:8000,http://127.0.0.1:8000"
 
 [[durable_objects.bindings]]
 name = "ROOMS"

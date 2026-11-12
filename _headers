@@ -1,0 +1,11 @@
+# Cloudflare Pages response headers (quest.roversa.com).
+# https://developers.cloudflare.com/pages/configuration/headers/
+# GitHub Pages ignores this file.
+
+# Keep the *.pages.dev copies of the game out of search engines, so they never
+# compete with quest.roversa.com. The roversa.com address isn't matched here.
+https://:project.pages.dev/*
+  X-Robots-Tag: noindex
+
+https://:version.:project.pages.dev/*
+  X-Robots-Tag: noindex

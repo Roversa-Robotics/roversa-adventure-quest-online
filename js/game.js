@@ -735,9 +735,10 @@
 
   // Visitor counts: the game is one page, so each screen gets its own address
   // (for example .../level-3), which Cloudflare Web Analytics counts as a page
-  // view. Only on the real site, where the counter runs. 404.html sends a
-  // refreshed or shared screen address back to the title screen.
-  const SITE_BASE = location.hostname === 'roversa-robotics.github.io'
+  // view. Only on the real site (quest.roversa.com, and the old github.io
+  // address), where the counter runs. 404.html sends a refreshed or shared
+  // screen address back to the title screen.
+  const SITE_BASE = ['quest.roversa.com', 'roversa-robotics.github.io'].indexOf(location.hostname) >= 0
     ? location.pathname.replace(/[^/]*$/, '') : null;
   function screenAddress(id) {
     if (id === 'levels') return 'adventures';
