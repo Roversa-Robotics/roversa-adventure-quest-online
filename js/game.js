@@ -2457,14 +2457,18 @@
     if (k >= 0) await ROBOT.waitStep(k);
   }
 
+  // The Bluetooth button in the header of the game and of the Roversa Robot
+  // screen. It turns green with a dot while a robot is connected.
   function syncRobotBtn() {
-    const btn = $('#btn-robot');
     const on = !!ROBOT && ROBOT.connected;
-    btn.hidden = !ROBOT || !ROBOT.supported || game.mode !== 'robot';
-    btn.classList.toggle('linked', on);
     const label = on ? tr('robot.disconnect', { name: ROBOT.info.name }) : (ROBOT && ROBOT.waiting) ? tr('rsetup.lock.cancel') : tr('robot.connect');
-    btn.setAttribute('aria-label', label);
-    btn.title = label;
+    [['#btn-robot', game.mode === 'robot'], ['#btn-robot-setup', true]].forEach(([sel, show]) => {
+      const btn = $(sel);
+      btn.hidden = !ROBOT || !ROBOT.supported || !show;
+      btn.classList.toggle('linked', on);
+      btn.setAttribute('aria-label', label);
+      btn.title = label;
+    });
   }
 
   // Opens the browser's device chooser. Resolves to the text to show: the
@@ -2578,6 +2582,15 @@
 
   if (ROBOT) {
     $('#btn-robot').addEventListener('click', toggleRobot);
+    $('#btn-robot-setup').addEventListener('click', async () => {
+      SND.tap();
+      if (ROBOT.waiting) { ROBOT.cancel(); return; }
+      robotSetupNote = null;
+      if (ROBOT.connected) { ROBOT.disconnect(); return; }
+      robotSetupNote = await connectRobot();
+      renderRobotSetup();
+      syncRobotBtn();
+    });
     ROBOT.on('lock', (ev) => {
       if ($('#screen-robot').classList.contains('active')) renderRobotSetup();
       syncRobotBtn();
